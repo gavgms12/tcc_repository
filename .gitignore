@@ -1,0 +1,11 @@
+# Camada Bronze (dados locais, preservamos apenas estrutura vazia)
+/data/bronze/
+!data/bronze/.gitkeep
+
+# Artefatos do Python
+__pycache__/
+*.py[cod]
+
+# Ambientes virtuais e variáveis de ambiente
+.env
+venv/
