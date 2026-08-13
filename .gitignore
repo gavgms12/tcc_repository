@@ -2,6 +2,10 @@
 /data/bronze/
 !data/bronze/.gitkeep
 
+# Camada Silver
+/data/silver/
+!data/silver/.gitkeep
+
 # Artefatos do Python
 __pycache__/
 *.py[cod]
