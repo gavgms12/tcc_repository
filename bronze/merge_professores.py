@@ -24,6 +24,8 @@ LIMIAR_SIMILARIDADE = 0.92
 class Professor:
     nome: str
     id_lattes: str | None = None
+    siape: str | None = None
+    url_portal_sigaa: str | None = None
     fontes: set[str] = field(default_factory=set)
 
 
@@ -86,6 +88,8 @@ def carregar_sigaa(caminho: Path) -> list[Professor]:
             Professor(
                 nome=normalizar_nome(item["nome"]),
                 id_lattes=extrair_id_lattes_de_url(item.get("enderecoLattes")),
+                siape=item.get("siape"),
+                url_portal_sigaa=item.get("urlPortalSigaa"),
                 fontes={"sigaa"},
             )
         )
@@ -143,6 +147,11 @@ def mesclar_professor(atual: Professor, novo: Professor) -> None:
         if "iesti" in novo.fontes:
             atual.id_lattes = novo.id_lattes
 
+    if novo.siape and not atual.siape:
+        atual.siape = novo.siape
+    if novo.url_portal_sigaa and not atual.url_portal_sigaa:
+        atual.url_portal_sigaa = novo.url_portal_sigaa
+
 
 def adicionar_ou_mesclar(
     professor: Professor,
@@ -176,7 +185,12 @@ def fazer_merge(sigaa: list[Professor], iesti: list[Professor]) -> list[Professo
 
 def salvar_json(professores: list[Professor], caminho: Path) -> None:
     dados = [
-        {"nome": professor.nome, "idLattes": professor.id_lattes}
+        {
+            "nome": professor.nome,
+            "idLattes": professor.id_lattes,
+            "siape": professor.siape,
+            "urlPortalSigaa": professor.url_portal_sigaa,
+        }
         for professor in professores
     ]
 

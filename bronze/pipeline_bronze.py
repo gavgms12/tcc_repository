@@ -17,6 +17,9 @@ SCRIPTLATTES_DIR = TCC_ROOT.parent / "scriptLattes"
 SCRIPTLATTES_CONFIG = SCRIPTLATTES_DIR / "exemplo" / "teste-02.config"
 
 SIGAA_JSON = BRONZE_DATA / "sigaa" / "professores.json"
+SIGAA_COMPONENTES_JSON = BRONZE_DATA / "sigaa" / "componentes.json"
+SIGAA_DOCENTES_JSON = BRONZE_DATA / "sigaa" / "docentes.json"
+SIGAA_VINCULOS_JSON = BRONZE_DATA / "sigaa" / "vinculos_professor_disciplina.json"
 IESTI_JSON = BRONZE_DATA / "iesti_site" / "professores.json"
 MERGED_JSON = BRONZE_DATA / "merged" / "professores.json"
 LISTA = BRONZE_DATA / "lista" / "professores.list"
@@ -33,6 +36,17 @@ def executar_etapa(nome: str, comando: list[str], cwd: Path | None = None) -> No
 
 def contar_com_lattes_sigaa(dados: list[dict]) -> int:
     return sum(1 for item in dados if item.get("enderecoLattes"))
+
+
+def contar_com_siape(dados: list[dict]) -> int:
+    return sum(1 for item in dados if item.get("siape"))
+
+
+def carregar_payload_sigaa(caminho: Path) -> dict:
+    if not caminho.exists():
+        return {}
+    with caminho.open(encoding="utf-8") as arquivo:
+        return json.load(arquivo)
 
 
 def contar_com_lattes_iesti(dados: list[dict]) -> int:
@@ -64,6 +78,9 @@ def gerar_relatorio() -> str:
     agora = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
 
     sigaa = carregar_json(SIGAA_JSON)
+    componentes = carregar_payload_sigaa(SIGAA_COMPONENTES_JSON)
+    docentes_sigaa = carregar_payload_sigaa(SIGAA_DOCENTES_JSON)
+    vinculos_sigaa = carregar_payload_sigaa(SIGAA_VINCULOS_JSON)
     iesti = carregar_json(IESTI_JSON)
     merged = carregar_json(MERGED_JSON)
 
@@ -81,7 +98,11 @@ def gerar_relatorio() -> str:
         "",
         "1. FONTES BRUTAS",
         f"   SIGAA:      {len(sigaa):>3} professores | {contar_com_lattes_sigaa(sigaa):>3} com link Lattes",
+        f"               {contar_com_siape(sigaa):>3} com siape",
         f"   IESTI site: {len(iesti):>3} professores | {contar_com_lattes_iesti(iesti):>3} com idLattes",
+        f"   Componentes SIGAA: {componentes.get('total', 0):>3}",
+        f"   Docentes SIGAA:    {docentes_sigaa.get('total', 0):>3}",
+        f"   Vínculos prof./disc.: {vinculos_sigaa.get('total', 0):>3}",
         "",
         "2. CADASTRO MESCLADO",
         f"   Total:      {len(merged):>3} professores",
@@ -150,6 +171,17 @@ def main() -> None:
         help="Não executa o scriptLattes (útil para atualizar apenas scraping/merge).",
     )
     parser.add_argument(
+        "--com-ementa",
+        action="store_true",
+        help="Busca ementa de todos os componentes curriculares (mais lento).",
+    )
+    parser.add_argument(
+        "--limite-docentes",
+        type=int,
+        default=0,
+        help="Limita coleta detalhada de docentes no SIGAA (0 = todos).",
+    )
+    parser.add_argument(
         "--config",
         type=Path,
         default=SCRIPTLATTES_CONFIG,
@@ -161,8 +193,23 @@ def main() -> None:
 
     if not args.skip_scraping:
         executar_etapa("Scraping SIGAA", [python, "scrape_professores_sigaa.py"])
+
+        comando_componentes = [python, "scrape_sigaa_componentes.py"]
+        if args.com_ementa:
+            comando_componentes.append("--com-ementa")
+        executar_etapa("Componentes SIGAA", comando_componentes)
+
+        comando_docentes = [python, "scrape_sigaa_docente.py"]
+        if args.limite_docentes > 0:
+            comando_docentes.extend(["--limite", str(args.limite_docentes)])
+        executar_etapa("Docentes SIGAA", comando_docentes)
+
         executar_etapa("Scraping IESTI", [python, "scrape_professores_iesti.py"])
         executar_etapa("Merge", [python, "merge_professores.py"])
+        executar_etapa(
+            "Vincular disciplinas",
+            [python, "vincular_disciplinas.py", "--buscar-ementa-vinculadas"],
+        )
         executar_etapa("Gerar .list", [python, "lista_lattes/gerar_lista_scriptlattes.py"])
 
     if not args.skip_lattes:

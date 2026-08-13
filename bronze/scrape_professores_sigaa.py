@@ -9,52 +9,28 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
-from bs4 import BeautifulSoup
+from sigaa_utils import (
+    BASE_URL,
+    DEPARTAMENTO_ID,
+    buscar_html,
+    criar_sessao,
+    limpar_nome,
+    normalizar_texto,
+    url_absoluta,
+    validar_endereco_lattes,
+)
 
 DEFAULT_URL = (
-    "https://sigaa.unifei.edu.br/sigaa/public/departamento/professores.jsf?id=127"
+    f"{BASE_URL}/sigaa/public/departamento/professores.jsf?id={DEPARTAMENTO_ID}"
 )
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-TAMANHO_ID_LATTES = len("8122238750933560")
-ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
-
-
-def normalizar_texto(texto: str) -> str:
-    return re.sub(r"\s+", " ", texto).strip()
-
-
-def limpar_nome(nome: str) -> str:
-    return re.sub(
-        r"\s*\((?:DOUTOR|MESTRE)\)\s*$",
-        "",
-        nome,
-        flags=re.IGNORECASE,
-    ).strip()
-
-
-def extrair_id_lattes(url: str) -> str | None:
-    match = ID_LATTES_NUMERICO.search(url)
-    return match.group(1) if match else None
-
-
-def id_lattes_valido(id_lattes: str) -> bool:
-    return id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES
-
-
-def validar_endereco_lattes(url: str | None) -> str | None:
-    if not url:
-        return None
-
-    id_lattes = extrair_id_lattes(url)
-    if id_lattes is None or not id_lattes_valido(id_lattes):
-        return None
-
-    return url
+SIAPE_RE = re.compile(r"siape=(\d+)", re.IGNORECASE)
 
 
 def extrair_professores(html: str) -> list[dict[str, str | None]]:
+    from bs4 import BeautifulSoup
+
     soup = BeautifulSoup(html, "html.parser")
     professores: list[dict[str, str | None]] = []
 
@@ -70,30 +46,25 @@ def extrair_professores(html: str) -> list[dict[str, str | None]]:
             lattes_el["href"].strip() if lattes_el else None
         )
 
+        portal_el = celula.select_one('span.pagina a[href*="portal.jsf"]')
+        siape: str | None = None
+        url_portal: str | None = None
+        if portal_el and portal_el.get("href"):
+            href = portal_el["href"].strip()
+            match = SIAPE_RE.search(href)
+            siape = match.group(1) if match else None
+            url_portal = url_absoluta(href)
+
         professores.append(
             {
                 "nome": nome,
+                "siape": siape,
+                "urlPortalSigaa": url_portal,
                 "enderecoLattes": endereco_lattes,
             }
         )
 
     return professores
-
-
-def buscar_html(url: str, timeout: int = 30) -> str:
-    response = requests.get(
-        url,
-        timeout=timeout,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; "
-                "+https://sigaa.unifei.edu.br)"
-            )
-        },
-    )
-    response.raise_for_status()
-    response.encoding = response.apparent_encoding or "utf-8"
-    return response.text
 
 
 def salvar_json(dados: list[dict[str, str | None]], caminho: Path) -> None:
@@ -105,7 +76,7 @@ def salvar_json(dados: list[dict[str, str | None]], caminho: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Extrai nome e enderecoLattes dos professores do SIGAA."
+        description="Extrai professores do SIGAA com siape, portal e Lattes."
     )
     parser.add_argument("--url", default=DEFAULT_URL, help="URL da página do departamento.")
     parser.add_argument(
@@ -116,7 +87,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    html = buscar_html(args.url)
+    session = criar_sessao()
+    html = buscar_html(session, args.url)
     professores = extrair_professores(html)
 
     if not professores:
@@ -125,7 +97,10 @@ def main() -> None:
     salvar_json(professores, args.output)
 
     com_lattes = sum(1 for professor in professores if professor["enderecoLattes"])
-    print(f"Extraídos {len(professores)} professores ({com_lattes} com Lattes).")
+    com_siape = sum(1 for professor in professores if professor["siape"])
+    print(f"Extraídos {len(professores)} professores.")
+    print(f"  Com siape:  {com_siape}")
+    print(f"  Com Lattes: {com_lattes}")
     print(f"Arquivo salvo em: {args.output}")
     print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
 
