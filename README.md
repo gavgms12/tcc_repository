@@ -41,8 +41,10 @@ SIGAA + site IESTI          scriptLattes (CNPq)
 | Componentes curriculares | `bronze/scrape_sigaa_componentes.py` | Catálogo de disciplinas do instituto (~1245) |
 | Detalhes por docente | `bronze/scrape_sigaa_docente.py` | Perfil, disciplinas, produção e projetos no SIGAA |
 | Professores IESTI | `bronze/scrape_professores_iesti.py` | Nome e id Lattes do site do instituto |
+| Trabalhos Iniciação Científica | `bronze/scrape_trabalhos_ic.py` | Périodicos de Iniciação Científica|
 | Merge | `bronze/merge_professores.py` | Unifica SIGAA + IESTI (fuzzy match de nomes) |
-| Vínculos | `bronze/vincular_disciplinas.py` | Liga professores às disciplinas + ementa |
+| Vínculos disciplinas | `bronze/vincular_disciplinas.py` | Liga professores às disciplinas + ementa |
+| Vínculos iniciação científica| `bronze/vincular_ics.py` | Liga professores às iniciações científica + palavras-chaves |
 | Lista Lattes | `bronze/lista_lattes/gerar_lista_scriptlattes.py` | Gera `.list` para o scriptLattes |
 | Pipeline | `bronze/pipeline_bronze.py` | Executa todas as etapas acima em sequência |
 
@@ -52,6 +54,8 @@ SIGAA + site IESTI          scriptLattes (CNPq)
 - [SIGAA — páginas públicas por docente](https://sigaa.unifei.edu.br/sigaa/public/docente/portal.jsf)
 - Site do IESTI
 - Currículos Lattes via [scriptLattes](https://github.com/jpmenachalco/scriptLattes) (repositório externo)
+- - [Site de periódicos UNIFEI](https://periodicos.unifei.edu.br/index.php/rtic/issue/archive)
+
 
 ### Silver — dados tratados
 
@@ -75,6 +79,7 @@ tcc_code/
 │   │   ├── iesti_site/
 │   │   ├── merged/          # cadastro unificado
 │   │   ├── lista/           # professores.list
+│   │   ├── periodicos/      # trabalhos iniciação científica
 │   │   └── lattes/json/     # currículos baixados
 │   └── silver/
 │       └── docentes/        # um JSON por id Lattes
@@ -143,8 +148,11 @@ python scrape_sigaa_docente.py
 
 # 2. Coletar site IESTI e mesclar fontes
 python scrape_professores_iesti.py
+python scrape_trabalhos_ic.py
 python merge_professores.py
 python vincular_disciplinas.py --buscar-ementa-vinculadas
+python vincular_ics.py --buscar-ics-vinculada
+
 
 # 3. Gerar lista e baixar currículos (no scriptLattes)
 python lista_lattes/gerar_lista_scriptlattes.py
@@ -181,6 +189,7 @@ python transformar_lattes.py
 | `data/bronze/sigaa/componentes.json` | Catálogo de disciplinas do instituto |
 | `data/bronze/sigaa/docentes.json` | Perfil completo por docente no SIGAA |
 | `data/bronze/sigaa/vinculos_professor_disciplina.json` | Professor ↔ disciplinas + ementa |
+| `data/bronze/periodicos/trabalhos.json` | Catálogo de trabalhos de iniciação cientifica |
 | `data/bronze/merged/professores.json` | Cadastro unificado (SIGAA + IESTI + vínculos) |
 | `data/bronze/relatorio_qualidade.txt` | Resumo de cobertura e lacunas |
 | `data/silver/docentes/{id_lattes}.json` | Perfil limpo a partir do Lattes |
@@ -207,5 +216,5 @@ python transformar_lattes.py
 
 ## Próximos passos (planejado)
 - Limitar buscar as disciplinas de 2022 pra frente para que as disciplinas mais antigas não enfluenciem
-- Merge Silver: integrar dados SIGAA (disciplinas, perfil) com os perfis Lattes
+- Merge Silver: integrar dados SIGAA (disciplinas, perfil, ics) com os perfis Lattes
 - Camada Gold: embeddings e busca por especialistas

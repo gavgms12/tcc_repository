@@ -142,7 +142,7 @@ def main() -> None:
         merged = carregar_json(args.merged)
         enriquecer_merged_com_trabalhos(merged, trabalhos_vinculados)
         salvar_json(merged, args.merged)
-        print(f"Cadastro mesclado enriquecido com trabalhos de IC em: {args.merged}")
+        print(f"Professores + trabalhos de iniciação científica em: {args.merged}")
 
     com_professor = sum(1 for t in trabalhos_vinculados if t["professoresVinculados"])
     print(f"Trabalhos processados: {len(trabalhos_vinculados)} ({com_professor} vinculados a algum professor).")
