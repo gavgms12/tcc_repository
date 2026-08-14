@@ -20,7 +20,9 @@ SIGAA_JSON = BRONZE_DATA / "sigaa" / "professores.json"
 SIGAA_COMPONENTES_JSON = BRONZE_DATA / "sigaa" / "componentes.json"
 SIGAA_DOCENTES_JSON = BRONZE_DATA / "sigaa" / "docentes.json"
 SIGAA_VINCULOS_JSON = BRONZE_DATA / "sigaa" / "vinculos_professor_disciplina.json"
+VINCULOS_ICS = BRONZE_DATA / "periodicos" / "trabalhos_vinculados.json"
 IESTI_JSON = BRONZE_DATA / "iesti_site" / "professores.json"
+PERIODICOS_JSON = BRONZE_DATA / "periodicos" / "trabalhos_ic.json"
 MERGED_JSON = BRONZE_DATA / "merged" / "professores.json"
 LISTA = BRONZE_DATA / "lista" / "professores.list"
 LATTES_JSON_DIR = BRONZE_DATA / "lattes" / "json"
@@ -102,6 +104,7 @@ def gerar_relatorio() -> str:
         f"   IESTI site: {len(iesti):>3} professores | {contar_com_lattes_iesti(iesti):>3} com idLattes",
         f"   Componentes SIGAA: {componentes.get('total', 0):>3}",
         f"   Docentes SIGAA:    {docentes_sigaa.get('total', 0):>3}",
+        f"   Trabalhos IC: {componentes.get('total', 0):>3}",
         f"   Vínculos prof./disc.: {vinculos_sigaa.get('total', 0):>3}",
         "",
         "2. CADASTRO MESCLADO",
@@ -205,11 +208,16 @@ def main() -> None:
         executar_etapa("Docentes SIGAA", comando_docentes)
 
         executar_etapa("Scraping IESTI", [python, "scrape_professores_iesti.py"])
+        executar_etapa("Scraping periodicos", [python, "scrape_trabalhos_ic.py"])
         executar_etapa("Merge", [python, "merge_professores.py"])
         executar_etapa(
             "Vincular disciplinas",
             [python, "vincular_disciplinas.py", "--buscar-ementa-vinculadas"],
         )
+        executar_etapa(
+                    "Vincular trabalhos Iniciação Científica",
+                    [python, "vincular_ics.py", "--buscar-ics-vinculadas"],
+                )
         executar_etapa("Gerar .list", [python, "lista_lattes/gerar_lista_scriptlattes.py"])
 
     if not args.skip_lattes:
