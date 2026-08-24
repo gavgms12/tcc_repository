@@ -7,7 +7,7 @@ db = mongoClient['TCC']
 collection = db['Docentes']
 
 ROOT_DIR = Path(__file__).resolve().parent
-caminho_json = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
+caminho_json = ROOT_DIR / "data" / "silver" / "merged" / "professores_unificados.json"
 
 with open(caminho_json, encoding="utf-8") as f:
     file_data = json.load(f)
