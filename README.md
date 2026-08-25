@@ -165,6 +165,7 @@ Após ter os JSONs do Lattes na Bronze:
 ```bash
 cd silver
 python transformar_lattes.py
+python unir_lattes_sigaa.py
 ```
 
 ---
