@@ -151,7 +151,7 @@ python scrape_professores_iesti.py
 python scrape_trabalhos_ic.py
 python merge_professores.py
 python vincular_disciplinas.py --buscar-ementa-vinculadas
-python vincular_ics.py --buscar-ics-vinculada
+python vincular_ics.py --buscar-ics-vinculadas
 
 
 # 3. Gerar lista e baixar currículos (no scriptLattes)
