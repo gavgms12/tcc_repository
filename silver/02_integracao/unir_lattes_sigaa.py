@@ -3,10 +3,23 @@ import unicodedata
 import json 
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_LATTES = ROOT_DIR / "data" / "silver" / "docentes"
-DEFAULT_INPUT_SITE =  ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
+DEFAULT_INPUT_SITE_CANDIDATES = [
+    ROOT_DIR / "data" / "bronze" / "merged" / "professores_sigaa_iesti_merged.json",
+    ROOT_DIR / "data" / "bronze" / "merged" / "professores.json",
+]
 DEFAULT_OUTPUT = ROOT_DIR / "data" / "silver" / "professores_unificados.json"
+
+
+def resolver_input_site() -> Path:
+    for caminho in DEFAULT_INPUT_SITE_CANDIDATES:
+        if caminho.exists():
+            return caminho
+    raise FileNotFoundError(
+        "Arquivo mesclado da Bronze não encontrado. Esperado um de: "
+        + ", ".join(str(c) for c in DEFAULT_INPUT_SITE_CANDIDATES)
+    )
 
 def normalizar_titulo(titulo):
     titulo = re.sub(r'^[A-Z]{2,6}-?\d{2,6}-\d{2,4}\s*-\s*', '', titulo)
@@ -301,8 +314,9 @@ resultado = []
 # ver se resumo expandido ok em relação a ser considerado tambem ic
 
 # --- Carregar os dois arquivos ---
+DEFAULT_INPUT_SITE = resolver_input_site()
 with open(DEFAULT_INPUT_SITE, 'r', encoding='utf-8') as f:
-    dados_site = json.load(f)  
+    dados_site = json.load(f)
 
 for item in DEFAULT_INPUT_LATTES.iterdir(): 
     with open(item, 'r', encoding='utf-8') as f:

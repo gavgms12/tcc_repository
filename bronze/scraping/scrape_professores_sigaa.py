@@ -6,10 +6,17 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sigaa_utils import (
+ROOT_DIR = Path(__file__).resolve().parents[2]
+BRONZE_DIR = ROOT_DIR / "bronze"
+for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
+    if caminho not in sys.path:
+        sys.path.insert(0, caminho)
+
+from bronze.sigaa_utils import (
     BASE_URL,
     DEPARTAMENTO_ID,
     buscar_html,
@@ -23,8 +30,9 @@ from sigaa_utils import (
 DEFAULT_URL = (
     f"{BASE_URL}/sigaa/public/departamento/professores.jsf?id={DEPARTAMENTO_ID}"
 )
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
+RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
+LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
+DEFAULT_OUTPUT = RAW_OUTPUT
 SIAPE_RE = re.compile(r"siape=(\d+)", re.IGNORECASE)
 
 

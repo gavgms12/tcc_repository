@@ -5,11 +5,18 @@ import argparse
 import requests
 from bs4 import BeautifulSoup
 import re
+import sys
 from datetime import datetime, timezone
 import json
 import unicodedata
 from pathlib import Path
 import urllib3
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+BRONZE_DIR = ROOT_DIR / "bronze"
+for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
+    if caminho not in sys.path:
+        sys.path.insert(0, caminho)
 
 ano_limite = datetime.now().year - 4
 
@@ -19,8 +26,9 @@ secoes_alvo = {
 }
 
 DEFAULT_URL = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "periodicos" / "trabalhos_ic.json"
+RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "periodicos" / "trabalhos_ic_periodicos.json"
+LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "periodicos" / "trabalhos_ic.json"
+DEFAULT_OUTPUT = RAW_OUTPUT
 
 urls = []
 
@@ -40,7 +48,7 @@ def normalizar_nome(nome: str) -> str:
     nome = "".join(char for char in nome if not unicodedata.combining(char))
     return nome.upper()
 
-def buscar_html(url: str, timeout: int = 30, verify_ssl: bool = True) -> str:
+def buscar_html(url: str, timeout: int = 30, *, verify_ssl: bool = False) -> str:
     response = requests.get(
         url,
         timeout=timeout,
@@ -56,11 +64,11 @@ def buscar_html(url: str, timeout: int = 30, verify_ssl: bool = True) -> str:
     response.encoding = response.apparent_encoding or "utf-8"
     return response.text
 
-def get_urls_edicoes_ICS():
-    urls = []
+
+def get_urls_edicoes_ics(*, verify_ssl: bool = False) -> list[str]:
+    urls: list[str] = []
     url_arquivos = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
-    # adicionar lógica de pegar só até um determinado ano de IC 
-    html = buscar_html(url_arquivos)
+    html = buscar_html(url_arquivos, verify_ssl=verify_ssl)
     soup = BeautifulSoup(html, 'html.parser')
 
     edicoes_tags = soup.find_all('h2')
@@ -77,15 +85,13 @@ def get_urls_edicoes_ICS():
             else:
                 urls.append(url_tag)        
     return urls
-            # ---------------------
 
-urls = get_urls_edicoes_ICS()
 
-def extrair_trabalhos(urls: list[str]):
+def extrair_trabalhos(urls: list[str], *, verify_ssl: bool = False) -> list[dict]:
     trabalhos = []
 
     for url in urls:
-            html = buscar_html(url)
+            html = buscar_html(url, verify_ssl=verify_ssl)
             soup = BeautifulSoup(html, "html.parser")
                 
             # Obter informações de cada um dos trabalhos [titulo, autores e url] da página de IC
@@ -112,7 +118,7 @@ def extrair_trabalhos(urls: list[str]):
                             trabalho_autores = "Não informado"
                             # Ir até a página do trabalho e obter as palavras-chaves associadas
                             
-                        html_trabalho = buscar_html(trabalho_url)    
+                        html_trabalho = buscar_html(trabalho_url, verify_ssl=verify_ssl)
                         soup_trabalho = BeautifulSoup(html_trabalho, "html.parser")
                         palavras_chaves_tag = soup_trabalho.find_all('meta',  attrs={"name": "citation_keywords"})
                         for palavra_chave in palavras_chaves_tag:
@@ -135,15 +141,20 @@ def main() -> None:
         )
     parser.add_argument("--url", default=DEFAULT_URL, help="URL da página dos eventos de IC.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Arquivo JSON de saída.")
-    parser.add_argument("--verify-ssl", action="store_true", help="Valida o certificado SSL...")
-    
+    parser.add_argument(
+        "--verify-ssl",
+        action="store_true",
+        help="Valida o certificado SSL (desabilitado por padrão: certificado do site UNIFEI).",
+    )
+
     args = parser.parse_args()
-    
-    if not args.verify_ssl:
+    verify_ssl = args.verify_ssl
+
+    if not verify_ssl:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    urls = get_urls_edicoes_ICS()
-    print(urls)
-    trabalhos = extrair_trabalhos(urls)
+
+    urls = get_urls_edicoes_ics(verify_ssl=verify_ssl)
+    trabalhos = extrair_trabalhos(urls, verify_ssl=verify_ssl)
     
     if not trabalhos:
         raise RuntimeError("Nenhum trabalho encontrado. Verifique a estrutura da página.")

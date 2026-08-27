@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_ENTRADA = ROOT_DIR / "data" / "bronze" / "lattes" / "json"
 DEFAULT_SAIDA = ROOT_DIR / "data" / "silver" / "docentes"
 

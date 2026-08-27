@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pipeline completo da camada Bronze: scraping, merge, lista e scriptLattes."""
+"""Pipeline da camada Bronze: coleta os dados brutos das fontes públicas."""
 
 from __future__ import annotations
 
@@ -13,18 +13,15 @@ from pathlib import Path
 BRONZE_DIR = Path(__file__).resolve().parent
 TCC_ROOT = BRONZE_DIR.parent
 BRONZE_DATA = TCC_ROOT / "data" / "bronze"
-SCRIPTLATTES_DIR = TCC_ROOT.parent / "scriptLattes"
-SCRIPTLATTES_CONFIG = SCRIPTLATTES_DIR / "exemplo" / "teste-02.config"
-
-SIGAA_JSON = BRONZE_DATA / "sigaa" / "professores.json"
-SIGAA_COMPONENTES_JSON = BRONZE_DATA / "sigaa" / "componentes.json"
-SIGAA_DOCENTES_JSON = BRONZE_DATA / "sigaa" / "docentes.json"
-SIGAA_VINCULOS_JSON = BRONZE_DATA / "sigaa" / "vinculos_professor_disciplina.json"
-VINCULOS_ICS = BRONZE_DATA / "periodicos" / "trabalhos_vinculados.json"
-IESTI_JSON = BRONZE_DATA / "iesti_site" / "professores.json"
-PERIODICOS_JSON = BRONZE_DATA / "periodicos" / "trabalhos_ic.json"
-MERGED_JSON = BRONZE_DATA / "merged" / "professores.json"
-LISTA = BRONZE_DATA / "lista" / "professores.list"
+SIGAA_JSON = BRONZE_DATA / "raw" / "sigaa" / "professores_sigaa.json"
+SIGAA_COMPONENTES_JSON = BRONZE_DATA / "raw" / "sigaa" / "componentes_sigaa.json"
+SIGAA_DOCENTES_JSON = BRONZE_DATA / "raw" / "sigaa" / "docentes_sigaa.json"
+SIGAA_VINCULOS_JSON = BRONZE_DATA / "raw" / "sigaa" / "vinculos_professor_disciplina.json"
+VINCULOS_ICS = BRONZE_DATA / "raw" / "periodicos" / "trabalhos_vinculados.json"
+IESTI_JSON = BRONZE_DATA / "raw" / "iesti_site" / "professores_iesti_site.json"
+PERIODICOS_JSON = BRONZE_DATA / "raw" / "periodicos" / "trabalhos_ic_periodicos.json"
+MERGED_JSON = BRONZE_DATA / "merged" / "professores_sigaa_iesti_merged.json"
+LISTA = BRONZE_DATA / "lista" / "professores_lattes.list"
 LATTES_JSON_DIR = BRONZE_DATA / "lattes" / "json"
 RELATORIO = BRONZE_DATA / "relatorio_qualidade.txt"
 
@@ -83,6 +80,8 @@ def gerar_relatorio() -> str:
     componentes = carregar_payload_sigaa(SIGAA_COMPONENTES_JSON)
     docentes_sigaa = carregar_payload_sigaa(SIGAA_DOCENTES_JSON)
     vinculos_sigaa = carregar_payload_sigaa(SIGAA_VINCULOS_JSON)
+    vinculos_ics = carregar_payload_sigaa(VINCULOS_ICS)
+    periodicos = carregar_payload_sigaa(PERIODICOS_JSON)
     iesti = carregar_json(IESTI_JSON)
     merged = carregar_json(MERGED_JSON)
 
@@ -92,6 +91,21 @@ def gerar_relatorio() -> str:
     sem_lattes = [item["nome"] for item in merged if not item.get("idLattes")]
     faltando_json = sorted(ids_esperados - ids_json)
     extras_json = sorted(ids_json - ids_esperados)
+
+    total_trabalhos_ic = (
+        len(periodicos) if isinstance(periodicos, list) else periodicos.get("total", 0)
+    )
+    if isinstance(vinculos_ics, list):
+        total_vinculos_ics = sum(
+            1 for item in vinculos_ics if item.get("professoresVinculados")
+        )
+    elif isinstance(vinculos_ics, dict):
+        vinculos_lista = vinculos_ics.get("vinculos", vinculos_ics.get("trabalhos", []))
+        total_vinculos_ics = sum(
+            1 for item in vinculos_lista if item.get("professoresVinculados")
+        )
+    else:
+        total_vinculos_ics = 0
 
     linhas = [
         "RELATÓRIO DE QUALIDADE — CAMADA BRONZE",
@@ -104,8 +118,9 @@ def gerar_relatorio() -> str:
         f"   IESTI site: {len(iesti):>3} professores | {contar_com_lattes_iesti(iesti):>3} com idLattes",
         f"   Componentes SIGAA: {componentes.get('total', 0):>3}",
         f"   Docentes SIGAA:    {docentes_sigaa.get('total', 0):>3}",
-        f"   Trabalhos IC: {componentes.get('total', 0):>3}",
+        f"   Trabalhos IC: {total_trabalhos_ic:>3}",
         f"   Vínculos prof./disc.: {vinculos_sigaa.get('total', 0):>3}",
+        f"   Vínculos prof./IC:    {total_vinculos_ics:>3}",
         "",
         "2. CADASTRO MESCLADO",
         f"   Total:      {len(merged):>3} professores",
@@ -161,17 +176,36 @@ def salvar_relatorio(conteudo: str) -> None:
     print(f"Relatório salvo em: {RELATORIO}")
 
 
+def verificar_dependencias() -> None:
+    faltando: list[str] = []
+    try:
+        import requests  # noqa: F401
+    except ImportError:
+        faltando.append("requests")
+    try:
+        from bs4 import BeautifulSoup  # noqa: F401
+    except ImportError:
+        faltando.append("beautifulsoup4")
+    if faltando:
+        print(
+            "Dependências ausentes: "
+            + ", ".join(faltando)
+            + "\n\nAtive a venv do projeto (tcc_code/venv) e instale:\n"
+            "  cd tcc_code && source venv/bin/activate\n"
+            "  pip install -r bronze/requirements.txt\n\n"
+            "Não use a venv do scriptLattes para os scripts Bronze.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Executa o pipeline completo da camada Bronze.")
+    verificar_dependencias()
+    parser = argparse.ArgumentParser(description="Executa a coleta da camada Bronze.")
     parser.add_argument(
         "--skip-scraping",
         action="store_true",
-        help="Pula scraping e merge; usa arquivos já existentes.",
-    )
-    parser.add_argument(
-        "--skip-lattes",
-        action="store_true",
-        help="Não executa o scriptLattes (útil para atualizar apenas scraping/merge).",
+        help="Pula a coleta e usa os arquivos brutos já existentes.",
     )
     parser.add_argument(
         "--com-ementa",
@@ -184,61 +218,30 @@ def main() -> None:
         default=0,
         help="Limita coleta detalhada de docentes no SIGAA (0 = todos).",
     )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=SCRIPTLATTES_CONFIG,
-        help="Arquivo .config do scriptLattes.",
-    )
     args = parser.parse_args()
 
     python = sys.executable
 
     if not args.skip_scraping:
-        executar_etapa("Scraping SIGAA", [python, "scrape_professores_sigaa.py"])
+        executar_etapa("Scraping SIGAA", [python, "scraping/scrape_professores_sigaa.py"])
 
-        comando_componentes = [python, "scrape_sigaa_componentes.py"]
+        comando_componentes = [python, "scraping/scrape_sigaa_componentes.py"]
         if args.com_ementa:
             comando_componentes.append("--com-ementa")
         executar_etapa("Componentes SIGAA", comando_componentes)
 
-        comando_docentes = [python, "scrape_sigaa_docente.py"]
+        comando_docentes = [python, "scraping/scrape_sigaa_docente.py"]
         if args.limite_docentes > 0:
             comando_docentes.extend(["--limite", str(args.limite_docentes)])
         executar_etapa("Docentes SIGAA", comando_docentes)
 
-        executar_etapa("Scraping IESTI", [python, "scrape_professores_iesti.py"])
-        executar_etapa("Scraping periodicos", [python, "scrape_trabalhos_ic.py"])
-        executar_etapa("Merge", [python, "merge_professores.py"])
-        executar_etapa(
-            "Vincular disciplinas",
-            [python, "vincular_disciplinas.py", "--buscar-ementa-vinculadas"],
-        )
-        executar_etapa(
-                    "Vincular trabalhos Iniciação Científica",
-                    [python, "vincular_ics.py", "--buscar-ics-vinculadas"],
-                )
-        executar_etapa("Gerar .list", [python, "lista_lattes/gerar_lista_scriptlattes.py"])
+        executar_etapa("Scraping IESTI", [python, "scraping/scrape_professores_iesti.py"])
+        executar_etapa("Scraping periodicos", [python, "scraping/scrape_trabalhos_ic.py"])
 
-    if not args.skip_lattes:
-        venv_python = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
-        if not venv_python.exists():
-            raise FileNotFoundError(
-                f"venv do scriptLattes não encontrada em {venv_python}. "
-                "Execute 'make install' no repositório scriptLattes."
-            )
-
-        config = args.config.resolve()
-        if not config.is_file():
-            raise FileNotFoundError(f"Config não encontrado: {config}")
-
-        executar_etapa(
-            "scriptLattes",
-            [str(venv_python), str(SCRIPTLATTES_DIR / "scriptLattes.py"), str(config)],
-            cwd=SCRIPTLATTES_DIR,
-        )
-
-    salvar_relatorio(gerar_relatorio())
+    if MERGED_JSON.exists():
+        salvar_relatorio(gerar_relatorio())
+    else:
+        print("\nRelatório não gerado: o merge é executado na camada Silver.")
 
 
 if __name__ == "__main__":

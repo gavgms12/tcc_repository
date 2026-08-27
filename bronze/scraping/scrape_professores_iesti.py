@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,9 +15,16 @@ import requests
 import urllib3
 from bs4 import BeautifulSoup
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+BRONZE_DIR = ROOT_DIR / "bronze"
+for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
+    if caminho not in sys.path:
+        sys.path.insert(0, caminho)
+
 DEFAULT_URL = "https://iesti.unifei.edu.br/corpo-docente/"
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "iesti_site" / "professores.json"
+RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "iesti_site" / "professores_iesti_site.json"
+LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "iesti_site" / "professores.json"
+DEFAULT_OUTPUT = RAW_OUTPUT
 TAMANHO_ID_LATTES = len("8122238750933560")
 ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 

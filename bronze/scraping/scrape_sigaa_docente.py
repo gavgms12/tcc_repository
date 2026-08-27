@@ -6,12 +6,19 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 
-from sigaa_utils import (
+ROOT_DIR = Path(__file__).resolve().parents[2]
+BRONZE_DIR = ROOT_DIR / "bronze"
+for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
+    if caminho not in sys.path:
+        sys.path.insert(0, caminho)
+
+from bronze.sigaa_utils import (
     BASE_URL,
     buscar_html,
     criar_sessao,
@@ -20,9 +27,10 @@ from sigaa_utils import (
     url_absoluta,
 )
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_PROFESSORES = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "docentes.json"
+DEFAULT_PROFESSORES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
+LEGACY_PROFESSORES = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
+DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "docentes_sigaa.json"
+LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "docentes.json"
 ID_COMPONENTE_RE = re.compile(r"visualizarComponente/(\d+)")
 CATEGORIA_RE = re.compile(r"\s*\(\d+\)\s*$")
 
@@ -205,7 +213,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    professores = carregar_professores(args.professores)
+    professores_path = args.professores
+    if not professores_path.exists() and LEGACY_PROFESSORES.exists():
+        professores_path = LEGACY_PROFESSORES
+
+    professores = carregar_professores(professores_path)
     com_siape = [prof for prof in professores if prof.get("siape")]
     if args.limite > 0:
         com_siape = com_siape[: args.limite]

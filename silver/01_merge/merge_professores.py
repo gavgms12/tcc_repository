@@ -11,10 +11,13 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_SIGAA = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-DEFAULT_IESTI = ROOT_DIR / "data" / "bronze" / "iesti_site" / "professores.json"
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+LEGACY_SIGAA = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
+LEGACY_IESTI = ROOT_DIR / "data" / "bronze" / "iesti_site" / "professores.json"
+DEFAULT_SIGAA = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
+DEFAULT_IESTI = ROOT_DIR / "data" / "bronze" / "raw" / "iesti_site" / "professores_iesti_site.json"
+DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores_sigaa_iesti_merged.json"
+LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
 TAMANHO_ID_LATTES = len("8122238750933560")
 ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 LIMIAR_SIMILARIDADE = 0.92
@@ -210,10 +213,17 @@ def main() -> None:
     args = parser.parse_args()
 
     sigaa_path = args.sigaa
+    if not sigaa_path.exists() and LEGACY_SIGAA.exists():
+        sigaa_path = LEGACY_SIGAA
+
+    iesti_path = args.iesti
+    if not iesti_path.exists() and LEGACY_IESTI.exists():
+        iesti_path = LEGACY_IESTI
+
     if not sigaa_path.exists():
         raise FileNotFoundError(f"Arquivo SIGAA não encontrado: {sigaa_path}")
 
-    professores = fazer_merge(carregar_sigaa(sigaa_path), carregar_iesti(args.iesti))
+    professores = fazer_merge(carregar_sigaa(sigaa_path), carregar_iesti(iesti_path))
     salvar_json(professores, args.output)
 
     com_lattes = sum(1 for professor in professores if professor.id_lattes)

@@ -5,18 +5,22 @@ import argparse
 import requests
 from bs4 import BeautifulSoup
 import re
+import sys
 from datetime import datetime, timezone
 import json
 import unicodedata
 from pathlib import Path
 import urllib3
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DOCENTES = ROOT_DIR / "data" / "bronze" / "sigaa" / "docentes.json"
-DEFAULT_COMPONENTES = ROOT_DIR / "data" / "bronze" / "sigaa" / "componentes.json"
-DEFAULT_TRABALHOS_VINCULADOS = ROOT_DIR / "data" / "bronze" / "periodicos" / "trabalhos_vinculados.json"
-DEFAULT_TRABALHOS =  ROOT_DIR / "data" / "bronze" / "periodicos" / "trabalhos_ic.json"
-DEFAULT_MERGED =  ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+DEFAULT_DOCENTES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "docentes_sigaa.json"
+DEFAULT_COMPONENTES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "componentes_sigaa.json"
+DEFAULT_TRABALHOS_VINCULADOS = ROOT_DIR / "data" / "bronze" / "raw" / "periodicos" / "trabalhos_vinculados.json"
+DEFAULT_TRABALHOS = ROOT_DIR / "data" / "bronze" / "raw" / "periodicos" / "trabalhos_ic_periodicos.json"
+DEFAULT_MERGED = ROOT_DIR / "data" / "bronze" / "merged" / "professores_sigaa_iesti_merged.json"
 
 def normalizar_texto(texto: str) -> str:
     return re.sub(r"\s+", " ", texto).strip()

@@ -54,7 +54,7 @@ SIGAA + site IESTI          scriptLattes (CNPq)
 - [SIGAA — páginas públicas por docente](https://sigaa.unifei.edu.br/sigaa/public/docente/portal.jsf)
 - Site do IESTI
 - Currículos Lattes via [scriptLattes](https://github.com/jpmenachalco/scriptLattes) (repositório externo)
-- - [Site de periódicos UNIFEI](https://periodicos.unifei.edu.br/index.php/rtic/issue/archive)
+- [Site de periódicos UNIFEI](https://periodicos.unifei.edu.br/index.php/rtic/issue/archive)
 
 
 ### Silver — dados tratados
@@ -62,6 +62,7 @@ SIGAA + site IESTI          scriptLattes (CNPq)
 | Script | O que faz |
 |--------|-----------|
 | `silver/transformar_lattes.py` | Limpa os JSONs do Lattes e gera um perfil estruturado por docente |
+| `silver/unir_lattes_sigaa.py` | Unifica perfis Silver com dados SIGAA (disciplinas, TCC, IC) |
 
 Cada arquivo Silver contém: dados do docente, competências, produções, projetos, orientações e linhagem acadêmica.
 
@@ -71,34 +72,51 @@ Cada arquivo Silver contém: dados do docente, competências, produções, proje
 
 ```
 tcc_code/
-├── bronze/                  # scripts de scraping e integração
-├── silver/                  # scripts de transformação
+├── bronze/
+│   ├── scraping/            # coleta bruta: SIGAA, IESTI, periódicos, docentes, componentes
+│   ├── lattes/              # estrutura de saída da coleta do currículo Lattes
+│   ├── pipeline_bronze.py   # orquestração da camada Bronze
+│   └── requirements.txt
+├── silver/
+│   ├── 01_merge/            # merge SIGAA + IESTI e geração da lista para Lattes
+│   ├── 02_integracao/       # unificação com Lattes, vínculos e limpeza final
+│   ├── pipeline_silver.py   # orquestração da camada Silver
+│   ├── README.md
+│   └── ...
 ├── data/
 │   ├── bronze/
-│   │   ├── sigaa/           # professores, componentes, docentes, vínculos
-│   │   ├── iesti_site/
-│   │   ├── merged/          # cadastro unificado
-│   │   ├── lista/           # professores.list
-│   │   ├── periodicos/      # trabalhos iniciação científica
-│   │   └── lattes/json/     # currículos baixados
+│   │   ├── raw/
+│   │   │   ├── iesti_site/
+│   │   │   ├── sigaa/
+│   │   │   └── periodicos/
+│   │   ├── lattes/
+│   │   ├── merged/
+│   │   └── lista/
 │   └── silver/
-│       └── docentes/        # um JSON por id Lattes
+│       ├── base/
+│       ├── lista/
+│       ├── docentes/
+│       └── README.md
 └── README.md
 ```
 
-> Os dados em `data/` não vão para o Git (estão no `.gitignore`). Apenas a estrutura de pastas é versionada.
+> A camada Bronze fica restrita ao web scraping e à coleta bruta. A camada Silver assume os passos de merge, enriquecimento e limpeza. A Gold permanece fora do escopo neste momento.
 
 ---
 
 ## Pré-requisitos
 
 1. **Python 3.10+**
-2. Dependências Python:
+2. Ambiente virtual e dependências Python (Bronze/Silver):
 
 ```bash
-cd bronze
-pip install -r requirements.txt
+cd tcc_code
+python -m venv venv
+source venv/bin/activate   # Linux/macOS; no Windows: venv\Scripts\activate
+pip install -r bronze/requirements.txt
 ```
+
+> Use a venv em `tcc_code/venv` para os scripts deste repositório. A venv do **scriptLattes** é separada e não inclui todas as dependências do Bronze (ex.: `requests`).
 
 3. **scriptLattes** (repositório irmão, fora deste projeto):
 
@@ -124,6 +142,8 @@ O pipeline usa o config em `scriptLattes/exemplo/teste-02.config`, apontando par
 ### Opção 1 — Pipeline completo (recomendado)
 
 ```bash
+cd tcc_code
+source venv/bin/activate
 cd bronze
 python pipeline_bronze.py
 ```
@@ -151,7 +171,7 @@ python scrape_professores_iesti.py
 python scrape_trabalhos_ic.py
 python merge_professores.py
 python vincular_disciplinas.py --buscar-ementa-vinculadas
-python vincular_ics.py --buscar-ics-vinculadas
+python vincular_ics.py --buscar-ics-vinculada
 
 
 # 3. Gerar lista e baixar currículos (no scriptLattes)
@@ -190,7 +210,8 @@ python unir_lattes_sigaa.py
 | `data/bronze/sigaa/componentes.json` | Catálogo de disciplinas do instituto |
 | `data/bronze/sigaa/docentes.json` | Perfil completo por docente no SIGAA |
 | `data/bronze/sigaa/vinculos_professor_disciplina.json` | Professor ↔ disciplinas + ementa |
-| `data/bronze/periodicos/trabalhos.json` | Catálogo de trabalhos de iniciação cientifica |
+| `data/bronze/periodicos/trabalhos_ic.json` | Catálogo de trabalhos de Iniciação Científica |
+| `data/silver/professores_unificados.json` | Cadastro unificado Lattes + SIGAA |
 | `data/bronze/merged/professores.json` | Cadastro unificado (SIGAA + IESTI + vínculos) |
 | `data/bronze/relatorio_qualidade.txt` | Resumo de cobertura e lacunas |
 | `data/silver/docentes/{id_lattes}.json` | Perfil limpo a partir do Lattes |

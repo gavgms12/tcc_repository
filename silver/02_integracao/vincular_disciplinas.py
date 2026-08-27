@@ -5,17 +5,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scrape_sigaa_componentes import extrair_detalhe_componente
-from sigaa_utils import buscar_html, criar_sessao, url_absoluta
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DOCENTES = ROOT_DIR / "data" / "bronze" / "sigaa" / "docentes.json"
-DEFAULT_COMPONENTES = ROOT_DIR / "data" / "bronze" / "sigaa" / "componentes.json"
-DEFAULT_MERGED = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
-DEFAULT_VINCULOS = ROOT_DIR / "data" / "bronze" / "sigaa" / "vinculos_professor_disciplina.json"
+from bronze.scraping.scrape_sigaa_componentes import extrair_detalhe_componente
+from bronze.sigaa_utils import buscar_html, criar_sessao, url_absoluta
+DEFAULT_DOCENTES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "docentes_sigaa.json"
+DEFAULT_COMPONENTES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "componentes_sigaa.json"
+DEFAULT_MERGED = ROOT_DIR / "data" / "bronze" / "merged" / "professores_sigaa_iesti_merged.json"
+DEFAULT_VINCULOS = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "vinculos_professor_disciplina.json"
 
 
 def carregar_json(caminho: Path) -> dict | list:

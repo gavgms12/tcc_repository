@@ -10,8 +10,11 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-DEFAULT_INPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "lista" / "professores.list"
+LEGACY_INPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
+CANONICAL_INPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores_sigaa_iesti_merged.json"
+DEFAULT_INPUT = CANONICAL_INPUT if CANONICAL_INPUT.exists() else LEGACY_INPUT
+LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "lista" / "professores.list"
+DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "lista" / "professores_lattes.list"
 
 LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 
@@ -74,7 +77,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    with args.input.open(encoding="utf-8") as arquivo:
+    input_path = args.input
+    if not input_path.exists() and LEGACY_INPUT.exists():
+        input_path = LEGACY_INPUT
+
+    with input_path.open(encoding="utf-8") as arquivo:
         professores = json.load(arquivo)
 
     linhas = gerar_linhas(professores)
