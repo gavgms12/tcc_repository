@@ -65,7 +65,6 @@ def unir_tccs(prof_site, prof_lattes):
         chave = normalizar_titulo(tcc['titulo'])
         item = dict(tcc)
         if chave in site_por_titulo:
-            item['alunos_site'] = [e['aluno'] for e in site_por_titulo[chave]]
             titulos_usados.add(chave)
         resultado.append(item)
 
@@ -73,9 +72,10 @@ def unir_tccs(prof_site, prof_lattes):
     for chave, entradas in site_por_titulo.items():
         if chave in titulos_usados:
             continue
+        
         resultado.append({
             'titulo': entradas[0]['titulo'],
-            'alunos': [e['aluno'] for e in entradas],
+            #'alunos': [e['aluno'] for e in entradas],
             'data': entradas[0]['data'],
             'fonte': 'site',
         })
@@ -249,15 +249,15 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
 
         item = {
             'titulo': ic['titulo'],
-            'orientando': ic.get('orientando'),
+            #'orientando': ic.get('orientando'),
             'ano_inicio': ic.get('ano_inicio'),
-            'status': ic.get('status'),
-            'instituicao': ic.get('instituicao'),
+            #'status': ic.get('status'),
         }
 
         if par_site:
             item['autores'] = par_site.get('autores')
-            item['palavrasChave'] = par_site.get('palavrasChave', [])
+            item['resumo'] = par_site.get('resumo')
+            item['palavrasChaves'] = par_site.get('palavrasChaves', [])
             item['ano_site'] = par_site.get('ano')
             titulos_usados_site.add(chave)
 
@@ -276,9 +276,10 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
         if chave not in titulos_usados_site:
             resultado.append({
                 'titulo': ic['titulo'],
-                'autores': ic.get('autores'),
-                'palavrasChave': ic.get('palavrasChave', []),
+                #'autores': ic.get('autores'),
+                'palavrasChaves': ic.get('palavrasChaves', []),
                 'ano': ic.get('ano'),
+                'resumo': ic.get('resumo')
             })
 
     return resultado, ids_absorvidos
@@ -298,7 +299,6 @@ def unir_professor(prof_site, prof_lattes):
         'siape': prof_site.get('siape'),
         'unidade': docente_lattes.get('unidade'),
         'resumo': docente_lattes.get('resumo'),
-        'contatos': prof_site.get('sigaa', {}).get('contatos', {}),
         'disciplinasSigaa': prof_site.get('disciplinasSigaa', []),
         'competencias': prof_lattes.get('competencias', {}),
         'producoes': unir_producoes(prof_site, prof_lattes, ids_ignorar=ids_resumo_absorvidos),

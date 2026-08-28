@@ -65,8 +65,8 @@ def buscar_html(url: str, timeout: int = 30, *, verify_ssl: bool = False) -> str
     return response.text
 
 
-def get_urls_edicoes_ics(*, verify_ssl: bool = False) -> list[str]:
-    urls: list[str] = []
+def get_urls_edicoes_ics(*, verify_ssl: bool = False) -> list[dict]:
+    urls: list[dict] = []
     url_arquivos = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
     html = buscar_html(url_arquivos, verify_ssl=verify_ssl)
     soup = BeautifulSoup(html, 'html.parser')
@@ -83,15 +83,15 @@ def get_urls_edicoes_ics(*, verify_ssl: bool = False) -> list[str]:
             if ano_numero < ano_limite:
                 break
             else:
-                urls.append(url_tag)        
+                 urls.append({'url': url_tag, 'ano': ano_numero})   
     return urls
 
 
-def extrair_trabalhos(urls: list[str], *, verify_ssl: bool = False) -> list[dict]:
+def extrair_trabalhos(urls: list[dict], *, verify_ssl: bool = False) -> list[dict]:
     trabalhos = []
 
     for url in urls:
-            html = buscar_html(url, verify_ssl=verify_ssl)
+            html = buscar_html(url["url"], verify_ssl=verify_ssl)
             soup = BeautifulSoup(html, "html.parser")
                 
             # Obter informações de cada um dos trabalhos [titulo, autores e url] da página de IC
@@ -123,14 +123,22 @@ def extrair_trabalhos(urls: list[str], *, verify_ssl: bool = False) -> list[dict
                         palavras_chaves_tag = soup_trabalho.find_all('meta',  attrs={"name": "citation_keywords"})
                         for palavra_chave in palavras_chaves_tag:
                             palavras_chaves.append(palavra_chave["content"])
-                            
+                        
+                        secao_resumo = soup_trabalho.find('section', class_='item abstract')
+                        resumo = None
+                        if secao_resumo:
+                            paragrafo = secao_resumo.find('p')
+                            if paragrafo:
+                                resumo = normalizar_texto(paragrafo.get_text(separator=' '))
+                        
                         trabalhos.append(   
                             {
-                                "Titulo" : trabalho_titulo,
-                                "Autores" : trabalho_autores,
+                                "titulo" : trabalho_titulo,
+                                "autores" : trabalho_autores,
                                 #"URL" : trabalho_url,
-                                "Palavras-chave" : palavras_chaves
-                                #"Ano" : url['Ano']
+                                "resumo" : resumo,
+                                "palavrasChaves" : palavras_chaves,
+                                "ano" : url["ano"]
                             }
                         )                
     return trabalhos

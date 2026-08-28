@@ -76,7 +76,7 @@ def vincular_trabalhos_professores(trabalhos: list[dict],docentes_payload: dict,
     indice_nomes = indice_professores_por_padrao(docentes_payload)
 
     for trabalho in trabalhos:
-        autores_texto = trabalho.get("Autores", "")
+        autores_texto = trabalho.get("autores", "")
         professores = professores_citados(autores_texto, indice_nomes)
 
         trabalho["professoresVinculados"] = [
@@ -99,9 +99,11 @@ def enriquecer_merged_com_trabalhos(
                 continue
             trabalhos_por_siape.setdefault(siape, []).append(
                 {
-                    "titulo": trabalho.get("Titulo"),
-                    "autores": trabalho.get("Autores"),
-                    "palavrasChave": trabalho.get("Palavras-chave", []),
+                    "titulo": trabalho.get("titulo"),
+                    "autores": trabalho.get("autores"),
+                    "resumo" : trabalho.get("resumo"),
+                    "palavrasChaves": trabalho.get("palavrasChaves", []),
+                    "ano" : trabalho.get("ano"),
                 }
             )
 

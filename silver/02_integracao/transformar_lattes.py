@@ -22,7 +22,6 @@ MAPEAMENTO_PRODUCAO = {
     "resumos_expandidos": "resumo_expandido",
     "resumos_congressos": "resumo_congresso",
     "artigos_aceitos": "artigo_aceito",
-    "apresentacoes_trabalhos": "apresentacao_trabalho",
     "textos_jornais": "texto_jornal",
     "outras_producoes": "outra_producao",
 }
@@ -33,8 +32,7 @@ CATEGORIAS_ORIENTACAO = (
     "mestrado",
     "especializacao",
     "tcc",
-    "iniciacao_cientifica",
-    "outros",
+    "iniciacao_cientifica"
 )
 
 SUFIXO_RESUMO = "(Texto informado pelo autor)"
@@ -235,6 +233,9 @@ def transformar_producoes(producao_bibliografica: dict | None) -> list[dict]:
                 continue
 
             ano = normalizar_ano(item.get("ano"))
+            if ano and ano < 2016:
+                break
+            
             veiculo = normalizar_texto(
                 item.get("revista") or item.get("evento") or item.get("titulo_livro")
             )
@@ -267,6 +268,10 @@ def transformar_projetos(
             continue
 
         ano_inicio = normalizar_ano(projeto.get("ano_inicio"))
+        
+        if ano_inicio and ano_inicio < 2016:
+            break
+        
         chave = f"{tipo_projeto}|{nome.lower()}|{ano_inicio or ''}"
         if chave in vistos:
             continue
@@ -304,19 +309,21 @@ def transformar_orientacoes(orientacoes: dict | None) -> list[dict]:
                 titulo = normalizar_texto(orientacao.get("titulo"))
                 if not titulo:
                     continue
+                
+                if titulo == "Estágio Supervisionado":
+                    break
 
                 ano_inicio = normalizar_ano(orientacao.get("ano_inicio"))
                 ano_conclusao = normalizar_ano(orientacao.get("ano_conclusao"))
-
+                
+                if ano_inicio and ano_inicio < 2016:
+                    break
+                
                 item = {
                     "id": gerar_id(categoria, titulo, ano_inicio),
                     "tipo": categoria,
-                    "status": status_silver,
                     "titulo": titulo,
                     "ano_inicio": ano_inicio,
-                    "ano_conclusao": ano_conclusao,
-                    "orientando": normalizar_texto(orientacao.get("orientando")) or None,
-                    "instituicao": normalizar_texto(orientacao.get("instituicao")) or None,
                 }
                 resultado.append({k: v for k, v in item.items() if v is not None})
 
