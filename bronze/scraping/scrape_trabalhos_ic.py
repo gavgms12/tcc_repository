@@ -158,9 +158,9 @@ def main() -> None:
     args = parser.parse_args()
     verify_ssl = args.verify_ssl
 
-    if not verify_ssl:
+    if not verify_ssl: 
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
+ 
     urls = get_urls_edicoes_ics(verify_ssl=verify_ssl)
     trabalhos = extrair_trabalhos(urls, verify_ssl=verify_ssl)
     

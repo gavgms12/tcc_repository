@@ -252,7 +252,7 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
             #'orientando': ic.get('orientando'),
             'ano_inicio': ic.get('ano_inicio'),
             #'status': ic.get('status'),
-        }
+        } 
 
         if par_site:
             item['autores'] = par_site.get('autores')
