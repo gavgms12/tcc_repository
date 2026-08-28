@@ -154,7 +154,7 @@ def main() -> None:
         action="store_true",
         help="Valida o certificado SSL (desabilitado por padrão: certificado do site UNIFEI).",
     )
-
+ 
     args = parser.parse_args()
     verify_ssl = args.verify_ssl
 

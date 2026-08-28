@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from pathlib import Path
 
 mongoClient: MongoClient = MongoClient("mongodb://localhost:27017")
-db = mongoClient['TCC']
+db = mongoClient['TCC'] 
 collection = db['Docentes']
 
 ROOT_DIR = Path(__file__).resolve().parent
