@@ -18,7 +18,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
 
-ano_limite = datetime.now().year - 4
+ano_limite = datetime.now().year - 10
 
 secoes_alvo = {
     'Ciência da Computação e Engenharia da Computação',

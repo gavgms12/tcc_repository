@@ -14,6 +14,8 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_ENTRADA = ROOT_DIR / "data" / "bronze" / "lattes" / "json"
 DEFAULT_SAIDA = ROOT_DIR / "data" / "silver" / "docentes"
 
+ano_limite = datetime.now().year - 10
+
 MAPEAMENTO_PRODUCAO = {
     "artigos_periodicos": "artigo_periodico",
     "livros_publicados": "livro",
@@ -233,7 +235,7 @@ def transformar_producoes(producao_bibliografica: dict | None) -> list[dict]:
                 continue
 
             ano = normalizar_ano(item.get("ano"))
-            if ano and ano < 2016:
+            if ano and ano < ano_limite:
                 break
             
             veiculo = normalizar_texto(
@@ -245,7 +247,7 @@ def transformar_producoes(producao_bibliografica: dict | None) -> list[dict]:
                 "tipo": tipo_silver,
                 "titulo": titulo,
                 "ano": ano,
-                "veiculo": veiculo or None,
+                #"veiculo": veiculo or None,
                 "doi": normalizar_texto(item.get("doi")) or None,
             }
             producoes.append({k: v for k, v in producao.items() if v is not None})
@@ -269,7 +271,7 @@ def transformar_projetos(
 
         ano_inicio = normalizar_ano(projeto.get("ano_inicio"))
         
-        if ano_inicio and ano_inicio < 2016:
+        if ano_inicio and ano_inicio < ano_limite:
             break
         
         chave = f"{tipo_projeto}|{nome.lower()}|{ano_inicio or ''}"
@@ -316,7 +318,7 @@ def transformar_orientacoes(orientacoes: dict | None) -> list[dict]:
                 ano_inicio = normalizar_ano(orientacao.get("ano_inicio"))
                 ano_conclusao = normalizar_ano(orientacao.get("ano_conclusao"))
                 
-                if ano_inicio and ano_inicio < 2016:
+                if ano_inicio and ano_inicio < ano_limite:
                     break
                 
                 item = {

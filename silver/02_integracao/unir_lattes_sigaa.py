@@ -2,6 +2,7 @@ import re
 import unicodedata
 import json 
 from pathlib import Path
+from datetime import datetime
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_LATTES = ROOT_DIR / "data" / "silver" / "docentes"
@@ -11,7 +12,18 @@ DEFAULT_INPUT_SITE_CANDIDATES = [
 ]
 DEFAULT_OUTPUT = ROOT_DIR / "data" / "silver" / "professores_unificados.json"
 
+ano_limite = datetime.now().year - 10
 
+def obter_categoria(prof_site, nome_categoria):
+    resultado = []
+
+    for item in prof_site.get("sigaa").get('producaoIntelectual', []):
+        if item.get('categoria') == nome_categoria:
+            resultado = item.get('itens', [])
+            break
+    return normalizar_banca(resultado)
+    
+    
 def resolver_input_site() -> Path:
     for caminho in DEFAULT_INPUT_SITE_CANDIDATES:
         if caminho.exists():
@@ -37,11 +49,12 @@ def extrair_tcc_site(item_texto):
         return None
     titulo_aluno = ' , '.join(partes[:-1])
     data = partes[-1].strip()
+    ano = re.sub(r'^\d{2}\/','', data)
     if ',' in titulo_aluno:
         titulo, aluno = titulo_aluno.rsplit(',', 1)
     else:
         titulo, aluno = titulo_aluno, ''
-    return {'titulo': titulo.strip(), 'aluno': aluno.strip(), 'data': data}
+    return {'titulo': titulo.strip(), 'aluno': aluno.strip(), 'ano': int(ano)}
 
 # regulariza tccs duplicados por aluno
 def unir_tccs(prof_site, prof_lattes):
@@ -66,19 +79,22 @@ def unir_tccs(prof_site, prof_lattes):
         item = dict(tcc)
         if chave in site_por_titulo:
             titulos_usados.add(chave)
-        resultado.append(item)
+        resultado.append({
+            'titulo': item['titulo'],
+            'ano' : item['ano_inicio']
+        })
 
     # adiciona TCCs que só existem no site
     for chave, entradas in site_por_titulo.items():
         if chave in titulos_usados:
             continue
-        
-        resultado.append({
-            'titulo': entradas[0]['titulo'],
-            #'alunos': [e['aluno'] for e in entradas],
-            'data': entradas[0]['data'],
-            'fonte': 'site',
-        })
+        ano = entradas[0]['ano']
+        if ano > ano_limite:
+            resultado.append({
+                'titulo': entradas[0]['titulo'],
+                #'alunos': [e['aluno'] for e in entradas],
+                'ano': entradas[0]['ano']
+            })
 
     return resultado
 
@@ -87,34 +103,85 @@ def extrair_artigo_site(item_texto):
     partes = item_texto.split(' , ')
     if len(partes) < 3:
         return None
+    
+    ano = partes[0].split(',', 1)[0].strip()
     autores = re.sub(r'^\d{4},\s*', '', partes[0]).strip()
     titulo = partes[1].strip()
     issn = partes[2].replace('ISSN:', '').strip()
-    return {'autores': autores, 'titulo': titulo, 'issn': issn}
+    return {'autores': autores, 'titulo': titulo, 'issn': issn, 'ano': int(ano)}
 
+def normalizar_banca(bancas_site):
+    # Categoria 'Participações em Bancas de Cursos': ano, titulo, defensor
+    bancas = []
+    for banca_crua in bancas_site:
+        partes = banca_crua.split(', ')
+        if len(partes) < 2:
+            return None
+        
+        ano = int(partes[0].strip())
+        titulo = partes[1].strip()
+        defensor = partes[2].strip()
+        banca_normalizada ={'titulo': titulo, 'ano' : ano}
+        
+        titulo_ja_existe = any(
+            banca['titulo'] == titulo
+            for banca in bancas
+        )
+        
+        if not titulo_ja_existe and ano > ano_limite:
+            bancas.append(banca_normalizada)
+        
+    return bancas
+    
+def normalizar_projetos(projetos_site):
+    projetos = []
+    for projeto in projetos_site:
+        if int(projeto['ano']) > ano_limite:
+            projetos.append(projeto)
+    return projetos
+
+import re
 
 def extrair_evento_site(item_texto, titulo_lattes=None):
-    #'Publicação em Eventos': ano, autores, titulo , veiculo, status
-    partes = item_texto.split(' , ')
-    if len(partes) < 2:
+
+    try:
+        ano, resto = item_texto.split(',', 1)
+    except ValueError:
         return None
-    autores_titulo = re.sub(r'^\d{4},\s*', '', partes[0]).strip()
-    resto = ' , '.join(partes[1:])
 
-    autores, titulo = None, None
+    ano = ano.strip()
+
+    autores = None
+    titulo = None
+    venue_status = None
+
     if titulo_lattes:
-        match = re.search(re.escape(titulo_lattes), autores_titulo, re.IGNORECASE)
+
+        # Primeiro tenta correspondência exata ignorando maiúsculas
+        match = re.search(
+            re.escape(titulo_lattes.strip()),
+            resto,
+            re.IGNORECASE
+        )
+
         if match:
-            autores = autores_titulo[:match.start()].rstrip(', ').strip()
-            titulo = autores_titulo[match.start():match.end()]
+            autores = resto[:match.start()].strip(' ,')
+            titulo = resto[match.start():match.end()].strip()
+            venue_status = resto[match.end():].strip(' ,')
 
-    return {'autores': autores, 'titulo': titulo, 'venue_status': resto}
-
+    return {
+        'autores': autores,
+        'titulo': titulo,
+        'venue_status': venue_status,
+        'ano': int(ano)
+    }
+    
 def extrair_capitulo_site(item_texto, titulo_lattes=None):
     # Categoria 'Capítulos de Livros': ano, titulo_capitulo, titulo_livro, autor1, autor2, ...
 
     texto_sem_ano = re.sub(r'^\d{4},\s*', '', item_texto)
     titulo, complemento = None, None
+    
     if titulo_lattes:
         titulo_capitulo = titulo_lattes.split('. ')[0]
         match = re.search(re.escape(titulo_capitulo), texto_sem_ano, re.IGNORECASE)
@@ -127,6 +194,9 @@ CATEGORIA_PARA_TIPOS = {
     'Artigos': ['artigo_periodico'],
     'Publicação em Eventos': ['trabalho_congresso', 'resumo_congresso', 'apresentacao_trabalho'],
     'Capítulos de Livros': ['capitulo_livro'],
+    'Participações em Bancas de Cursos' : ['participacao_banca'],
+    'Livros' : ['livro'],
+    'Produções Tecnológicas' : ['']
 }
  
 CATEGORIAS_TITULO_PARCIAL = {'Capítulos de Livros'}
@@ -176,9 +246,9 @@ def unir_producoes(prof_site, prof_lattes, ids_ignorar=None):
                 elif categoria_site == 'Publicação em Eventos':
                     if titulo_norm in normalizar_titulo(item_texto):
                         extraido = extrair_evento_site(item_texto, titulo_lattes=titulo_para_comparar)
-                        if extraido:
+                        if extraido and extraido['autores']:
                             item['autores'] = extraido['autores']
-                        itens_site_usados[categoria_site].add(idx)
+                            itens_site_usados[categoria_site].add(idx)
                         break
                 elif categoria_site == 'Capítulos de Livros':
                     if titulo_norm in normalizar_titulo(item_texto):
@@ -200,25 +270,31 @@ def unir_producoes(prof_site, prof_lattes, ids_ignorar=None):
  
             if categoria_site == 'Artigos':
                 extraido = extrair_artigo_site(item_texto)
-                if extraido:
+                if extraido and extraido['ano'] > ano_limite:
                     resultado_por_tipo.setdefault(tipo_padrao, []).append({
                         'titulo': extraido['titulo'],
                         'autores': extraido['autores'],
+                        'ano' : extraido['ano'],
                         'issn': extraido['issn'],
-                        'fonte': 'site',
+                        
                     })
-            elif categoria_site == 'Publicação em Eventos':
-                extraido = extrair_evento_site(item_texto)
-                resultado_por_tipo.setdefault(tipo_padrao, []).append({
-                    'titulo': item_texto,
-                    'venue_status': extraido['venue_status'] if extraido else None,
-                    'fonte': 'site',
-                })
             elif categoria_site == 'Capítulos de Livros':
                 resultado_por_tipo.setdefault(tipo_padrao, []).append({
                     'titulo': re.sub(r'^\d{4},\s*', '', item_texto),
                     'fonte': 'site',
-                })
+                })        
+            '''
+            elif categoria_site == 'Publicação em Eventos':
+                extraido = extrair_evento_site(item_texto)
+                if extraido and extraido['ano'] > ano_limite:
+                    resultado_por_tipo.setdefault(tipo_padrao, []).append({
+                        'titulo': extraido['titulo'],
+                        'autores':extraido['autores'],
+                        'fonte': 'siete',
+                        'ano' : extraido['ano'] if extraido else None
+                    })
+            '''
+
  
     return resultado_por_tipo
 
@@ -250,7 +326,7 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
         item = {
             'titulo': ic['titulo'],
             #'orientando': ic.get('orientando'),
-            'ano_inicio': ic.get('ano_inicio'),
+            'ano': ic.get('ano_inicio'),
             #'status': ic.get('status'),
         } 
 
@@ -283,6 +359,68 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
             })
 
     return resultado, ids_absorvidos
+def unir_projetos(projetos_lattes, projetos_sigaa):
+
+    projetos_unificados = []
+    titulos_encontrados = set()
+
+    # Adiciona os projetos do Lattes
+    for projeto_lattes in projetos_lattes:
+
+        nome_lattes = projeto_lattes.get('nome', '')
+        nome_normalizado = normalizar_titulo(nome_lattes)
+
+        projeto_unificado = {
+            'id': projeto_lattes.get('id'),
+            'tipo': projeto_lattes.get('tipo'),
+            'titulo': nome_lattes,
+            'ano_inicio': projeto_lattes.get('ano_inicio'),
+            'ano_conclusao': projeto_lattes.get('ano_conclusao'),
+            'situacao': projeto_lattes.get('situacao'),
+            'descricao': projeto_lattes.get('descricao'),
+            'papel': projeto_lattes.get('papel'),
+            'codigo': None,
+            'areaConhecimento': None
+        }
+
+        # Procura o mesmo projeto no SIGAA
+        for projeto_sigaa in projetos_sigaa:
+
+            titulo_sigaa = projeto_sigaa.get('titulo', '')
+
+            if normalizar_titulo(titulo_sigaa) == nome_normalizado:
+
+                projeto_unificado['codigo'] = projeto_sigaa.get('codigo')
+                projeto_unificado['areaConhecimento'] = (projeto_sigaa.get('areaConhecimento'))
+                titulos_encontrados.add(normalizar_titulo(titulo_sigaa))
+                break
+
+        projetos_unificados.append(projeto_unificado)
+
+    # Adiciona projetos que existem apenas no SIGAA
+    for projeto_sigaa in projetos_sigaa:
+
+        titulo_sigaa = projeto_sigaa.get('titulo', '')
+        titulo_normalizado = normalizar_titulo(titulo_sigaa)
+
+        if titulo_normalizado not in titulos_encontrados:
+
+            projetos_unificados.append({
+                'id': None,
+                'tipo': 'pesquisa',
+                'titulo': titulo_sigaa,
+                'ano_inicio': int(projeto_sigaa.get('ano')),
+                'ano_conclusao': None,
+                'situacao': None,
+                'descricao': None,
+                'papel': None,
+                'codigo': projeto_sigaa.get('codigo'),
+                'areaConhecimento': projeto_sigaa.get(
+                    'areaConhecimento'
+                )
+            })
+
+    return projetos_unificados
 
 def unir_professor(prof_site, prof_lattes):
     docente_lattes = prof_lattes['docente']
@@ -304,8 +442,9 @@ def unir_professor(prof_site, prof_lattes):
         'producoes': unir_producoes(prof_site, prof_lattes, ids_ignorar=ids_resumo_absorvidos),
         'orientacoes': orientacoes_sem_ic_nem_tcc,
         'tccs': unir_tccs(prof_site, prof_lattes),
-        'projetos': prof_lattes.get('projetos', []),
+        'projetos': unir_projetos(prof_lattes.get('projetos', []), normalizar_projetos(prof_site.get('sigaa', {}).get('projetosPesquisa', []))),
         'iniciacaoCientifica': iniciacao_cientifica,
+        'participacao_bancas' : obter_categoria(prof_site, 'Participações em Bancas de Cursos'),
     }
 
     return unificado
