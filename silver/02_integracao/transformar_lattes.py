@@ -241,14 +241,16 @@ def transformar_producoes(producao_bibliografica: dict | None) -> list[dict]:
             veiculo = normalizar_texto(
                 item.get("revista") or item.get("evento") or item.get("titulo_livro")
             )
-
+            autores = normalizar_texto(item.get("autores"))
+            
             producao = {
                 "id": gerar_id(tipo_silver, titulo, ano),
                 "tipo": tipo_silver,
                 "titulo": titulo,
                 "ano": ano,
-                #"veiculo": veiculo or None,
+                "veiculo": veiculo or None,
                 "doi": normalizar_texto(item.get("doi")) or None,
+                "autores": autores
             }
             producoes.append({k: v for k, v in producao.items() if v is not None})
 

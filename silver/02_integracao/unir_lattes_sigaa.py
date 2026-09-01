@@ -140,40 +140,63 @@ def normalizar_projetos(projetos_site):
             projetos.append(projeto)
     return projetos
 
-import re
+def parece_nome(segmento):
+    """Heurística: nome de pessoa = poucas palavras, maioria capitalizada,
+    com conectores comuns em nomes (de, da, do, dos, das)."""
+    segmento = segmento.strip()
+    if not segmento:
+        return False
+    palavras = segmento.split()
+    if len(palavras) > 6:
+        return False
+    conectores = {'de', 'da', 'do', 'dos', 'das', 'e'}
+    for p in palavras:
+        p_limpo = re.sub(r'[^\wÀ-ÿ]', '', p)
+        if not p_limpo:
+            continue
+        if p_limpo.lower() in conectores:
+            continue
+        if not p_limpo[:1].isupper():
+            return False
+    return True
 
-def extrair_evento_site(item_texto, titulo_lattes=None):
-
-    try:
-        ano, resto = item_texto.split(',', 1)
-    except ValueError:
-        return None
-
+def extrair_evento_site(item_texto):
+    # Categoria 'Publicação em evento': ano, autores, titulo, veiculo, tipo
+    ano, resto = item_texto.split(',', 1)
     ano = ano.strip()
 
-    autores = None
-    titulo = None
-    venue_status = None
+    resto, tipo = resto.rsplit(',', 1)
+    tipo = tipo.strip()
 
-    if titulo_lattes:
+    resto, veiculo = resto.rsplit(',', 1)
+    veiculo = veiculo.strip()
 
-        # Primeiro tenta correspondência exata ignorando maiúsculas
-        match = re.search(
-            re.escape(titulo_lattes.strip()),
-            resto,
-            re.IGNORECASE
-        )
+    partes_meio = [p.strip() for p in resto.split(',')]
 
-        if match:
-            autores = resto[:match.start()].strip(' ,')
-            titulo = resto[match.start():match.end()].strip()
-            venue_status = resto[match.end():].strip(' ,')
+    if partes_meio[0] == '':
+        autores = None
+        titulo = ','.join(partes_meio[1:]).strip(', ').strip()
+    else:
+        autores_partes = []
+        i = 0
+        while i < len(partes_meio) and parece_nome(partes_meio[i]):
+            autores_partes.append(partes_meio[i])
+            i += 1
+        # salvaguarda: se consumiu tudo (não sobrou nada pro titulo),
+        # devolve o último pedaço como titulo
+        if i >= len(partes_meio):
+            i = len(partes_meio) - 1
+            autores_partes = autores_partes[:-1]
+
+        autores = ', '.join(autores_partes) if autores_partes else None
+        titulo = ', '.join(partes_meio[i:]).strip()
 
     return {
-        'autores': autores,
-        'titulo': titulo,
-        'venue_status': venue_status,
-        'ano': int(ano)
+        'ano': int(ano) if ano else None,
+        'autores': autores if autores else None,
+        'titulo': titulo if titulo else None,
+        'veiculo': veiculo if veiculo else None,
+        'tipo': tipo if tipo else None,
     }
     
 def extrair_capitulo_site(item_texto, titulo_lattes=None):
@@ -188,6 +211,7 @@ def extrair_capitulo_site(item_texto, titulo_lattes=None):
         if match:
             titulo = texto_sem_ano[match.start():match.end()]
             complemento = texto_sem_ano[match.end():].lstrip(', ').strip()
+            
     return {'titulo': titulo, 'complemento': complemento}
  
 CATEGORIA_PARA_TIPOS = {
@@ -245,18 +269,19 @@ def unir_producoes(prof_site, prof_lattes, ids_ignorar=None):
                         break
                 elif categoria_site == 'Publicação em Eventos':
                     if titulo_norm in normalizar_titulo(item_texto):
-                        extraido = extrair_evento_site(item_texto, titulo_lattes=titulo_para_comparar)
-                        if extraido and extraido['autores']:
-                            item['autores'] = extraido['autores']
+                        extraido = extrair_evento_site(item_texto)
+                        if extraido and normalizar_titulo(extraido['titulo']) == titulo_norm:
+                            if extraido['autores']:
+                                item['autores'] = extraido['autores']
                             itens_site_usados[categoria_site].add(idx)
-                        break
+                            break
                 elif categoria_site == 'Capítulos de Livros':
                     if titulo_norm in normalizar_titulo(item_texto):
                         extraido = extrair_capitulo_site(item_texto, titulo_lattes=titulo_para_comparar)
                         if extraido:
                             item['informacoes_complementares'] = extraido['complemento']
-                        itens_site_usados[categoria_site].add(idx)
-                        break
+                            itens_site_usados[categoria_site].add(idx)
+                            break
  
         resultado_por_tipo.setdefault(tipo, []).append(item)
  
@@ -276,24 +301,25 @@ def unir_producoes(prof_site, prof_lattes, ids_ignorar=None):
                         'autores': extraido['autores'],
                         'ano' : extraido['ano'],
                         'issn': extraido['issn'],
-                        
                     })
             elif categoria_site == 'Capítulos de Livros':
+                ano = int (re.sub(r'^(\d{4}).*$', r'\1', item_texto))
+                if ano < ano_limite : break
                 resultado_por_tipo.setdefault(tipo_padrao, []).append({
                     'titulo': re.sub(r'^\d{4},\s*', '', item_texto),
-                    'fonte': 'site',
+                    'ano': ano,
                 })        
-            '''
+            
             elif categoria_site == 'Publicação em Eventos':
                 extraido = extrair_evento_site(item_texto)
-                if extraido and extraido['ano'] > ano_limite:
+                if extraido and int(extraido['ano']) > ano_limite:
                     resultado_por_tipo.setdefault(tipo_padrao, []).append({
                         'titulo': extraido['titulo'],
                         'autores':extraido['autores'],
                         'fonte': 'siete',
-                        'ano' : extraido['ano'] if extraido else None
-                    })
-            '''
+                        'ano' : extraido['ano']
+                })
+            
 
  
     return resultado_por_tipo
