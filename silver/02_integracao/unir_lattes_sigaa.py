@@ -245,7 +245,8 @@ def unir_producoes(prof_site, prof_lattes, ids_ignorar=None):
     for prod in producoes_lattes:
         tipo = prod.get('tipo')
         item = dict(prod)
- 
+        item.pop('tipo', None) 
+        
         categoria_site = next((c for c, tipos in CATEGORIA_PARA_TIPOS.items() if tipo in tipos), None)
         if categoria_site:
             
@@ -315,9 +316,9 @@ def unir_producoes(prof_site, prof_lattes, ids_ignorar=None):
                 if extraido and int(extraido['ano']) > ano_limite:
                     resultado_por_tipo.setdefault(tipo_padrao, []).append({
                         'titulo': extraido['titulo'],
-                        'autores':extraido['autores'],
-                        'fonte': 'siete',
-                        'ano' : extraido['ano']
+                        'ano' : extraido['ano'],
+                        'veiculo': extraido['veiculo'],
+                        'autores':extraido['autores']                       
                 })
             
 
@@ -351,9 +352,8 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
 
         item = {
             'titulo': ic['titulo'],
-            #'orientando': ic.get('orientando'),
+            'orientando': ic.get('orientando'),
             'ano': ic.get('ano_inicio'),
-            #'status': ic.get('status'),
         } 
 
         if par_site:
@@ -378,13 +378,15 @@ def unir_iniciacao_cientifica(prof_site, prof_lattes):
         if chave not in titulos_usados_site:
             resultado.append({
                 'titulo': ic['titulo'],
-                #'autores': ic.get('autores'),
+                'autores': ic.get('autores'),
                 'palavrasChaves': ic.get('palavrasChaves', []),
                 'ano': ic.get('ano'),
                 'resumo': ic.get('resumo')
             })
 
     return resultado, ids_absorvidos
+
+
 def unir_projetos(projetos_lattes, projetos_sigaa):
 
     projetos_unificados = []
@@ -433,7 +435,7 @@ def unir_projetos(projetos_lattes, projetos_sigaa):
 
             projetos_unificados.append({
                 'id': None,
-                'tipo': 'pesquisa',
+                #'tipo': 'pesquisa',
                 'titulo': titulo_sigaa,
                 'ano_inicio': int(projeto_sigaa.get('ano')),
                 'ano_conclusao': None,
