@@ -13,3 +13,6 @@ __pycache__/
 # Ambientes virtuais e variáveis de ambiente
 .env
 venv/
+
+# Cache local do scriptLattes (currículos baixados, retomável entre execuções)
+/.cache/

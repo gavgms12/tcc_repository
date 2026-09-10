@@ -84,6 +84,25 @@ def ler_json_bronze(chave: str) -> Any:
     return json.loads(resposta["Body"].read().decode("utf-8"))
 
 
+def listar_chaves_bronze(prefixo: str) -> list[str]:
+    """Lista as chaves existentes no bucket Bronze sob um prefixo."""
+    cliente = _cliente()
+    chaves: list[str] = []
+    paginador = cliente.get_paginator("list_objects_v2")
+    try:
+        for pagina in paginador.paginate(Bucket=BRONZE_BUCKET, Prefix=prefixo):
+            for objeto in pagina.get("Contents", []):
+                chaves.append(objeto["Key"])
+    except ClientError as erro:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {"403", "AccessDenied"}:
+            raise PermissionError(
+                f"O MinIO recusou a listagem de '{BRONZE_BUCKET}/{prefixo}'. "
+                "Conceda a permissão s3:ListBucket ao usuário configurado."
+            ) from erro
+        raise
+    return chaves
+
+
 def salvar_parquet_silver(chave: str, registros: list[dict[str, Any]]) -> None:
     """Grava registros tabulares no bucket Silver no formato Parquet."""
     if not registros:

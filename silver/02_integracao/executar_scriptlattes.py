@@ -8,7 +8,6 @@ import json
 import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -23,6 +22,12 @@ SCRIPTLATTES_EXECUTAVEL = SCRIPTLATTES_DIR / "scriptLattes.py"
 DEFAULT_ENTRADA_SILVER = "professores_unificados.parquet"
 DEFAULT_PREFIXO_SAIDA = "raw/lattes/json"
 ID_LATTES_RE = re.compile(r"(\d{16})(?:\.json)?$")
+
+# Persistente entre execuções: o CNPq costuma limitar requisições em massa
+# (ERR_CONNECTION_RESET) e o scriptLattes usa esse diretório de cache para não
+# baixar de novo um CV já obtido. Um diretório temporário seria apagado a cada
+# falha, perdendo o progresso e forçando reiniciar do zero.
+CACHE_DIR = ROOT_DIR / ".cache" / "scriptlattes"
 
 
 def gerar_lista_lattes(professores: list[dict], limite: int = 0) -> list[str]:
@@ -59,12 +64,17 @@ def escrever_config(caminho: Path, entrada: Path, saida: Path, cache: Path) -> N
 
 
 def enviar_jsons(diretorio_json: Path, prefixo_saida: str) -> int:
-    arquivos = sorted(diretorio_json.glob("*.json"))
-    if not arquivos:
-        raise FileNotFoundError(f"O scriptLattes não gerou JSONs em {diretorio_json}.")
+    """Envia os JSONs já renderizados pelo scriptLattes para o MinIO.
+
+    Tolerante a diretório ausente/vazio (ex.: o scriptLattes falhou antes de
+    gerar qualquer saída) para permitir reaproveitar o progresso parcial de
+    uma execução anterior que foi interrompida.
+    """
+    if not diretorio_json.exists():
+        return 0
 
     enviados = 0
-    for arquivo in arquivos:
+    for arquivo in sorted(diretorio_json.glob("*.json")):
         id_lattes = ID_LATTES_RE.search(arquivo.name)
         if not id_lattes:
             print(f"Ignorando arquivo sem ID Lattes no nome: {arquivo.name}")
@@ -73,8 +83,6 @@ def enviar_jsons(diretorio_json: Path, prefixo_saida: str) -> int:
         salvar_json_bronze(f"{prefixo_saida}/{id_lattes.group(1)}.json", dados)
         enviados += 1
 
-    if not enviados:
-        raise RuntimeError("Nenhum JSON válido do scriptLattes foi enviado ao MinIO.")
     return enviados
 
 
@@ -105,26 +113,38 @@ def main() -> None:
     if not linhas:
         raise RuntimeError("Nenhum professor com ID Lattes válido foi encontrado na Silver.")
 
-    with tempfile.TemporaryDirectory(prefix="tcc_scriptlattes_") as temporario:
-        diretorio_temporario = Path(temporario)
-        arquivo_lista = diretorio_temporario / "professores_lattes.list"
-        diretorio_saida = diretorio_temporario / "saida"
-        arquivo_config = diretorio_temporario / "scriptlattes_tcc.config"
-        arquivo_lista.write_text("\n".join(linhas) + "\n", encoding="utf-8")
-        escrever_config(
-            arquivo_config,
-            arquivo_lista,
-            diretorio_saida,
-            diretorio_temporario / "cache",
-        )
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    arquivo_lista = CACHE_DIR / "professores_lattes.list"
+    diretorio_saida = CACHE_DIR / "saida"
+    arquivo_config = CACHE_DIR / "scriptlattes_tcc.config"
+    arquivo_lista.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    escrever_config(
+        arquivo_config,
+        arquivo_lista,
+        diretorio_saida,
+        CACHE_DIR / "cvs",
+    )
 
-        print(f"Baixando {len(linhas)} currículo(s) com scriptLattes...")
+    print(f"Baixando {len(linhas)} currículo(s) com scriptLattes...")
+    try:
         subprocess.run(
             [str(SCRIPTLATTES_PYTHON), str(SCRIPTLATTES_EXECUTAVEL), str(arquivo_config)],
             cwd=SCRIPTLATTES_DIR,
             check=True,
         )
-        enviados = enviar_jsons(diretorio_saida / "json", args.prefixo_saida.rstrip("/"))
+    except subprocess.CalledProcessError:
+        enviados_parciais = enviar_jsons(diretorio_saida / "json", args.prefixo_saida.rstrip("/"))
+        print(
+            f"AVISO: o scriptLattes falhou no meio da execução (provável rate limit do "
+            f"CNPq). {enviados_parciais} currículo(s) já baixado(s) foram enviados ao "
+            f"MinIO antes do erro. O cache foi preservado em {CACHE_DIR} — rode o comando "
+            "novamente para continuar de onde parou."
+        )
+        raise
+
+    enviados = enviar_jsons(diretorio_saida / "json", args.prefixo_saida.rstrip("/"))
+    if not enviados:
+        raise RuntimeError("Nenhum JSON válido do scriptLattes foi enviado ao MinIO.")
 
     print(f"{enviados} currículo(s) enviado(s) para bronze/{args.prefixo_saida.rstrip('/')}.")
 

@@ -57,11 +57,12 @@ SIGAA + site IESTI + periódicos
 
 | Script | O que faz |
 |--------|-----------|
-| `silver/transformar_lattes.py` | Limpa os JSONs do Lattes e gera um perfil estruturado por docente |
-| `silver/unir_lattes_sigaa.py` | Unifica perfis Silver com dados SIGAA (disciplinas, TCC, IC) |
-| `silver/pipeline_silver.py` | Faz merge, gera a lista Lattes, coleta os currículos e integra os dados |
+| `silver/01_merge/merge_professores.py` | Mescla identidade SIGAA + IESTI (nome, idLattes, siape) em Parquet |
+| `silver/02_integracao/executar_scriptlattes.py` | Roda o scriptLattes e envia os currículos brutos para a Bronze |
+| `silver/02_integracao/unificar_perfis.py` | Limpa os perfis SIGAA e Lattes (foco em embeddings bge-m3), unifica por idLattes, reduz disciplinas a IDs do catálogo de componentes e trabalhos de IC/periódicos a IDs de um catálogo à parte |
+| `silver/pipeline_silver.py` | Orquestra as três etapas acima |
 
-Cada arquivo Silver contém: dados do docente, competências, produções, projetos, orientações e linhagem acadêmica.
+Cada perfil unificado contém: resumo, competências (áreas, linhas de pesquisa, palavras-chave), títulos de produções/projetos/orientações, IDs de disciplinas ministradas e IDs de trabalhos de IC/periódicos orientados.
 
 ---
 
@@ -194,6 +195,7 @@ python silver/01_merge/merge_professores.py
 | `--skip-scraping` | `pipeline_bronze.py` | Usa dados brutos já coletados |
 | `--skip-lattes` | `pipeline_silver.py` | Pula a coleta de currículos pelo scriptLattes |
 | `--limite-lattes N` | `pipeline_silver.py` | Testa a coleta de apenas N currículos |
+| `--skip-unificacao` | `pipeline_silver.py` | Pula a limpeza/unificação dos perfis SIGAA + Lattes |
 | `--limite-docentes N` | `pipeline_bronze.py` | Testa com N docentes |
 | `--com-ementa` | `pipeline_bronze.py` | Busca ementa de todos os componentes (lento) |
 | `--limite N` | `scrape_sigaa_docente.py` | Limita docentes coletados |
@@ -209,7 +211,9 @@ python silver/01_merge/merge_professores.py
 | `bronze/raw/sigaa/docentes_sigaa.json` | Perfil completo por docente no SIGAA |
 | `bronze/raw/periodicos/trabalhos_ic_periodicos.json` | Catálogo de trabalhos de iniciação científica |
 | `bronze/raw/lattes/json/{id_lattes}.json` | Currículo bruto individual gerado pelo scriptLattes |
-| `silver/professores_unificados.parquet` | Cadastro unificado de professores do SIGAA + IESTI |
+| `silver/professores_unificados.parquet` | Perfil unificado por professor (resumo, competências, produções, disciplinas por ID, IC por ID) |
+| `silver/trabalhos_ic_periodicos.parquet` | Catálogo de trabalhos de IC/periódicos com ID, referenciados pelos professores |
+| `silver/componentes_curriculares.parquet` | Catálogo de disciplinas por idSigaa — estende `componentes_sigaa.json` com disciplinas de outros departamentos/pós-graduação que os docentes lecionam e que não constam no catálogo oficial do departamento |
 
 ---
 
