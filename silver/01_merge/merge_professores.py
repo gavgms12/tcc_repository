@@ -4,20 +4,22 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
+import sys
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-LEGACY_SIGAA = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-LEGACY_IESTI = ROOT_DIR / "data" / "bronze" / "iesti_site" / "professores.json"
-DEFAULT_SIGAA = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
-DEFAULT_IESTI = ROOT_DIR / "data" / "bronze" / "raw" / "iesti_site" / "professores_iesti_site.json"
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores_sigaa_iesti_merged.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "merged" / "professores.json"
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from bronze.minio_storage import ler_json_bronze, salvar_parquet_silver
+
+DEFAULT_SIGAA = "raw/sigaa/professores_sigaa.json"
+DEFAULT_IESTI = "raw/iesti_site/professores_iesti_site.json"
+DEFAULT_OUTPUT = "professores_unificados.parquet"
 TAMANHO_ID_LATTES = len("8122238750933560")
 ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 LIMIAR_SIMILARIDADE = 0.92
@@ -81,9 +83,8 @@ def escolher_nome(nome_atual: str, nome_novo: str) -> str:
     return nome_atual
 
 
-def carregar_sigaa(caminho: Path) -> list[Professor]:
-    with caminho.open(encoding="utf-8") as arquivo:
-        dados = json.load(arquivo)
+def carregar_sigaa(chave: str) -> list[Professor]:
+    dados = ler_json_bronze(chave)
 
     professores: list[Professor] = []
     for item in dados:
@@ -100,9 +101,8 @@ def carregar_sigaa(caminho: Path) -> list[Professor]:
     return professores
 
 
-def carregar_iesti(caminho: Path) -> list[Professor]:
-    with caminho.open(encoding="utf-8") as arquivo:
-        dados = json.load(arquivo)
+def carregar_iesti(chave: str) -> list[Professor]:
+    dados = ler_json_bronze(chave)
 
     professores: list[Professor] = []
     for item in dados:
@@ -186,7 +186,7 @@ def fazer_merge(sigaa: list[Professor], iesti: list[Professor]) -> list[Professo
     return professores
 
 
-def salvar_json(professores: list[Professor], caminho: Path) -> None:
+def salvar_parquet(professores: list[Professor], chave: str) -> None:
     dados = [
         {
             "nome": professor.nome,
@@ -197,38 +197,24 @@ def salvar_json(professores: list[Professor], caminho: Path) -> None:
         for professor in professores
     ]
 
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(dados, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
+    salvar_parquet_silver(chave, dados)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Mescla professores do SIGAA e do site do IESTI em um único JSON."
+        description="Mescla professores Bronze e grava o resultado em Parquet na Silver."
     )
-    parser.add_argument("--sigaa", type=Path, default=DEFAULT_SIGAA)
-    parser.add_argument("--iesti", type=Path, default=DEFAULT_IESTI)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--sigaa", default=DEFAULT_SIGAA, help="Chave Bronze do SIGAA.")
+    parser.add_argument("--iesti", default=DEFAULT_IESTI, help="Chave Bronze do IESTI.")
+    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Chave Parquet no bucket Silver.")
     args = parser.parse_args()
 
-    sigaa_path = args.sigaa
-    if not sigaa_path.exists() and LEGACY_SIGAA.exists():
-        sigaa_path = LEGACY_SIGAA
-
-    iesti_path = args.iesti
-    if not iesti_path.exists() and LEGACY_IESTI.exists():
-        iesti_path = LEGACY_IESTI
-
-    if not sigaa_path.exists():
-        raise FileNotFoundError(f"Arquivo SIGAA não encontrado: {sigaa_path}")
-
-    professores = fazer_merge(carregar_sigaa(sigaa_path), carregar_iesti(iesti_path))
-    salvar_json(professores, args.output)
+    professores = fazer_merge(carregar_sigaa(args.sigaa), carregar_iesti(args.iesti))
+    salvar_parquet(professores, args.output)
 
     com_lattes = sum(1 for professor in professores if professor.id_lattes)
     print(f"Merge concluído: {len(professores)} professores ({com_lattes} com idLattes).")
-    print(f"Arquivo salvo em: {args.output}")
+    print(f"Objeto Parquet salvo em: silver/{args.output}")
 
 
 if __name__ == "__main__":

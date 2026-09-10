@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -26,18 +25,16 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
+from bronze.minio_storage import ler_json_bronze, salvar_json_bronze
 
-DEFAULT_PROFESSORES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
-LEGACY_PROFESSORES = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "docentes_sigaa.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "docentes.json"
+DEFAULT_PROFESSORES = "raw/sigaa/professores_sigaa.json"
+DEFAULT_OUTPUT = "raw/sigaa/docentes_sigaa.json"
 ID_COMPONENTE_RE = re.compile(r"visualizarComponente/(\d+)")
 CATEGORIA_RE = re.compile(r"\s*\(\d+\)\s*$")
 
 
-def carregar_professores(caminho: Path) -> list[dict]:
-    with caminho.open(encoding="utf-8") as arquivo:
-        return json.load(arquivo)
+def carregar_professores(chave: str) -> list[dict]:
+    return ler_json_bronze(chave)
 
 
 def extrair_portal(html: str) -> dict:
@@ -176,28 +173,19 @@ def coletar_docente(session, siape: str, nome: str) -> dict:
     }
 
 
-def salvar_json(payload: dict, caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(payload, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extrai perfil, disciplinas, produção e pesquisa dos docentes no SIGAA."
     )
     parser.add_argument(
         "--professores",
-        type=Path,
         default=DEFAULT_PROFESSORES,
-        help="JSON com lista de professores (saída do scrape_professores_sigaa).",
+        help="Chave do JSON de professores no bucket Bronze.",
     )
     parser.add_argument(
         "--output",
-        type=Path,
         default=DEFAULT_OUTPUT,
-        help="Arquivo JSON de saída.",
+        help="Chave do objeto JSON no bucket Bronze.",
     )
     parser.add_argument(
         "--limite",
@@ -213,11 +201,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    professores_path = args.professores
-    if not professores_path.exists() and LEGACY_PROFESSORES.exists():
-        professores_path = LEGACY_PROFESSORES
-
-    professores = carregar_professores(professores_path)
+    professores = carregar_professores(args.professores)
     com_siape = [prof for prof in professores if prof.get("siape")]
     if args.limite > 0:
         com_siape = com_siape[: args.limite]
@@ -244,11 +228,11 @@ def main() -> None:
         "total": len(docentes),
         "docentes": docentes,
     }
-    salvar_json(payload, args.output)
+    salvar_json_bronze(args.output, payload)
 
     total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
     print(f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina).")
-    print(f"Arquivo salvo em: {args.output}")
+    print(f"Objeto salvo em: bronze/{args.output}")
 
 
 if __name__ == "__main__":

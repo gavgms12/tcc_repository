@@ -238,10 +238,7 @@ def main() -> None:
         executar_etapa("Scraping IESTI", [python, "scraping/scrape_professores_iesti.py"])
         executar_etapa("Scraping periodicos", [python, "scraping/scrape_trabalhos_ic.py"])
 
-    if MERGED_JSON.exists():
-        salvar_relatorio(gerar_relatorio())
-    else:
-        print("\nRelatório não gerado: o merge é executado na camada Silver.")
+    print("\nCamada Bronze concluída: os JSONs brutos foram enviados ao MinIO.")
 
 
 if __name__ == "__main__":

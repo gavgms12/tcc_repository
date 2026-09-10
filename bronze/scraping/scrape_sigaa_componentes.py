@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -26,10 +25,9 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
+from bronze.minio_storage import salvar_json_bronze
 
-RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "componentes_sigaa.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "componentes.json"
-DEFAULT_OUTPUT = RAW_OUTPUT
+DEFAULT_OUTPUT = "raw/sigaa/componentes_sigaa.json"
 COMPONENTES_URL = (
     f"{BASE_URL}/sigaa/public/departamento/componentes.jsf?id={DEPARTAMENTO_ID}"
 )
@@ -137,22 +135,14 @@ def buscar_ementas(
             componente["tipo"] = detalhe["tipo"]
 
 
-def salvar_json(payload: dict, caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(payload, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extrai componentes curriculares do departamento IESTI no SIGAA."
     )
     parser.add_argument(
         "--output",
-        type=Path,
         default=DEFAULT_OUTPUT,
-        help="Arquivo JSON de saída.",
+        help="Chave do objeto JSON no bucket Bronze.",
     )
     parser.add_argument(
         "--com-ementa",
@@ -185,11 +175,11 @@ def main() -> None:
         "total": len(componentes),
         "componentes": componentes,
     }
-    salvar_json(payload, args.output)
+    salvar_json_bronze(args.output, payload)
 
     com_ementa = sum(1 for item in componentes if item.get("ementa"))
     print(f"Extraídos {len(componentes)} componentes ({com_ementa} com ementa).")
-    print(f"Arquivo salvo em: {args.output}")
+    print(f"Objeto salvo em: bronze/{args.output}")
 
 
 if __name__ == "__main__":

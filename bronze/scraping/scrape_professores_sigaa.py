@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -26,13 +25,12 @@ from bronze.sigaa_utils import (
     url_absoluta,
     validar_endereco_lattes,
 )
+from bronze.minio_storage import salvar_json_bronze
 
 DEFAULT_URL = (
     f"{BASE_URL}/sigaa/public/departamento/professores.jsf?id={DEPARTAMENTO_ID}"
 )
-RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-DEFAULT_OUTPUT = RAW_OUTPUT
+DEFAULT_OUTPUT = "raw/sigaa/professores_sigaa.json"
 SIAPE_RE = re.compile(r"siape=(\d+)", re.IGNORECASE)
 
 
@@ -75,13 +73,6 @@ def extrair_professores(html: str) -> list[dict[str, str | None]]:
     return professores
 
 
-def salvar_json(dados: list[dict[str, str | None]], caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(dados, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extrai professores do SIGAA com siape, portal e Lattes."
@@ -89,9 +80,8 @@ def main() -> None:
     parser.add_argument("--url", default=DEFAULT_URL, help="URL da página do departamento.")
     parser.add_argument(
         "--output",
-        type=Path,
         default=DEFAULT_OUTPUT,
-        help="Arquivo JSON de saída.",
+        help="Chave do objeto JSON no bucket Bronze.",
     )
     args = parser.parse_args()
 
@@ -102,14 +92,14 @@ def main() -> None:
     if not professores:
         raise RuntimeError("Nenhum professor encontrado. Verifique a estrutura da página.")
 
-    salvar_json(professores, args.output)
+    salvar_json_bronze(args.output, professores)
 
     com_lattes = sum(1 for professor in professores if professor["enderecoLattes"])
     com_siape = sum(1 for professor in professores if professor["siape"])
     print(f"Extraídos {len(professores)} professores.")
     print(f"  Com siape:  {com_siape}")
     print(f"  Com Lattes: {com_lattes}")
-    print(f"Arquivo salvo em: {args.output}")
+    print(f"Objeto salvo em: bronze/{args.output}")
     print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
 
 

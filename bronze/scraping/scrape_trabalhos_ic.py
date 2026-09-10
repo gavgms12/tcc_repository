@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 import re
 import sys
 from datetime import datetime, timezone
-import json
 import unicodedata
 from pathlib import Path
 import urllib3
@@ -26,18 +25,10 @@ secoes_alvo = {
 }
 
 DEFAULT_URL = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
-RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "periodicos" / "trabalhos_ic_periodicos.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "periodicos" / "trabalhos_ic.json"
-DEFAULT_OUTPUT = RAW_OUTPUT
+DEFAULT_OUTPUT = "raw/periodicos/trabalhos_ic_periodicos.json"
 
 urls = []
 
-def salvar_json(dados: list[dict[str, str | None]], caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(dados, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
-        
 def normalizar_texto(texto: str) -> str:
     return re.sub(r"\s+", " ", texto).strip()
 
@@ -148,7 +139,7 @@ def main() -> None:
             description="Extrai nome do titulo e palavras-chaves dos trabalhos de IC."
         )
     parser.add_argument("--url", default=DEFAULT_URL, help="URL da página dos eventos de IC.")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Arquivo JSON de saída.")
+    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Chave do objeto JSON no bucket Bronze.")
     parser.add_argument(
         "--verify-ssl",
         action="store_true",
@@ -167,9 +158,11 @@ def main() -> None:
     if not trabalhos:
         raise RuntimeError("Nenhum trabalho encontrado. Verifique a estrutura da página.")
     
-    salvar_json(trabalhos, args.output)
+    from bronze.minio_storage import salvar_json_bronze
+
+    salvar_json_bronze(args.output, trabalhos)
     
-    print(f"Arquivo salvo em: {args.output}")
+    print(f"Objeto salvo em: bronze/{args.output}")
     print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
     
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orquestra a camada Silver."""
+"""Orquestra a camada Silver: Bronze (MinIO) para Parquet (MinIO)."""
 
 from __future__ import annotations
 
@@ -11,8 +11,6 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 BRONZE_DIR = ROOT_DIR / "bronze"
 SILVER_DIR = ROOT_DIR / "silver"
-SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
-SCRIPTLATTES_CONFIG = SCRIPTLATTES_DIR / "exemplo" / "teste-02.config"
 
 
 def executar_etapa(nome: str, comando: list[str], cwd: Path | None = None) -> None:
@@ -23,59 +21,36 @@ def executar_etapa(nome: str, comando: list[str], cwd: Path | None = None) -> No
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Executa o pipeline da camada Silver.")
+    parser = argparse.ArgumentParser(
+        description="Lê os dados Bronze do MinIO e gera Parquet na camada Silver."
+    )
     parser.add_argument("--skip-merge", action="store_true", help="Pula o merge SIGAA + IESTI.")
-    parser.add_argument("--skip-lista", action="store_true", help="Pula a geração da lista para o scriptLattes.")
-    parser.add_argument("--skip-lattes", action="store_true", help="Pula a coleta de currículos pelo scriptLattes.")
-    parser.add_argument("--skip-integracao", action="store_true", help="Pula a etapa de integração com Lattes.")
+    parser.add_argument(
+        "--skip-lattes",
+        action="store_true",
+        help="Pula a extração de currículos com o scriptLattes.",
+    )
+    parser.add_argument(
+        "--limite-lattes",
+        type=int,
+        default=0,
+        help="Limita currículos Lattes para teste (0 = todos).",
+    )
     args = parser.parse_args()
 
     python = sys.executable
 
     if not args.skip_merge:
         executar_etapa(
-            "Merge SIGAA + IESTI",
+            "Unificar professores e gravar Parquet",
             [python, "01_merge/merge_professores.py"],
         )
 
-    if not args.skip_lista:
-        executar_etapa(
-            "Gerar lista para Lattes",
-            [python, "01_merge/gerar_lista_scriptlattes.py"],
-        )
-
     if not args.skip_lattes:
-        venv_python = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
-        if not venv_python.exists():
-            raise FileNotFoundError(
-                f"venv do scriptLattes não encontrada em {venv_python}. "
-                "Execute 'make install' no repositório scriptLattes."
-            )
-        if not SCRIPTLATTES_CONFIG.is_file():
-            raise FileNotFoundError(f"Config não encontrado: {SCRIPTLATTES_CONFIG}")
-        executar_etapa(
-            "scriptLattes",
-            [str(venv_python), str(SCRIPTLATTES_DIR / "scriptLattes.py"), str(SCRIPTLATTES_CONFIG)],
-            cwd=SCRIPTLATTES_DIR,
-        )
-
-    if not args.skip_integracao:
-        executar_etapa(
-            "Vincular disciplinas",
-            [python, "02_integracao/vincular_disciplinas.py", "--buscar-ementa-vinculadas"],
-        )
-        executar_etapa(
-            "Vincular trabalhos IC",
-            [python, "02_integracao/vincular_ics.py", "--buscar-ics-vinculadas"],
-        )
-        executar_etapa(
-            "Transformar Lattes",
-            [python, "02_integracao/transformar_lattes.py"],
-        )
-        executar_etapa(
-            "Unir Lattes + SIGAA",
-            [python, "02_integracao/unir_lattes_sigaa.py"],
-        )
+        comando_lattes = [python, "02_integracao/executar_scriptlattes.py"]
+        if args.limite_lattes > 0:
+            comando_lattes.extend(["--limite", str(args.limite_lattes)])
+        executar_etapa("Extrair currículos Lattes", comando_lattes)
 
     print("\nPipeline Silver concluído.")
 

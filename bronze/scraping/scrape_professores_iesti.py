@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 import unicodedata
@@ -22,9 +21,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
         sys.path.insert(0, caminho)
 
 DEFAULT_URL = "https://iesti.unifei.edu.br/corpo-docente/"
-RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "iesti_site" / "professores_iesti_site.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "iesti_site" / "professores.json"
-DEFAULT_OUTPUT = RAW_OUTPUT
+DEFAULT_OUTPUT = "raw/iesti_site/professores_iesti_site.json"
 TAMANHO_ID_LATTES = len("8122238750933560")
 ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 
@@ -109,13 +106,6 @@ def buscar_html(url: str, timeout: int = 30, verify_ssl: bool = False) -> str:
     return response.text
 
 
-def salvar_json(dados: list[dict[str, str | None]], caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(dados, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extrai nome e idLattes do corpo docente do site do IESTI."
@@ -123,9 +113,8 @@ def main() -> None:
     parser.add_argument("--url", default=DEFAULT_URL, help="URL da página do IESTI.")
     parser.add_argument(
         "--output",
-        type=Path,
         default=DEFAULT_OUTPUT,
-        help="Arquivo JSON de saída.",
+        help="Chave do objeto JSON no bucket Bronze.",
     )
     parser.add_argument(
         "--verify-ssl",
@@ -143,11 +132,13 @@ def main() -> None:
     if not professores:
         raise RuntimeError("Nenhum professor encontrado. Verifique a estrutura da página.")
 
-    salvar_json(professores, args.output)
+    from bronze.minio_storage import salvar_json_bronze
+
+    salvar_json_bronze(args.output, professores)
 
     com_lattes = sum(1 for professor in professores if professor["idLattes"])
     print(f"Extraídos {len(professores)} professores ({com_lattes} com idLattes).")
-    print(f"Arquivo salvo em: {args.output}")
+    print(f"Objeto salvo em: bronze/{args.output}")
     print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
 
 

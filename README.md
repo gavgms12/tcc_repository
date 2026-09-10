@@ -113,9 +113,20 @@ source venv/bin/activate   # Linux/macOS; no Windows: venv\Scripts\activate
 pip install -r bronze/requirements.txt
 ```
 
+3. **MinIO**: copie o arquivo de configuração e informe o endpoint e as
+credenciais do Data Lake.
+
+```bash
+cp .env.example .env
+```
+
+Os coletores gravam JSON diretamente no bucket `bronze` (sem arquivos em
+`data/`). A Silver lê esses objetos e grava `professores_unificados.parquet` no
+bucket `silver`. MongoDB não faz parte desse fluxo.
+
 > Use a venv em `tcc_code/venv` para os scripts deste repositório. A venv do **scriptLattes** é separada e não inclui todas as dependências do Bronze (ex.: `requests`).
 
-3. **scriptLattes** (repositório irmão, fora deste projeto):
+4. **scriptLattes** (repositório irmão):
 
 ```
 TCC/
@@ -130,7 +141,10 @@ cd ../scriptLattes
 make install
 ```
 
-O pipeline usa o config em `scriptLattes/exemplo/teste-02.config`, apontando para os arquivos em `tcc_code/data/bronze/`.
+O pipeline Silver gera uma configuração temporária e isolada para o
+scriptLattes. Ela não altera os exemplos nem as configurações existentes em
+`Documentos/scriptLattes`; os JSONs gerados são enviados para o MinIO ao fim da
+execução.
 
 ---
 
@@ -145,13 +159,14 @@ python bronze/pipeline_bronze.py
 python silver/pipeline_silver.py
 ```
 
-Isso executa, em ordem: coleta Bronze → merge → geração da lista Lattes → download dos currículos → vínculos e integração Silver.
+Isso executa, em ordem: coleta Bronze → JSONs no MinIO → merge de professores
+→ Parquet no bucket Silver → coleta Lattes → JSONs em
+`bronze/raw/lattes/json/`.
 
-Para atualizar somente os dados coletados, sem baixar currículos:
+Para executar apenas a gravação Parquet a partir dos JSONs Bronze já existentes:
 
 ```bash
-python bronze/pipeline_bronze.py
-python silver/pipeline_silver.py --skip-lattes --skip-integracao
+python silver/pipeline_silver.py
 ```
 
 ### Opção 2 — Etapas individuais
@@ -164,15 +179,10 @@ python bronze/scraping/scrape_professores_sigaa.py
 python bronze/scraping/scrape_sigaa_componentes.py
 python bronze/scraping/scrape_sigaa_docente.py
 
-# 2. Coletar site IESTI e mesclar fontes
+# 2. Coletar site IESTI e outros dados brutos
 python bronze/scraping/scrape_professores_iesti.py
 python bronze/scraping/scrape_trabalhos_ic.py
 python silver/01_merge/merge_professores.py
-python silver/01_merge/gerar_lista_scriptlattes.py
-
-
-# 3. Baixar currículos e integrar os dados
-python silver/pipeline_silver.py --skip-merge --skip-lista
 ```
 
 ---
@@ -181,29 +191,25 @@ python silver/pipeline_silver.py --skip-merge --skip-lista
 
 | Flag | Onde | Efeito |
 |------|------|--------|
-| `--skip-lattes` | `pipeline_silver.py` | Pula o download dos currículos |
-| `--skip-integracao` | `pipeline_silver.py` | Pula vínculos e integração final |
 | `--skip-scraping` | `pipeline_bronze.py` | Usa dados brutos já coletados |
+| `--skip-lattes` | `pipeline_silver.py` | Pula a coleta de currículos pelo scriptLattes |
+| `--limite-lattes N` | `pipeline_silver.py` | Testa a coleta de apenas N currículos |
 | `--limite-docentes N` | `pipeline_bronze.py` | Testa com N docentes |
 | `--com-ementa` | `pipeline_bronze.py` | Busca ementa de todos os componentes (lento) |
 | `--limite N` | `scrape_sigaa_docente.py` | Limita docentes coletados |
 
 ---
 
-## Principais saídas
+## Principais saídas no MinIO
 
-| Arquivo | Conteúdo |
+| Bucket / chave | Conteúdo |
 |---------|----------|
-| `data/bronze/raw/sigaa/professores_sigaa.json` | Lista básica (nome, siape, Lattes) |
-| `data/bronze/raw/sigaa/componentes_sigaa.json` | Catálogo de disciplinas do instituto |
-| `data/bronze/raw/sigaa/docentes_sigaa.json` | Perfil completo por docente no SIGAA |
-| `data/bronze/raw/sigaa/vinculos_professor_disciplina.json` | Professor ↔ disciplinas + ementa |
-| `data/bronze/raw/periodicos/trabalhos_ic_periodicos.json` | Catálogo de trabalhos de iniciação científica |
-| `data/silver/professores_unificados.json` | Cadastro unificado Lattes + SIGAA |
-| `data/bronze/merged/professores_sigaa_iesti_merged.json` | Cadastro unificado (SIGAA + IESTI) |
-| `data/bronze/lista/professores_lattes.list` | Lista de entrada do scriptLattes |
-| `data/bronze/relatorio_qualidade.txt` | Resumo de cobertura e lacunas |
-| `data/silver/docentes/{id_lattes}.json` | Perfil limpo a partir do Lattes |
+| `bronze/raw/sigaa/professores_sigaa.json` | Lista básica (nome, siape, Lattes) |
+| `bronze/raw/sigaa/componentes_sigaa.json` | Catálogo de disciplinas do instituto |
+| `bronze/raw/sigaa/docentes_sigaa.json` | Perfil completo por docente no SIGAA |
+| `bronze/raw/periodicos/trabalhos_ic_periodicos.json` | Catálogo de trabalhos de iniciação científica |
+| `bronze/raw/lattes/json/{id_lattes}.json` | Currículo bruto individual gerado pelo scriptLattes |
+| `silver/professores_unificados.parquet` | Cadastro unificado de professores do SIGAA + IESTI |
 
 ---
 
