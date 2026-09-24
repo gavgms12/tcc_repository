@@ -1,18 +1,22 @@
 # Camada Silver
 
-A Silver concentra a lógica de integração, merge e limpeza dos dados coletados pela Bronze.
+A Silver concentra o merge de identidade e a limpeza de cada fonte (SIGAA e
+Lattes) coletada pela Bronze. Ela **não** une SIGAA com Lattes — isso é
+responsabilidade exclusiva da Gold.
 
 ## Organização
 
-- `merge/` — merge dos dados do SIGAA + IESTI em um roster de identidade (`professores_unificados.parquet`)
-- `integracao/` — scriptLattes (currículos para a Bronze) e limpeza dos perfis SIGAA e Lattes, com catálogos de disciplinas e trabalhos de IC
-- `pipeline_silver.py` — chama as três etapas em sequência
+- `01_merge/` — merge de identidade SIGAA + IESTI (nome, idLattes, siape) e geração da lista para o scriptLattes
+- `02_integracao/` — coleta dos currículos Lattes via scriptLattes
+- `03_limpeza/` — limpeza por fonte: perfil SIGAA, perfil Lattes e catálogo de trabalhos de IC/periódicos, cada um em Parquet separado
 
-## Fluxo
+## Fluxo esperado
 
-1. Lê da Bronze somente a pasta de data mais recente (`raw/AAAAMMDD/`); se uma fonte não estiver nela, a execução falha. `BRONZE_DATA` fixa outra data
-2. Faz o merge SIGAA + IESTI
-3. Executa o scriptLattes para os ids Lattes do roster (com cache local) e grava os JSONs na Bronze, na mesma pasta de data lida
-4. Limpa os perfis SIGAA e Lattes em Parquets separados e gera os catálogos
+1. Ler os arquivos crus da Bronze
+2. Fazer merge de identidade SIGAA + IESTI
+3. Gerar a lista de ids Lattes e baixar os currículos via scriptLattes
+4. Limpar o perfil SIGAA (remover contato/extensão, podar disciplinas/projetos/produção docente)
+5. Limpar o perfil Lattes (resumo, competências, produções/projetos/orientações)
+6. Limpar o catálogo de trabalhos de IC/periódicos (sem vincular a professor)
 
-A unificação dos dois perfis fica na Gold.
+> A unificação dos perfis SIGAA + Lattes por professor acontece só na Gold.
