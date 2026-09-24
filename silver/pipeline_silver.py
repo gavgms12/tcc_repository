@@ -24,7 +24,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Lê os dados Bronze do MinIO e gera Parquet na camada Silver."
     )
-    parser.add_argument("--skip-merge", action="store_true", help="Pula o merge SIGAA + IESTI.")
+    parser.add_argument(
+        "--skip-merge", action="store_true", help="Pula o merge SIGAA + IESTI."
+    )
     parser.add_argument(
         "--skip-lattes",
         action="store_true",

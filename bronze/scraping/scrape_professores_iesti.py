@@ -130,7 +130,9 @@ def main() -> None:
     professores = extrair_professores(html)
 
     if not professores:
-        raise RuntimeError("Nenhum professor encontrado. Verifique a estrutura da página.")
+        raise RuntimeError(
+            "Nenhum professor encontrado. Verifique a estrutura da página."
+        )
 
     from bronze.minio_storage import salvar_json_bronze
 

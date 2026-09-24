@@ -8,7 +8,9 @@ from typing import Callable
 
 import requests
 from bs4 import BeautifulSoup, Tag
+import urllib3
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE_URL = "https://sigaa.unifei.edu.br"
 DEPARTAMENTO_ID = "127"
 TAMANHO_ID_LATTES = 16
@@ -16,6 +18,7 @@ ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 USER_AGENT = (
     "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; +https://sigaa.unifei.edu.br)"
 )
+SIAPE_RE = re.compile(r"siape=(\d+)", re.IGNORECASE)
 
 
 def criar_sessao() -> requests.Session:
@@ -37,6 +40,14 @@ def limpar_nome(nome: str) -> str:
     ).strip()
 
 
+def extrair_siape(url: str | None) -> str | None:
+    if not url:
+        return None
+
+    match = SIAPE_RE.search(url)
+    return match.group(1) if match else None
+
+
 def extrair_id_lattes(url: str | None) -> str | None:
     if not url:
         return None
@@ -45,7 +56,9 @@ def extrair_id_lattes(url: str | None) -> str | None:
 
 
 def id_lattes_valido(id_lattes: str | None) -> bool:
-    return bool(id_lattes and id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES)
+    return bool(
+        id_lattes and id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES
+    )
 
 
 def validar_endereco_lattes(url: str | None) -> str | None:
@@ -75,14 +88,14 @@ def buscar_html(
     ultimo_erro: Exception | None = None
     for tentativa in range(1, tentativas + 1):
         try:
-            response = session.get(url, timeout=timeout)
+            response = session.get(url, timeout=timeout, verify=False,)
             response.raise_for_status()
             response.encoding = response.apparent_encoding or "utf-8"
             return response.text
         except requests.RequestException as erro:
             ultimo_erro = erro
             if tentativa < tentativas:
-                time.sleep(min(2 ** tentativa, 8))
+                time.sleep(min(2**tentativa, 8))
 
     raise ultimo_erro  # type: ignore[misc]
 
@@ -92,7 +105,12 @@ def texto_dd(dd: Tag | None) -> str | None:
         return None
 
     texto = normalizar_texto(dd.get_text(" ", strip=True))
-    if not texto or texto.lower() in {"não informada", "não informado", "nao informada", "nao informado"}:
+    if not texto or texto.lower() in {
+        "não informada",
+        "não informado",
+        "nao informada",
+        "nao informado",
+    }:
         return None
     return texto
 
@@ -137,7 +155,9 @@ def extrair_secoes_dl(container: Tag | None) -> dict[str, str | list[str] | None
             secoes["descricaoPessoal"] = texto_dd(dd)
         elif chave.lower().startswith("currículo lattes"):
             link = dd.find("a", href=True) if dd else None
-            secoes["enderecoLattes"] = validar_endereco_lattes(link["href"].strip()) if link else None
+            secoes["enderecoLattes"] = (
+                validar_endereco_lattes(link["href"].strip()) if link else None
+            )
         elif chave.lower().startswith("endereço profissional"):
             secoes["enderecoProfissional"] = texto_dd(dd)
         elif chave.lower() == "sala":

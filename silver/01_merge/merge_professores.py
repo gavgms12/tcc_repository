@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
-import sys
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
@@ -70,7 +70,9 @@ def extrair_id_lattes_de_url(url: str | None) -> str | None:
 
 
 def id_lattes_valido(id_lattes: str | None) -> bool:
-    return bool(id_lattes and id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES)
+    return bool(
+        id_lattes and id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES
+    )
 
 
 def similaridade_nomes(nome_a: str, nome_b: str) -> float:
@@ -206,14 +208,18 @@ def main() -> None:
     )
     parser.add_argument("--sigaa", default=DEFAULT_SIGAA, help="Chave Bronze do SIGAA.")
     parser.add_argument("--iesti", default=DEFAULT_IESTI, help="Chave Bronze do IESTI.")
-    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Chave Parquet no bucket Silver.")
+    parser.add_argument(
+        "--output", default=DEFAULT_OUTPUT, help="Chave Parquet no bucket Silver."
+    )
     args = parser.parse_args()
 
     professores = fazer_merge(carregar_sigaa(args.sigaa), carregar_iesti(args.iesti))
     salvar_parquet(professores, args.output)
 
     com_lattes = sum(1 for professor in professores if professor.id_lattes)
-    print(f"Merge concluído: {len(professores)} professores ({com_lattes} com idLattes).")
+    print(
+        f"Merge concluído: {len(professores)} professores ({com_lattes} com idLattes)."
+    )
     print(f"Objeto Parquet salvo em: silver/{args.output}")
 
 

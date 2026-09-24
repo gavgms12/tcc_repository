@@ -25,8 +25,8 @@ if str(ROOT_DIR) not in sys.path:
 
 sys.path.insert(0, str(ROOT_DIR / "silver" / "01_merge"))
 
-from bronze.minio_storage import (  # noqa: E402
-    ler_json_bronze,
+from bronze.minio_storage import (
+    ler_json_bronze,  # noqa: E402
     ler_parquet_silver,
     listar_chaves_bronze,
     salvar_parquet_silver,
@@ -108,9 +108,13 @@ def extrair_palavras_chave(formacoes: list[dict]) -> list[str]:
         if not match:
             continue
 
-        trecho = descricao[match.end():]
-        trecho = re.split(r"\.\s*Grande [áa]rea", trecho, maxsplit=1, flags=re.IGNORECASE)[0]
-        trecho = re.split(r"\.\s*Setores de atividade", trecho, maxsplit=1, flags=re.IGNORECASE)[0]
+        trecho = descricao[match.end() :]
+        trecho = re.split(
+            r"\.\s*Grande [áa]rea", trecho, maxsplit=1, flags=re.IGNORECASE
+        )[0]
+        trecho = re.split(
+            r"\.\s*Setores de atividade", trecho, maxsplit=1, flags=re.IGNORECASE
+        )[0]
         trecho = trecho.split(".")[0]
 
         for palavra in re.split(r"[;/]", trecho):
@@ -142,7 +146,11 @@ def transformar_areas(areas: list[dict]) -> list[dict]:
 
 
 def transformar_linhas(linhas: list[dict]) -> list[str]:
-    return [normalizar_texto(linha.get("nome")) for linha in linhas if normalizar_texto(linha.get("nome"))]
+    return [
+        normalizar_texto(linha.get("nome"))
+        for linha in linhas
+        if normalizar_texto(linha.get("nome"))
+    ]
 
 
 def transformar_producoes(producao_bibliografica: dict | None) -> list[dict]:
@@ -215,7 +223,9 @@ def transformar_projetos(projetos: list[dict], tipo_projeto: str) -> list[dict]:
     return resultado
 
 
-def parse_descricao_projeto(descricao: list[str] | str | None) -> tuple[str, str | None]:
+def parse_descricao_projeto(
+    descricao: list[str] | str | None,
+) -> tuple[str, str | None]:
     if not descricao:
         return "", None
 
@@ -239,7 +249,9 @@ def parse_descricao_projeto(descricao: list[str] | str | None) -> tuple[str, str
     texto = re.sub(r"\s*Integrantes:.*$", "", texto, flags=re.IGNORECASE).strip()
     texto = re.sub(r"\s*Alunos envolvidos:.*$", "", texto, flags=re.IGNORECASE).strip()
     texto = re.sub(r"\s*Financiador(?:es)?:.*$", "", texto, flags=re.IGNORECASE).strip()
-    texto = re.sub(r"\s*Número de orientações:.*$", "", texto, flags=re.IGNORECASE).strip()
+    texto = re.sub(
+        r"\s*Número de orientações:.*$", "", texto, flags=re.IGNORECASE
+    ).strip()
 
     return texto, situacao
 
@@ -286,15 +298,25 @@ def limpar_perfil_lattes(dados_bronze: dict) -> dict:
     info = dados_bronze.get("informacoes_pessoais") or {}
 
     projetos = transformar_projetos(dados_bronze.get("projetos_pesquisa"), "pesquisa")
-    projetos.extend(transformar_projetos(dados_bronze.get("projetos_extensao"), "extensao"))
-    projetos.extend(transformar_projetos(dados_bronze.get("projetos_desenvolvimento"), "desenvolvimento"))
+    projetos.extend(
+        transformar_projetos(dados_bronze.get("projetos_extensao"), "extensao")
+    )
+    projetos.extend(
+        transformar_projetos(
+            dados_bronze.get("projetos_desenvolvimento"), "desenvolvimento"
+        )
+    )
 
     return {
         "resumo": limpar_resumo(info.get("texto_resumo")) or None,
         "competencias": {
             "areas": transformar_areas(dados_bronze.get("areas_de_atuacao") or []),
-            "linhas_pesquisa": transformar_linhas(dados_bronze.get("linhas_de_pesquisa") or []),
-            "palavras_chave": extrair_palavras_chave(dados_bronze.get("formacao_academica") or []),
+            "linhas_pesquisa": transformar_linhas(
+                dados_bronze.get("linhas_de_pesquisa") or []
+            ),
+            "palavras_chave": extrair_palavras_chave(
+                dados_bronze.get("formacao_academica") or []
+            ),
         },
         "producoes": transformar_producoes(dados_bronze.get("producao_bibliografica")),
         "projetos": projetos,
@@ -302,7 +324,12 @@ def limpar_perfil_lattes(dados_bronze: dict) -> dict:
     }
 
 
-PLACEHOLDERS_AREA_INTERESSE = {"não informadas", "nao informadas", "não informada", "nao informada"}
+PLACEHOLDERS_AREA_INTERESSE = {
+    "não informadas",
+    "nao informadas",
+    "não informada",
+    "nao informada",
+}
 
 
 def limpar_perfil_sigaa(docente_bruto: dict) -> dict:
@@ -311,11 +338,15 @@ def limpar_perfil_sigaa(docente_bruto: dict) -> dict:
     areas_interesse = [
         normalizar_texto(a)
         for a in perfil.get("areasInteresse", [])
-        if normalizar_texto(a) and normalizar_texto(a).lower() not in PLACEHOLDERS_AREA_INTERESSE
+        if normalizar_texto(a)
+        and normalizar_texto(a).lower() not in PLACEHOLDERS_AREA_INTERESSE
     ]
     return {
         "descricaoPessoal": normalizar_texto(perfil.get("descricaoPessoal")) or None,
-        "formacaoAcademicaProfissional": normalizar_texto(perfil.get("formacaoAcademicaProfissional")) or None,
+        "formacaoAcademicaProfissional": normalizar_texto(
+            perfil.get("formacaoAcademicaProfissional")
+        )
+        or None,
         "areasInteresse": areas_interesse,
     }
 
@@ -448,7 +479,9 @@ def montar_professor(
 
     docente_sigaa = docentes_sigaa_por_siape.get(siape, {}) if siape else {}
     perfil_sigaa = limpar_perfil_sigaa(docente_sigaa)
-    disciplinas = normalizar_disciplinas(docente_sigaa.get("disciplinasMinistradas", []))
+    disciplinas = normalizar_disciplinas(
+        docente_sigaa.get("disciplinasMinistradas", [])
+    )
 
     perfil_lattes: dict[str, Any] = {
         "resumo": None,
@@ -477,7 +510,9 @@ def montar_professor(
         "projetos": perfil_lattes["projetos"],
         "orientacoes": perfil_lattes["orientacoes"],
         "disciplinasSigaa": disciplinas,
-        "trabalhosIniciacaoCientifica": trabalhos_por_siape.get(siape, []) if siape else [],
+        "trabalhosIniciacaoCientifica": (
+            trabalhos_por_siape.get(siape, []) if siape else []
+        ),
     }
 
 
@@ -497,20 +532,31 @@ def main() -> None:
     roster = ler_parquet_silver(args.roster)
     docentes_sigaa_payload = ler_json_bronze(args.docentes_sigaa)
     docentes_sigaa_por_siape = {
-        d["siape"]: d for d in docentes_sigaa_payload.get("docentes", []) if d.get("siape")
+        d["siape"]: d
+        for d in docentes_sigaa_payload.get("docentes", [])
+        if d.get("siape")
     }
     componentes_payload = ler_json_bronze(args.componentes_sigaa)
     lattes_disponiveis = indexar_lattes_disponiveis()
 
-    catalogo_componentes = construir_catalogo_disciplinas(componentes_payload, docentes_sigaa_payload)
+    catalogo_componentes = construir_catalogo_disciplinas(
+        componentes_payload, docentes_sigaa_payload
+    )
     salvar_parquet_silver(args.saida_componentes, catalogo_componentes)
 
-    trabalhos_por_siape, catalogo_trabalhos_ic = processar_trabalhos_ic(args.trabalhos_ic, roster)
+    trabalhos_por_siape, catalogo_trabalhos_ic = processar_trabalhos_ic(
+        args.trabalhos_ic, roster
+    )
     if catalogo_trabalhos_ic:
         salvar_parquet_silver(args.saida_trabalhos_ic, catalogo_trabalhos_ic)
 
     professores = [
-        montar_professor(identidade, docentes_sigaa_por_siape, lattes_disponiveis, trabalhos_por_siape)
+        montar_professor(
+            identidade,
+            docentes_sigaa_por_siape,
+            lattes_disponiveis,
+            trabalhos_por_siape,
+        )
         for identidade in roster
     ]
     salvar_parquet_silver(args.saida_professores, professores)
@@ -518,7 +564,9 @@ def main() -> None:
     com_resumo = sum(1 for p in professores if p["resumo"])
     com_ic = sum(1 for p in professores if p["trabalhosIniciacaoCientifica"])
     print(f"Perfis unificados: {len(professores)} ({com_resumo} com resumo).")
-    print(f"Trabalhos de IC catalogados: {len(catalogo_trabalhos_ic)} ({com_ic} professores com IC vinculada).")
+    print(
+        f"Trabalhos de IC catalogados: {len(catalogo_trabalhos_ic)} ({com_ic} professores com IC vinculada)."
+    )
     print(f"Componentes curriculares catalogados: {len(catalogo_componentes)}.")
     print(f"Parquet salvo em: silver/{args.saida_professores}")
 

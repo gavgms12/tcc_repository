@@ -16,7 +16,9 @@ BRONZE_DATA = TCC_ROOT / "data" / "bronze"
 SIGAA_JSON = BRONZE_DATA / "raw" / "sigaa" / "professores_sigaa.json"
 SIGAA_COMPONENTES_JSON = BRONZE_DATA / "raw" / "sigaa" / "componentes_sigaa.json"
 SIGAA_DOCENTES_JSON = BRONZE_DATA / "raw" / "sigaa" / "docentes_sigaa.json"
-SIGAA_VINCULOS_JSON = BRONZE_DATA / "raw" / "sigaa" / "vinculos_professor_disciplina.json"
+SIGAA_VINCULOS_JSON = (
+    BRONZE_DATA / "raw" / "sigaa" / "vinculos_professor_disciplina.json"
+)
 VINCULOS_ICS = BRONZE_DATA / "raw" / "periodicos" / "trabalhos_vinculados.json"
 IESTI_JSON = BRONZE_DATA / "raw" / "iesti_site" / "professores_iesti_site.json"
 PERIODICOS_JSON = BRONZE_DATA / "raw" / "periodicos" / "trabalhos_ic_periodicos.json"
@@ -85,7 +87,9 @@ def gerar_relatorio() -> str:
     iesti = carregar_json(IESTI_JSON)
     merged = carregar_json(MERGED_JSON)
 
-    lista_linhas = LISTA.read_text(encoding="utf-8").strip().splitlines() if LISTA.exists() else []
+    lista_linhas = (
+        LISTA.read_text(encoding="utf-8").strip().splitlines() if LISTA.exists() else []
+    )
     ids_esperados = ids_no_merged(merged)
     ids_json = ids_baixados()
     sem_lattes = [item["nome"] for item in merged if not item.get("idLattes")]
@@ -223,7 +227,9 @@ def main() -> None:
     python = sys.executable
 
     if not args.skip_scraping:
-        executar_etapa("Scraping SIGAA", [python, "scraping/scrape_professores_sigaa.py"])
+        executar_etapa(
+            "Scraping SIGAA", [python, "scraping/scrape_professores_sigaa.py"]
+        )
 
         comando_componentes = [python, "scraping/scrape_sigaa_componentes.py"]
         if args.com_ementa:
@@ -235,8 +241,12 @@ def main() -> None:
             comando_docentes.extend(["--limite", str(args.limite_docentes)])
         executar_etapa("Docentes SIGAA", comando_docentes)
 
-        executar_etapa("Scraping IESTI", [python, "scraping/scrape_professores_iesti.py"])
-        executar_etapa("Scraping periodicos", [python, "scraping/scrape_trabalhos_ic.py"])
+        executar_etapa(
+            "Scraping IESTI", [python, "scraping/scrape_professores_iesti.py"]
+        )
+        executar_etapa(
+            "Scraping periodicos", [python, "scraping/scrape_trabalhos_ic.py"]
+        )
 
     print("\nCamada Bronze concluída: os JSONs brutos foram enviados ao MinIO.")
 

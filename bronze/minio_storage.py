@@ -8,9 +8,9 @@ from io import BytesIO
 from typing import Any
 
 import boto3
+import pandas as pd
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
-import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,16 +20,26 @@ SILVER_BUCKET = os.getenv("MINIO_SILVER_BUCKET", "silver")
 
 
 def _cliente() -> BaseClient:
-    """Cria um cliente compatível com S3 apontado para o MinIO."""
-    endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+    endpoint = os.getenv("MINIO_ENDPOINT")
+    access_key = os.getenv("MINIO_ACCESS_KEY")
+    secret_key = os.getenv("MINIO_SECRET_KEY")
+
+    if not endpoint:
+        raise ValueError("MINIO_ENDPOINT não configurado")
+
+    if not access_key:
+        raise ValueError("MINIO_ACCESS_KEY não configurado")
+
+    if not secret_key:
+        raise ValueError("MINIO_SECRET_KEY não configurado")
+
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
-        aws_access_key_id=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-        aws_secret_access_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
         region_name=os.getenv("MINIO_REGION", "us-east-1"),
     )
-
 
 def _garantir_bucket(cliente: BaseClient, bucket: str) -> None:
     try:
@@ -61,7 +71,10 @@ def salvar_json_bronze(chave: str, dados: Any) -> None:
             ContentType="application/json; charset=utf-8",
         )
     except ClientError as erro:
-        if str(erro.response.get("Error", {}).get("Code", "")) in {"403", "AccessDenied"}:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
             raise PermissionError(
                 f"O MinIO recusou a gravação em '{BRONZE_BUCKET}/{chave}'. "
                 "Confira MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY "
@@ -75,7 +88,10 @@ def ler_json_bronze(chave: str) -> Any:
     try:
         resposta = _cliente().get_object(Bucket=BRONZE_BUCKET, Key=chave)
     except ClientError as erro:
-        if str(erro.response.get("Error", {}).get("Code", "")) in {"403", "AccessDenied"}:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
             raise PermissionError(
                 f"O MinIO recusou a leitura de '{BRONZE_BUCKET}/{chave}'. "
                 "Conceda a permissão s3:GetObject ao usuário configurado."
@@ -94,7 +110,10 @@ def listar_chaves_bronze(prefixo: str) -> list[str]:
             for objeto in pagina.get("Contents", []):
                 chaves.append(objeto["Key"])
     except ClientError as erro:
-        if str(erro.response.get("Error", {}).get("Code", "")) in {"403", "AccessDenied"}:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
             raise PermissionError(
                 f"O MinIO recusou a listagem de '{BRONZE_BUCKET}/{prefixo}'. "
                 "Conceda a permissão s3:ListBucket ao usuário configurado."
@@ -121,7 +140,10 @@ def salvar_parquet_silver(chave: str, registros: list[dict[str, Any]]) -> None:
             ContentType="application/vnd.apache.parquet",
         )
     except ClientError as erro:
-        if str(erro.response.get("Error", {}).get("Code", "")) in {"403", "AccessDenied"}:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
             raise PermissionError(
                 f"O MinIO recusou a gravação em '{SILVER_BUCKET}/{chave}'. "
                 "Conceda a permissão s3:PutObject ao usuário configurado."
@@ -134,7 +156,10 @@ def ler_parquet_silver(chave: str) -> list[dict[str, Any]]:
     try:
         resposta = _cliente().get_object(Bucket=SILVER_BUCKET, Key=chave)
     except ClientError as erro:
-        if str(erro.response.get("Error", {}).get("Code", "")) in {"403", "AccessDenied"}:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
             raise PermissionError(
                 f"O MinIO recusou a leitura de '{SILVER_BUCKET}/{chave}'. "
                 "Conceda a permissão s3:GetObject ao usuário configurado."

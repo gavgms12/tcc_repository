@@ -17,6 +17,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
 
+from bronze.minio_storage import ler_json_bronze, salvar_json_bronze
 from bronze.sigaa_utils import (
     BASE_URL,
     buscar_html,
@@ -25,7 +26,6 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
-from bronze.minio_storage import ler_json_bronze, salvar_json_bronze
 
 DEFAULT_PROFESSORES = "raw/sigaa/professores_sigaa.json"
 DEFAULT_OUTPUT = "raw/sigaa/docentes_sigaa.json"
@@ -75,7 +75,9 @@ def extrair_disciplinas(html: str) -> list[dict[str, str | None]]:
                 "nome": normalizar_texto(celulas[1].get_text()),
                 "cargaHoraria": normalizar_texto(celulas[2].get_text()),
                 "horario": (
-                    normalizar_texto(celulas[3].get_text()) if len(celulas) > 3 else None
+                    normalizar_texto(celulas[3].get_text())
+                    if len(celulas) > 3
+                    else None
                 ),
                 "idSigaa": id_sigaa,
                 "urlComponente": (
@@ -136,7 +138,9 @@ def extrair_pesquisa(html: str) -> list[dict[str, str | None]]:
                 "codigo": codigo,
                 "titulo": normalizar_texto(celulas[1].get_text()),
                 "areaConhecimento": (
-                    normalizar_texto(celulas[2].get_text()) if len(celulas) > 2 else None
+                    normalizar_texto(celulas[2].get_text())
+                    if len(celulas) > 2
+                    else None
                 ),
             }
         )
@@ -231,7 +235,9 @@ def main() -> None:
     salvar_json_bronze(args.output, payload)
 
     total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
-    print(f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina).")
+    print(
+        f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina)."
+    )
     print(f"Objeto salvo em: bronze/{args.output}")
 
 

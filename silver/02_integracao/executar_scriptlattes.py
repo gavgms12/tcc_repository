@@ -100,7 +100,9 @@ def main() -> None:
         default=DEFAULT_PREFIXO_SAIDA,
         help="Prefixo dos JSONs de currículo no bucket Bronze.",
     )
-    parser.add_argument("--limite", type=int, default=0, help="Limita currículos para teste.")
+    parser.add_argument(
+        "--limite", type=int, default=0, help="Limita currículos para teste."
+    )
     args = parser.parse_args()
 
     if not SCRIPTLATTES_PYTHON.is_file() or not SCRIPTLATTES_EXECUTAVEL.is_file():
@@ -111,7 +113,9 @@ def main() -> None:
 
     linhas = gerar_lista_lattes(ler_parquet_silver(args.entrada_silver), args.limite)
     if not linhas:
-        raise RuntimeError("Nenhum professor com ID Lattes válido foi encontrado na Silver.")
+        raise RuntimeError(
+            "Nenhum professor com ID Lattes válido foi encontrado na Silver."
+        )
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     arquivo_lista = CACHE_DIR / "professores_lattes.list"
@@ -128,12 +132,18 @@ def main() -> None:
     print(f"Baixando {len(linhas)} currículo(s) com scriptLattes...")
     try:
         subprocess.run(
-            [str(SCRIPTLATTES_PYTHON), str(SCRIPTLATTES_EXECUTAVEL), str(arquivo_config)],
+            [
+                str(SCRIPTLATTES_PYTHON),
+                str(SCRIPTLATTES_EXECUTAVEL),
+                str(arquivo_config),
+            ],
             cwd=SCRIPTLATTES_DIR,
             check=True,
         )
     except subprocess.CalledProcessError:
-        enviados_parciais = enviar_jsons(diretorio_saida / "json", args.prefixo_saida.rstrip("/"))
+        enviados_parciais = enviar_jsons(
+            diretorio_saida / "json", args.prefixo_saida.rstrip("/")
+        )
         print(
             f"AVISO: o scriptLattes falhou no meio da execução (provável rate limit do "
             f"CNPq). {enviados_parciais} currículo(s) já baixado(s) foram enviados ao "
@@ -146,7 +156,9 @@ def main() -> None:
     if not enviados:
         raise RuntimeError("Nenhum JSON válido do scriptLattes foi enviado ao MinIO.")
 
-    print(f"{enviados} currículo(s) enviado(s) para bronze/{args.prefixo_saida.rstrip('/')}.")
+    print(
+        f"{enviados} currículo(s) enviado(s) para bronze/{args.prefixo_saida.rstrip('/')}."
+    )
 
 
 if __name__ == "__main__":

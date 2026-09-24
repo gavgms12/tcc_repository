@@ -17,6 +17,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
 
+from bronze.minio_storage import salvar_json_bronze
 from bronze.sigaa_utils import (
     BASE_URL,
     DEPARTAMENTO_ID,
@@ -25,7 +26,6 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
-from bronze.minio_storage import salvar_json_bronze
 
 DEFAULT_OUTPUT = "raw/sigaa/componentes_sigaa.json"
 COMPONENTES_URL = (
@@ -59,7 +59,9 @@ def extrair_lista_componentes(html: str) -> list[dict[str, str | None]]:
                 "cargaHoraria": normalizar_texto(ch_el.get_text()) if ch_el else None,
                 "ementa": None,
                 "urlDetalhe": (
-                    url_absoluta(f"/sigaa/link/public/ensino/visualizarComponente/{id_sigaa}")
+                    url_absoluta(
+                        f"/sigaa/link/public/ensino/visualizarComponente/{id_sigaa}"
+                    )
                     if id_sigaa
                     else None
                 ),
