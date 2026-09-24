@@ -19,7 +19,7 @@ from bronze.minio_storage import ler_parquet_silver, salvar_json_bronze
 SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
 SCRIPTLATTES_PYTHON = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
 SCRIPTLATTES_EXECUTAVEL = SCRIPTLATTES_DIR / "scriptLattes.py"
-DEFAULT_ENTRADA_SILVER = "professores_unificados.parquet"
+DEFAULT_ENTRADA_SILVER = "identidade_professores.parquet"
 DEFAULT_PREFIXO_SAIDA = "raw/lattes/json"
 ID_LATTES_RE = re.compile(r"(\d{16})(?:\.json)?$")
 

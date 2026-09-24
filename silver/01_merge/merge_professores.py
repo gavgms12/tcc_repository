@@ -19,7 +19,7 @@ from bronze.minio_storage import ler_json_bronze, salvar_parquet_silver
 
 DEFAULT_SIGAA = "raw/sigaa/professores_sigaa.json"
 DEFAULT_IESTI = "raw/iesti_site/professores_iesti_site.json"
-DEFAULT_OUTPUT = "professores_unificados.parquet"
+DEFAULT_OUTPUT = "identidade_professores.parquet"
 TAMANHO_ID_LATTES = len("8122238750933560")
 ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 LIMIAR_SIMILARIDADE = 0.92

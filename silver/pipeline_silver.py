@@ -37,9 +37,19 @@ def main() -> None:
         help="Limita currículos Lattes para teste (0 = todos).",
     )
     parser.add_argument(
-        "--skip-unificacao",
+        "--skip-limpeza-sigaa",
         action="store_true",
-        help="Pula a limpeza/unificação dos perfis SIGAA + Lattes.",
+        help="Pula a limpeza dos perfis SIGAA.",
+    )
+    parser.add_argument(
+        "--skip-limpeza-lattes",
+        action="store_true",
+        help="Pula a limpeza dos currículos Lattes.",
+    )
+    parser.add_argument(
+        "--skip-limpeza-ic",
+        action="store_true",
+        help="Pula a limpeza do catálogo de trabalhos de IC/periódicos.",
     )
     args = parser.parse_args()
 
@@ -57,10 +67,22 @@ def main() -> None:
             comando_lattes.extend(["--limite", str(args.limite_lattes)])
         executar_etapa("Extrair currículos Lattes", comando_lattes)
 
-    if not args.skip_unificacao:
+    if not args.skip_limpeza_sigaa:
         executar_etapa(
-            "Unificar perfis SIGAA + Lattes",
-            [python, "02_integracao/unificar_perfis.py"],
+            "Limpar perfis SIGAA",
+            [python, "03_limpeza/limpar_perfil_sigaa.py"],
+        )
+
+    if not args.skip_limpeza_lattes:
+        executar_etapa(
+            "Limpar currículos Lattes",
+            [python, "03_limpeza/limpar_perfil_lattes.py"],
+        )
+
+    if not args.skip_limpeza_ic:
+        executar_etapa(
+            "Limpar catálogo de trabalhos de IC/periódicos",
+            [python, "03_limpeza/limpar_trabalhos_ic.py"],
         )
 
     print("\nPipeline Silver concluído.")

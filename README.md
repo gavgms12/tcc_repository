@@ -20,12 +20,13 @@ SIGAA + site IESTI + periódicos
         ┌──────────┐     scriptLattes (CNPq)
         │  SILVER  │ ───────────────────────► currículos Lattes
         │ merge e  │
-        │ integração│
+        │ limpeza  │
+        │por fonte │
         └──────────┘
               │
               ▼
         ┌──────────┐
-        │   GOLD   │  (futuro) busca / embeddings
+        │   GOLD   │  unificação SIGAA + Lattes
         └──────────┘
 ```
 
@@ -53,16 +54,27 @@ SIGAA + site IESTI + periódicos
 - [Site de periódicos UNIFEI](https://periodicos.unifei.edu.br/index.php/rtic/issue/archive)
 
 
-### Silver — dados tratados
+### Silver — limpeza por fonte
 
 | Script | O que faz |
 |--------|-----------|
-| `silver/01_merge/merge_professores.py` | Mescla identidade SIGAA + IESTI (nome, idLattes, siape) em Parquet |
+| `silver/01_merge/merge_professores.py` | Mescla identidade SIGAA + IESTI (nome, idLattes, siape) em Parquet (`identidade_professores.parquet`) |
 | `silver/02_integracao/executar_scriptlattes.py` | Roda o scriptLattes e envia os currículos brutos para a Bronze |
-| `silver/02_integracao/unificar_perfis.py` | Limpa os perfis SIGAA e Lattes (foco em embeddings bge-m3), unifica por idLattes, reduz disciplinas a IDs do catálogo de componentes e trabalhos de IC/periódicos a IDs de um catálogo à parte |
-| `silver/pipeline_silver.py` | Orquestra as três etapas acima |
+| `silver/03_limpeza/limpar_perfil_sigaa.py` | Limpa o perfil SIGAA: remove contato e o link de Lattes duplicado, remove atividades de extensão, reduz disciplinas a IDs do catálogo de componentes, projetos de pesquisa a nome/área, e produção docente a título+ano a partir de 2016 (título extraído por IA) |
+| `silver/03_limpeza/limpar_perfil_lattes.py` | Limpa o currículo Lattes (foco em embeddings bge-m3): resumo, competências, títulos de produções/projetos/orientações |
+| `silver/03_limpeza/limpar_trabalhos_ic.py` | Normaliza o catálogo de trabalhos de IC/periódicos (sem vincular a professor ainda) |
+| `silver/pipeline_silver.py` | Orquestra as etapas acima |
 
-Cada perfil unificado contém: resumo, competências (áreas, linhas de pesquisa, palavras-chave), títulos de produções/projetos/orientações, IDs de disciplinas ministradas e IDs de trabalhos de IC/periódicos orientados.
+A Silver **não** une SIGAA com Lattes — cada fonte é limpa e gravada separadamente. A unificação por professor é responsabilidade exclusiva da Gold.
+
+### Gold — perfil unificado
+
+| Script | O que faz |
+|--------|-----------|
+| `gold/01_unificacao/unificar_perfis.py` | Lê só os Parquets já limpos da Silver, vincula os trabalhos de IC ao professor orientador (por similaridade de nome) e grava o perfil unificado por professor |
+| `gold/pipeline_gold.py` | Orquestra a etapa acima |
+
+A Gold não lê nada da Bronze e não faz limpeza — só unifica o que a Silver já preparou. Cada perfil unificado contém: resumo, competências (áreas, linhas de pesquisa, palavras-chave), títulos de produções/projetos/orientações (Lattes e SIGAA), IDs de disciplinas ministradas e IDs de trabalhos de IC/periódicos orientados.
 
 ---
 
@@ -77,10 +89,15 @@ tcc_code/
 │   └── requirements.txt
 ├── silver/
 │   ├── 01_merge/            # merge SIGAA + IESTI e geração da lista para Lattes
-│   ├── 02_integracao/       # unificação com Lattes, vínculos e limpeza final
+│   ├── 02_integracao/       # coleta dos currículos Lattes via scriptLattes
+│   ├── 03_limpeza/          # limpeza SIGAA e Lattes, cada fonte separada
 │   ├── pipeline_silver.py   # orquestração da camada Silver
 │   ├── README.md
 │   └── ...
+├── gold/
+│   ├── 01_unificacao/       # unifica os perfis SIGAA + Lattes já limpos na Silver
+│   ├── pipeline_gold.py     # orquestração da camada Gold
+│   └── README.md
 ├── data/
 │   ├── bronze/
 │   │   ├── raw/
@@ -98,7 +115,7 @@ tcc_code/
 └── README.md
 ```
 
-> A camada Bronze fica restrita ao web scraping e à coleta bruta. A camada Silver assume os passos de merge, enriquecimento e limpeza. A Gold permanece fora do escopo neste momento.
+> A camada Bronze fica restrita ao web scraping e à coleta bruta. A camada Silver faz o merge de identidade e a limpeza de cada fonte (SIGAA e Lattes) separadamente. A Gold só lê Parquets da Silver e unifica os perfis por professor.
 
 ---
 
@@ -122,8 +139,16 @@ cp .env.example .env
 ```
 
 Os coletores gravam JSON diretamente no bucket `bronze` (sem arquivos em
-`data/`). A Silver lê esses objetos e grava `professores_unificados.parquet` no
-bucket `silver`. MongoDB não faz parte desse fluxo.
+`data/`). A Silver lê esses objetos, limpa cada fonte separadamente e grava os
+Parquets no bucket `silver`. A Gold lê só esses Parquets e grava o perfil
+unificado (`professores_unificados.parquet`) no bucket `gold` — por padrão
+`MINIO_GOLD_BUCKET=gold`, configurável no `.env` como os demais buckets.
+MongoDB não faz parte desse fluxo.
+
+Para a extração de títulos por IA na limpeza da produção docente do SIGAA,
+configure `HF_TOKEN` (token gratuito da Hugging Face) no `.env`; sem ele, o
+pipeline usa uma extração por regex como alternativa (ver
+`silver/03_limpeza/ia_titulos.py`).
 
 > Use a venv em `tcc_code/venv` para os scripts deste repositório. A venv do **scriptLattes** é separada e não inclui todas as dependências do Bronze (ex.: `requests`).
 
@@ -158,11 +183,12 @@ cd tcc_code
 source venv/bin/activate
 python bronze/pipeline_bronze.py
 python silver/pipeline_silver.py
+python gold/pipeline_gold.py
 ```
 
-Isso executa, em ordem: coleta Bronze → JSONs no MinIO → merge de professores
-→ Parquet no bucket Silver → coleta Lattes → JSONs em
-`bronze/raw/lattes/json/`.
+Isso executa, em ordem: coleta Bronze → JSONs no MinIO → merge de identidade →
+coleta Lattes (JSONs em `bronze/raw/lattes/json/`) → limpeza SIGAA/Lattes/IC
+(Parquets na Silver) → unificação dos perfis (Parquet na Gold).
 
 Para executar apenas a gravação Parquet a partir dos JSONs Bronze já existentes:
 
@@ -195,7 +221,9 @@ python silver/01_merge/merge_professores.py
 | `--skip-scraping` | `pipeline_bronze.py` | Usa dados brutos já coletados |
 | `--skip-lattes` | `pipeline_silver.py` | Pula a coleta de currículos pelo scriptLattes |
 | `--limite-lattes N` | `pipeline_silver.py` | Testa a coleta de apenas N currículos |
-| `--skip-unificacao` | `pipeline_silver.py` | Pula a limpeza/unificação dos perfis SIGAA + Lattes |
+| `--skip-limpeza-sigaa` | `pipeline_silver.py` | Pula a limpeza dos perfis SIGAA |
+| `--skip-limpeza-lattes` | `pipeline_silver.py` | Pula a limpeza dos currículos Lattes |
+| `--skip-limpeza-ic` | `pipeline_silver.py` | Pula a limpeza do catálogo de trabalhos de IC/periódicos |
 | `--limite-docentes N` | `pipeline_bronze.py` | Testa com N docentes |
 | `--com-ementa` | `pipeline_bronze.py` | Busca ementa de todos os componentes (lento) |
 | `--limite N` | `scrape_sigaa_docente.py` | Limita docentes coletados |
@@ -211,9 +239,12 @@ python silver/01_merge/merge_professores.py
 | `bronze/raw/sigaa/docentes_sigaa.json` | Perfil completo por docente no SIGAA |
 | `bronze/raw/periodicos/trabalhos_ic_periodicos.json` | Catálogo de trabalhos de iniciação científica |
 | `bronze/raw/lattes/json/{id_lattes}.json` | Currículo bruto individual gerado pelo scriptLattes |
-| `silver/professores_unificados.parquet` | Perfil unificado por professor (resumo, competências, produções, disciplinas por ID, IC por ID) |
-| `silver/trabalhos_ic_periodicos.parquet` | Catálogo de trabalhos de IC/periódicos com ID, referenciados pelos professores |
+| `silver/identidade_professores.parquet` | Identidade mesclada SIGAA + IESTI (nome, idLattes, siape) — não é um perfil |
+| `silver/perfil_sigaa_limpo.parquet` | Perfil SIGAA limpo por siape (sem contato, sem extensão, disciplinas por ID, projetos e produção docente podados) |
+| `silver/perfil_lattes_limpo.parquet` | Perfil Lattes limpo por idLattes (resumo, competências, produções/projetos/orientações) |
+| `silver/trabalhos_ic_periodicos.parquet` | Catálogo de trabalhos de IC/periódicos limpo, com ID (ainda sem vínculo a professor) |
 | `silver/componentes_curriculares.parquet` | Catálogo de disciplinas por idSigaa — estende `componentes_sigaa.json` com disciplinas de outros departamentos/pós-graduação que os docentes lecionam e que não constam no catálogo oficial do departamento |
+| `gold/professores_unificados.parquet` | Perfil unificado por professor (resumo, competências, produções, disciplinas por ID, IC por ID) — única saída da Gold |
 
 ---
 
@@ -237,5 +268,4 @@ python silver/01_merge/merge_professores.py
 
 ## Próximos passos (planejado)
 - Limitar buscar as disciplinas de 2022 pra frente para que as disciplinas mais antigas não enfluenciem
-- Merge Silver: integrar dados SIGAA (disciplinas, perfil, ics) com os perfis Lattes
-- Camada Gold: embeddings e busca por especialistas
+- Gold: gerar embeddings (bge-m3) a partir do perfil unificado e busca por especialistas
