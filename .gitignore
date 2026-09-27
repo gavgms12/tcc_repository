@@ -6,6 +6,10 @@
 /data/silver/
 !data/silver/.gitkeep
 
+# Volume de dados do MinIO (runtime do container, inclui arquivos com dono/
+# permissões do uid interno do container e não deve ser versionado)
+/data/minio/
+
 # Artefatos do Python
 __pycache__/
 *.py[cod]

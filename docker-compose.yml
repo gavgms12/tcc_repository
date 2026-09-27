@@ -1,6 +1,6 @@
 services:
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: bitnamilegacy/minio:2025.4.8-debian-12-r3
     container_name: tcc-minio
 
     ports:
@@ -13,11 +13,10 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_CONSOLE_ADDRESS: ":9001"
 
     volumes:
-      - ./data/minio:/data
-
-    command: server /data --console-address ":9001"
+      - ./data/minio:/bitnami/minio/data
 
   airflow:
     build:
@@ -25,6 +24,17 @@ services:
       dockerfile: Dockerfile
 
     container_name: tcc-airflow
+
+    # Roda com o UID do host (AIRFLOW_UID no .env) e GID 0 (grupo root), que é
+    # o grupo dono dos diretórios internos da imagem (/opt/airflow/*). Isso evita
+    # que arquivos criados em volumes montados (./dags, ./ como /opt/project)
+    # fiquem com dono incompatível entre execuções no host e no container.
+    user: "${AIRFLOW_UID:-50000}:0"
+
+    # Necessário para o sandbox do Chromium (scriptLattes/Selenium) inicializar;
+    # sem isso o Chrome cai com "session not created: Chrome instance exited".
+    cap_add:
+      - SYS_ADMIN
 
     env_file:
       - .env
@@ -38,5 +48,9 @@ services:
 
     environment:
       AIRFLOW_HOME: /opt/airflow
+      # Bootstrap do dag-processor (carregar plugins/providers do Airflow) é
+      # mais lento que o default de 50s neste ambiente; sem isso o parse da
+      # DAG é morto por timeout antes de terminar.
+      AIRFLOW__DAG_PROCESSOR__DAG_FILE_PROCESSOR_TIMEOUT: "300"
 
     command: standalone

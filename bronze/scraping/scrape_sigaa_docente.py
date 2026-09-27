@@ -17,8 +17,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
 
-from bronze.minio_storage import ler_json_bronze, salvar_json_bronze
-from bronze.sigaa_utils import (
+from bronze.scraping.utils import (
     BASE_URL,
     buscar_html,
     criar_sessao,
@@ -26,6 +25,7 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
+from storage.minio_storage import ler_json_bronze, salvar_json_bronze
 
 DEFAULT_PROFESSORES = "raw/sigaa/professores_sigaa.json"
 DEFAULT_OUTPUT = "raw/sigaa/docentes_sigaa.json"
@@ -177,6 +177,49 @@ def coletar_docente(session, siape: str, nome: str) -> dict:
     }
 
 
+def executar_coleta(
+    professores: str = DEFAULT_PROFESSORES,
+    output: str = DEFAULT_OUTPUT,
+    limite: int = 0,
+    pausa: float = 0.3,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
+    lista_professores = carregar_professores(professores)
+    com_siape = [prof for prof in lista_professores if prof.get("siape")]
+    if limite > 0:
+        com_siape = com_siape[:limite]
+
+    if not com_siape:
+        raise RuntimeError("Nenhum professor com siape encontrado.")
+
+    session = criar_sessao()
+    docentes: list[dict] = []
+
+    for indice, professor in enumerate(com_siape):
+        if indice > 0 and pausa > 0:
+            import time
+
+            time.sleep(pausa)
+
+        siape = professor["siape"]
+        nome = professor.get("nome", "")
+        print(f"[{indice + 1}/{len(com_siape)}] Coletando {nome} (siape={siape})...")
+        docentes.append(coletar_docente(session, siape, nome))
+
+    payload = {
+        "coletadoEm": datetime.now(timezone.utc).isoformat(),
+        "total": len(docentes),
+        "docentes": docentes,
+    }
+    salvar_json_bronze(output, payload)
+
+    total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
+    print(
+        f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina)."
+    )
+    print(f"Objeto salvo em: bronze/{output}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extrai perfil, disciplinas, produção e pesquisa dos docentes no SIGAA."
@@ -205,40 +248,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    professores = carregar_professores(args.professores)
-    com_siape = [prof for prof in professores if prof.get("siape")]
-    if args.limite > 0:
-        com_siape = com_siape[: args.limite]
-
-    if not com_siape:
-        raise RuntimeError("Nenhum professor com siape encontrado.")
-
-    session = criar_sessao()
-    docentes: list[dict] = []
-
-    for indice, professor in enumerate(com_siape):
-        if indice > 0 and args.pausa > 0:
-            import time
-
-            time.sleep(args.pausa)
-
-        siape = professor["siape"]
-        nome = professor.get("nome", "")
-        print(f"[{indice + 1}/{len(com_siape)}] Coletando {nome} (siape={siape})...")
-        docentes.append(coletar_docente(session, siape, nome))
-
-    payload = {
-        "coletadoEm": datetime.now(timezone.utc).isoformat(),
-        "total": len(docentes),
-        "docentes": docentes,
-    }
-    salvar_json_bronze(args.output, payload)
-
-    total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
-    print(
-        f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina)."
+    executar_coleta(
+        professores=args.professores,
+        output=args.output,
+        limite=args.limite,
+        pausa=args.pausa,
     )
-    print(f"Objeto salvo em: bronze/{args.output}")
 
 
 if __name__ == "__main__":

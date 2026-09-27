@@ -17,8 +17,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
 
-from bronze.minio_storage import salvar_json_bronze
-from bronze.sigaa_utils import (
+from bronze.scraping.utils import (
     BASE_URL,
     DEPARTAMENTO_ID,
     buscar_html,
@@ -26,6 +25,7 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
+from storage.minio_storage import salvar_json_bronze
 
 DEFAULT_OUTPUT = "raw/sigaa/componentes_sigaa.json"
 COMPONENTES_URL = (
@@ -137,6 +137,37 @@ def buscar_ementas(
             componente["tipo"] = detalhe["tipo"]
 
 
+def executar_coleta(
+    output: str = DEFAULT_OUTPUT,
+    com_ementa: bool = False,
+    pausa: float = 0.25,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
+    session = criar_sessao()
+    html = buscar_html(session, COMPONENTES_URL)
+    componentes = extrair_lista_componentes(html)
+
+    if not componentes:
+        raise RuntimeError("Nenhum componente encontrado.")
+
+    if com_ementa:
+        print(f"Buscando ementas de {len(componentes)} componentes...")
+        buscar_ementas(session, componentes, pausa=pausa)
+
+    payload = {
+        "coletadoEm": datetime.now(timezone.utc).isoformat(),
+        "departamentoId": DEPARTAMENTO_ID,
+        "fonte": COMPONENTES_URL,
+        "total": len(componentes),
+        "componentes": componentes,
+    }
+    salvar_json_bronze(output, payload)
+
+    com_ementa_total = sum(1 for item in componentes if item.get("ementa"))
+    print(f"Extraídos {len(componentes)} componentes ({com_ementa_total} com ementa).")
+    print(f"Objeto salvo em: bronze/{output}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Extrai componentes curriculares do departamento IESTI no SIGAA."
@@ -159,29 +190,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    session = criar_sessao()
-    html = buscar_html(session, COMPONENTES_URL)
-    componentes = extrair_lista_componentes(html)
-
-    if not componentes:
-        raise RuntimeError("Nenhum componente encontrado.")
-
-    if args.com_ementa:
-        print(f"Buscando ementas de {len(componentes)} componentes...")
-        buscar_ementas(session, componentes, pausa=args.pausa)
-
-    payload = {
-        "coletadoEm": datetime.now(timezone.utc).isoformat(),
-        "departamentoId": DEPARTAMENTO_ID,
-        "fonte": COMPONENTES_URL,
-        "total": len(componentes),
-        "componentes": componentes,
-    }
-    salvar_json_bronze(args.output, payload)
-
-    com_ementa = sum(1 for item in componentes if item.get("ementa"))
-    print(f"Extraídos {len(componentes)} componentes ({com_ementa} com ementa).")
-    print(f"Objeto salvo em: bronze/{args.output}")
+    executar_coleta(output=args.output, com_ementa=args.com_ementa, pausa=args.pausa)
 
 
 if __name__ == "__main__":

@@ -4,57 +4,21 @@
 from __future__ import annotations
 
 import argparse
-import re
 import sys
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
-import urllib3
 from bs4 import BeautifulSoup
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-BRONZE_DIR = ROOT_DIR / "bronze"
-for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
-    if caminho not in sys.path:
-        sys.path.insert(0, caminho)
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from bronze.scraping.utils import buscar_html, criar_sessao, normalizar_nome, validar_id_lattes
+from storage.minio_storage import salvar_json_bronze
 
 DEFAULT_URL = "https://iesti.unifei.edu.br/corpo-docente/"
 DEFAULT_OUTPUT = "raw/iesti_site/professores_iesti_site.json"
-TAMANHO_ID_LATTES = len("8122238750933560")
-ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
-
-
-def normalizar_texto(texto: str) -> str:
-    return re.sub(r"\s+", " ", texto).strip()
-
-
-def normalizar_nome(nome: str) -> str:
-    nome = normalizar_texto(nome)
-    nome = unicodedata.normalize("NFKD", nome)
-    nome = "".join(char for char in nome if not unicodedata.combining(char))
-    return nome.upper()
-
-
-def extrair_id_lattes(url: str) -> str | None:
-    match = ID_LATTES_NUMERICO.search(url)
-    return match.group(1) if match else None
-
-
-def id_lattes_valido(id_lattes: str) -> bool:
-    return id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES
-
-
-def validar_id_lattes(url: str | None) -> str | None:
-    if not url:
-        return None
-
-    id_lattes = extrair_id_lattes(url)
-    if id_lattes is None or not id_lattes_valido(id_lattes):
-        return None
-
-    return id_lattes
 
 
 def extrair_professores(html: str) -> list[dict[str, str | None]]:
@@ -77,33 +41,35 @@ def extrair_professores(html: str) -> list[dict[str, str | None]]:
                 endereco_lattes = href
                 break
 
-        id_lattes = validar_id_lattes(endereco_lattes)
-
         professores.append(
             {
                 "nome": nome,
-                "idLattes": id_lattes,
+                "idLattes": validar_id_lattes(endereco_lattes),
             }
         )
 
     return professores
 
 
-def buscar_html(url: str, timeout: int = 30, verify_ssl: bool = False) -> str:
-    response = requests.get(
-        url,
-        timeout=timeout,
-        verify=verify_ssl,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; "
-                "+https://iesti.unifei.edu.br)"
-            )
-        },
-    )
-    response.raise_for_status()
-    response.encoding = response.apparent_encoding or "utf-8"
-    return response.text
+def executar_coleta(
+    url: str = DEFAULT_URL,
+    output: str = DEFAULT_OUTPUT,
+    verify_ssl: bool = False,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
+    session = criar_sessao()
+    html = buscar_html(session, url, verify=verify_ssl)
+    professores = extrair_professores(html)
+
+    if not professores:
+        raise RuntimeError("Nenhum professor encontrado. Verifique a estrutura da página.")
+
+    salvar_json_bronze(output, professores)
+
+    com_lattes = sum(1 for professor in professores if professor["idLattes"])
+    print(f"Extraídos {len(professores)} professores ({com_lattes} com idLattes).")
+    print(f"Objeto salvo em: bronze/{output}")
+    print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
 
 
 def main() -> None:
@@ -123,25 +89,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not args.verify_ssl:
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-    html = buscar_html(args.url, verify_ssl=args.verify_ssl)
-    professores = extrair_professores(html)
-
-    if not professores:
-        raise RuntimeError(
-            "Nenhum professor encontrado. Verifique a estrutura da página."
-        )
-
-    from bronze.minio_storage import salvar_json_bronze
-
-    salvar_json_bronze(args.output, professores)
-
-    com_lattes = sum(1 for professor in professores if professor["idLattes"])
-    print(f"Extraídos {len(professores)} professores ({com_lattes} com idLattes).")
-    print(f"Objeto salvo em: bronze/{args.output}")
-    print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
+    executar_coleta(url=args.url, output=args.output, verify_ssl=args.verify_ssl)
 
 
 if __name__ == "__main__":

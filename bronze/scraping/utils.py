@@ -1,9 +1,10 @@
-"""Utilitários compartilhados para scraping do SIGAA."""
+"""Utilitários compartilhados pelos scrapers da camada Bronze."""
 
 from __future__ import annotations
 
 import re
 import time
+import unicodedata
 from typing import Callable
 
 import requests
@@ -11,14 +12,15 @@ from bs4 import BeautifulSoup, Tag
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 BASE_URL = "https://sigaa.unifei.edu.br"
 DEPARTAMENTO_ID = "127"
 TAMANHO_ID_LATTES = 16
 ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
-USER_AGENT = (
-    "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; +https://sigaa.unifei.edu.br)"
-)
 SIAPE_RE = re.compile(r"siape=(\d+)", re.IGNORECASE)
+USER_AGENT = (
+    "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; +https://unifei.edu.br)"
+)
 
 
 def criar_sessao() -> requests.Session:
@@ -29,6 +31,13 @@ def criar_sessao() -> requests.Session:
 
 def normalizar_texto(texto: str) -> str:
     return re.sub(r"\s+", " ", texto).strip()
+
+
+def normalizar_nome(nome: str) -> str:
+    nome = normalizar_texto(nome)
+    nome = unicodedata.normalize("NFKD", nome)
+    nome = "".join(char for char in nome if not unicodedata.combining(char))
+    return nome.upper()
 
 
 def limpar_nome(nome: str) -> str:
@@ -61,9 +70,15 @@ def id_lattes_valido(id_lattes: str | None) -> bool:
     )
 
 
-def validar_endereco_lattes(url: str | None) -> str | None:
+def validar_id_lattes(url: str | None) -> str | None:
+    """Extrai o id Lattes de uma URL e o devolve só se for válido."""
     id_lattes = extrair_id_lattes(url)
-    if id_lattes is None or not id_lattes_valido(id_lattes):
+    return id_lattes if id_lattes_valido(id_lattes) else None
+
+
+def validar_endereco_lattes(url: str | None) -> str | None:
+    """Devolve a própria URL do Lattes, só se o id nela contido for válido."""
+    if url is None or not id_lattes_valido(extrair_id_lattes(url)):
         return None
     return url
 
@@ -75,20 +90,22 @@ def url_absoluta(caminho: str) -> str:
 
 
 def buscar_html(
-    session: requests.Session,
-    url: str,
+    session: requests.Session | None = None,
+    url: str = "",
     *,
     timeout: int = 30,
     pausa: float = 0.0,
     tentativas: int = 3,
+    verify: bool = False,
 ) -> str:
     if pausa > 0:
         time.sleep(pausa)
 
+    sessao = session or criar_sessao()
     ultimo_erro: Exception | None = None
     for tentativa in range(1, tentativas + 1):
         try:
-            response = session.get(url, timeout=timeout, verify=False,)
+            response = sessao.get(url, timeout=timeout, verify=verify)
             response.raise_for_status()
             response.encoding = response.apparent_encoding or "utf-8"
             return response.text

@@ -14,7 +14,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from bronze.minio_storage import ler_parquet_silver, salvar_json_bronze
+from storage.minio_storage import ler_parquet_silver, salvar_json_bronze
 
 SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
 SCRIPTLATTES_PYTHON = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
@@ -86,32 +86,19 @@ def enviar_jsons(diretorio_json: Path, prefixo_saida: str) -> int:
     return enviados
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Executa scriptLattes e envia currículos brutos para a Bronze no MinIO."
-    )
-    parser.add_argument(
-        "--entrada-silver",
-        default=DEFAULT_ENTRADA_SILVER,
-        help="Chave Parquet do cadastro unificado no bucket Silver.",
-    )
-    parser.add_argument(
-        "--prefixo-saida",
-        default=DEFAULT_PREFIXO_SAIDA,
-        help="Prefixo dos JSONs de currículo no bucket Bronze.",
-    )
-    parser.add_argument(
-        "--limite", type=int, default=0, help="Limita currículos para teste."
-    )
-    args = parser.parse_args()
-
+def executar_lattes(
+    entrada_silver: str = DEFAULT_ENTRADA_SILVER,
+    prefixo_saida: str = DEFAULT_PREFIXO_SAIDA,
+    limite: int = 0,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
     if not SCRIPTLATTES_PYTHON.is_file() or not SCRIPTLATTES_EXECUTAVEL.is_file():
         raise FileNotFoundError(
             "scriptLattes não encontrado ou sem venv em "
             f"{SCRIPTLATTES_DIR}. Esperado: {SCRIPTLATTES_PYTHON}"
         )
 
-    linhas = gerar_lista_lattes(ler_parquet_silver(args.entrada_silver), args.limite)
+    linhas = gerar_lista_lattes(ler_parquet_silver(entrada_silver), limite)
     if not linhas:
         raise RuntimeError(
             "Nenhum professor com ID Lattes válido foi encontrado na Silver."
@@ -142,7 +129,7 @@ def main() -> None:
         )
     except subprocess.CalledProcessError:
         enviados_parciais = enviar_jsons(
-            diretorio_saida / "json", args.prefixo_saida.rstrip("/")
+            diretorio_saida / "json", prefixo_saida.rstrip("/")
         )
         print(
             f"AVISO: o scriptLattes falhou no meio da execução (provável rate limit do "
@@ -152,12 +139,36 @@ def main() -> None:
         )
         raise
 
-    enviados = enviar_jsons(diretorio_saida / "json", args.prefixo_saida.rstrip("/"))
+    enviados = enviar_jsons(diretorio_saida / "json", prefixo_saida.rstrip("/"))
     if not enviados:
         raise RuntimeError("Nenhum JSON válido do scriptLattes foi enviado ao MinIO.")
 
-    print(
-        f"{enviados} currículo(s) enviado(s) para bronze/{args.prefixo_saida.rstrip('/')}."
+    print(f"{enviados} currículo(s) enviado(s) para bronze/{prefixo_saida.rstrip('/')}.")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Executa scriptLattes e envia currículos brutos para a Bronze no MinIO."
+    )
+    parser.add_argument(
+        "--entrada-silver",
+        default=DEFAULT_ENTRADA_SILVER,
+        help="Chave Parquet do cadastro unificado no bucket Silver.",
+    )
+    parser.add_argument(
+        "--prefixo-saida",
+        default=DEFAULT_PREFIXO_SAIDA,
+        help="Prefixo dos JSONs de currículo no bucket Bronze.",
+    )
+    parser.add_argument(
+        "--limite", type=int, default=0, help="Limita currículos para teste."
+    )
+    args = parser.parse_args()
+
+    executar_lattes(
+        entrada_silver=args.entrada_silver,
+        prefixo_saida=args.prefixo_saida,
+        limite=args.limite,
     )
 
 

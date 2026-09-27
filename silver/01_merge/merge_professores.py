@@ -15,7 +15,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from bronze.minio_storage import ler_json_bronze, salvar_parquet_silver
+from storage.minio_storage import ler_json_bronze, salvar_parquet_silver
 
 DEFAULT_SIGAA = "raw/sigaa/professores_sigaa.json"
 DEFAULT_IESTI = "raw/iesti_site/professores_iesti_site.json"
@@ -202,6 +202,22 @@ def salvar_parquet(professores: list[Professor], chave: str) -> None:
     salvar_parquet_silver(chave, dados)
 
 
+def executar_merge(
+    sigaa: str = DEFAULT_SIGAA,
+    iesti: str = DEFAULT_IESTI,
+    output: str = DEFAULT_OUTPUT,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
+    professores = fazer_merge(carregar_sigaa(sigaa), carregar_iesti(iesti))
+    salvar_parquet(professores, output)
+
+    com_lattes = sum(1 for professor in professores if professor.id_lattes)
+    print(
+        f"Merge concluído: {len(professores)} professores ({com_lattes} com idLattes)."
+    )
+    print(f"Objeto Parquet salvo em: silver/{output}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Mescla professores Bronze e grava o resultado em Parquet na Silver."
@@ -213,14 +229,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    professores = fazer_merge(carregar_sigaa(args.sigaa), carregar_iesti(args.iesti))
-    salvar_parquet(professores, args.output)
-
-    com_lattes = sum(1 for professor in professores if professor.id_lattes)
-    print(
-        f"Merge concluído: {len(professores)} professores ({com_lattes} com idLattes)."
-    )
-    print(f"Objeto Parquet salvo em: silver/{args.output}")
+    executar_merge(sigaa=args.sigaa, iesti=args.iesti, output=args.output)
 
 
 if __name__ == "__main__":

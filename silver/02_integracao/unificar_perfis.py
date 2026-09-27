@@ -25,7 +25,7 @@ if str(ROOT_DIR) not in sys.path:
 
 sys.path.insert(0, str(ROOT_DIR / "silver" / "01_merge"))
 
-from bronze.minio_storage import (
+from storage.minio_storage import (
     ler_json_bronze,  # noqa: E402
     ler_parquet_silver,
     listar_chaves_bronze,
