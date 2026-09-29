@@ -46,7 +46,7 @@ def buscar_html(url: str, timeout: int = 30, *, verify_ssl: bool = False) -> str
         verify=verify_ssl,
         headers={
             "User-Agent": (
-                "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; "
+                "Mozilla/5.0 (compatible; TCC-Bronze-Colletor/1.0; "
                 "+https://iesti.unifei.edu.br)"
             )
         },
