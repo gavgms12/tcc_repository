@@ -1,0 +1,17 @@
+// colocar um feedback do aluno se ele achou bom ou não 
+{
+    "descricao": "Gostaria de desenvolver um projeto que comparasse o desempenho de redes 5G e 5.5G, analisando aspectos como velocidade de conexão e latência.",
+    //opcional
+    "ferramentas": [
+        "Python",
+        "Matlab"
+    ],
+    "interesses" : [
+        "Processamento Digital de Sinais",
+        "Telecomunicações",
+        "Redes de computadores",
+        "IoT",
+        "Inteligência Artificial"
+    ]
+    // será que ramon, matheus e bruno e giscard? talvez andré 
+}
