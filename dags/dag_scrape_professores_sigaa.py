@@ -1,13 +1,15 @@
+"""DAG da camada Bronze: só coleta bruta (web scraping), sem processamento.
+
+O merge de identidade, o scriptLattes e a limpeza dos perfis são etapas da
+Silver e ficam em dag_silver_professores.py, para poder rodar cada camada
+separadamente.
+"""
+
 from datetime import datetime
 import sys
 
 PROJECT_ROOT = "/opt/project"
 sys.path.append(PROJECT_ROOT)
-# "01_merge" e "02_integracao" começam com dígito e não são pacotes Python
-# válidos para import por ponto; os módulos são importados adicionando seus
-# diretórios ao sys.path (mesmo padrão já usado em unificar_perfis.py).
-sys.path.append(f"{PROJECT_ROOT}/silver/01_merge")
-sys.path.append(f"{PROJECT_ROOT}/silver/02_integracao")
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -17,8 +19,6 @@ from bronze.scraping.scrape_sigaa_docente import executar_coleta as scrape_perfi
 from bronze.scraping.scrape_sigaa_componentes import executar_coleta as scrape_componentes
 from bronze.scraping.scrape_professores_iesti import executar_coleta as scrape_iesti
 from bronze.scraping.scrape_trabalhos_ic import executar_coleta as scrape_trabalhos_ic
-from merge_professores import executar_merge as merge_perfis
-from executar_scriptlattes import executar_lattes as scrape_lattes
 
 
 with DAG(
@@ -42,21 +42,15 @@ with DAG(
     t3_componentes_sigaa = PythonOperator(
         task_id="scrape_componentes_sigaa",
         python_callable=scrape_componentes,
+        # Sem isso, executar_coleta usa com_ementa=False por padrão e nenhum
+        # componente sai com ementa preenchida — a Silver depende dela para
+        # os textos irem pro embedding (bge-m3) na Gold.
+        op_kwargs={"com_ementa": True},
     )
 
     t4_scrape_iesti = PythonOperator(
         task_id="scrape_iesti",
         python_callable=scrape_iesti,
-    )
-
-    t5_merge_perfis = PythonOperator(
-        task_id="merge_perfis_sigaa_iesti",
-        python_callable=merge_perfis,
-    )
-
-    t6_scrape_lattes = PythonOperator(
-        task_id="scrape_lattes",
-        python_callable=scrape_lattes,
     )
 
     t7_trabalhos_ic = PythonOperator(
@@ -67,8 +61,5 @@ with DAG(
     # Perfil docente detalhado depende apenas da lista de professores do SIGAA.
     t1_scrape_sigaa >> t2_perfil_docente
 
-    # O merge de identidade (Bronze -> Silver) depende do SIGAA e do IESTI.
-    [t1_scrape_sigaa, t4_scrape_iesti] >> t5_merge_perfis >> t6_scrape_lattes
-
-    # Componentes curriculares e trabalhos de IC não dependem de nenhuma outra
-    # etapa nem alimentam o merge; ficam soltos para rodar em paralelo.
+    # Componentes curriculares, IESTI e trabalhos de IC não dependem de
+    # nenhuma outra etapa; ficam soltos para rodar em paralelo.

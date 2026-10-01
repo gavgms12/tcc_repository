@@ -22,3 +22,5 @@ venv/
 /.cache/
 
 docker-compose.yml
+
+data/

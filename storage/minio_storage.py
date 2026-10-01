@@ -8,6 +8,7 @@ from io import BytesIO
 from typing import Any
 
 import boto3
+import numpy as np
 import pandas as pd
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
@@ -17,6 +18,7 @@ load_dotenv()
 
 BRONZE_BUCKET = os.getenv("MINIO_BRONZE_BUCKET", "bronze")
 SILVER_BUCKET = os.getenv("MINIO_SILVER_BUCKET", "silver")
+GOLD_BUCKET = os.getenv("MINIO_GOLD_BUCKET", "gold")
 
 
 def _cliente() -> BaseClient:
@@ -122,6 +124,70 @@ def listar_chaves_bronze(prefixo: str) -> list[str]:
     return chaves
 
 
+def salvar_json_gold(chave: str, dados: Any) -> None:
+    """Serializa um perfil unificado em JSON e o grava no bucket Gold."""
+    cliente = _cliente()
+    _garantir_bucket(cliente, GOLD_BUCKET)
+    corpo = json.dumps(dados, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
+    try:
+        cliente.put_object(
+            Bucket=GOLD_BUCKET,
+            Key=chave,
+            Body=corpo,
+            ContentType="application/json; charset=utf-8",
+        )
+    except ClientError as erro:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
+            raise PermissionError(
+                f"O MinIO recusou a gravação em '{GOLD_BUCKET}/{chave}'. "
+                "Confira MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY "
+                "e a permissão s3:PutObject no bucket."
+            ) from erro
+        raise
+
+
+def ler_json_gold(chave: str) -> Any:
+    """Lê e desserializa um perfil unificado a partir do bucket Gold."""
+    try:
+        resposta = _cliente().get_object(Bucket=GOLD_BUCKET, Key=chave)
+    except ClientError as erro:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
+            raise PermissionError(
+                f"O MinIO recusou a leitura de '{GOLD_BUCKET}/{chave}'. "
+                "Conceda a permissão s3:GetObject ao usuário configurado."
+            ) from erro
+        raise
+    return json.loads(resposta["Body"].read().decode("utf-8"))
+
+
+def listar_chaves_gold(prefixo: str) -> list[str]:
+    """Lista as chaves existentes no bucket Gold sob um prefixo."""
+    cliente = _cliente()
+    chaves: list[str] = []
+    paginador = cliente.get_paginator("list_objects_v2")
+    try:
+        for pagina in paginador.paginate(Bucket=GOLD_BUCKET, Prefix=prefixo):
+            for objeto in pagina.get("Contents", []):
+                chaves.append(objeto["Key"])
+    except ClientError as erro:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
+            raise PermissionError(
+                f"O MinIO recusou a listagem de '{GOLD_BUCKET}/{prefixo}'. "
+                "Conceda a permissão s3:ListBucket ao usuário configurado."
+            ) from erro
+        raise
+    return chaves
+
+
 def salvar_parquet_silver(chave: str, registros: list[dict[str, Any]]) -> None:
     """Grava registros tabulares no bucket Silver no formato Parquet."""
     if not registros:
@@ -167,4 +233,25 @@ def ler_parquet_silver(chave: str) -> list[dict[str, Any]]:
         raise
 
     dataframe = pd.read_parquet(BytesIO(resposta["Body"].read()), engine="pyarrow")
-    return dataframe.where(pd.notna(dataframe), None).to_dict(orient="records")
+    registros = dataframe.to_dict(orient="records")
+    return [_normalizar_valores(registro) for registro in registros]
+
+
+def _normalizar_valores(valor: Any) -> Any:
+    """Converte para tipos nativos do Python o que o pandas/pyarrow devolve.
+
+    Colunas do tipo lista em Parquet sempre voltam do pyarrow como
+    numpy.ndarray por célula (mesmo com engine="pyarrow" e independente de
+    .where()) — não como list nativa. Isso quebra json.dumps, isinstance(x,
+    list) e comparações em qualquer código que consuma estes registros.
+    Também substitui NaN escalar (campos opcionais ausentes) por None.
+    """
+    if isinstance(valor, np.ndarray):
+        return [_normalizar_valores(item) for item in valor.tolist()]
+    if isinstance(valor, list):
+        return [_normalizar_valores(item) for item in valor]
+    if isinstance(valor, dict):
+        return {chave: _normalizar_valores(item) for chave, item in valor.items()}
+    if isinstance(valor, float) and pd.isna(valor):
+        return None
+    return valor

@@ -113,6 +113,12 @@ def buscar_ementas(
     buscar_html(session, COMPONENTES_URL, pausa=0)
 
     ids_unicos = sorted({item["idSigaa"] for item in componentes if item["idSigaa"]})
+    total = len(ids_unicos)
+    rotulo_por_id = {
+        item["idSigaa"]: f"{item.get('codigo') or item['idSigaa']} - {item.get('nome') or ''}"
+        for item in componentes
+        if item.get("idSigaa")
+    }
     cache: dict[str, dict[str, str | None]] = {}
 
     for indice, id_sigaa in enumerate(ids_unicos):
@@ -123,7 +129,12 @@ def buscar_ementas(
 
         url = url_absoluta(f"/sigaa/link/public/ensino/visualizarComponente/{id_sigaa}")
         html = buscar_html(session, url)
-        cache[id_sigaa] = extrair_detalhe_componente(html)
+        detalhe = extrair_detalhe_componente(html)
+        cache[id_sigaa] = detalhe
+
+        status = "OK" if detalhe.get("ementa") else "sem ementa"
+        rotulo = rotulo_por_id.get(id_sigaa, id_sigaa)
+        print(f"[{indice + 1}/{total}] {rotulo} -> {status}", flush=True)
 
     for componente in componentes:
         id_sigaa = componente.get("idSigaa")

@@ -52,5 +52,15 @@ services:
       # mais lento que o default de 50s neste ambiente; sem isso o parse da
       # DAG é morto por timeout antes de terminar.
       AIRFLOW__DAG_PROCESSOR__DAG_FILE_PROCESSOR_TIMEOUT: "300"
+      # Default é 300s (5 min): o scheduler mata como "zumbi" qualquer task que
+      # fique tempo demais sem dar sinal de vida. scrape_componentes_sigaa com
+      # --com-ementa faz ~1250 requisições HTTP síncronas (uma por disciplina)
+      # e leva ~12 min só nessa chamada, sem nenhuma interação com o Airflow
+      # nesse meio tempo — por isso era morta antes de terminar.
+      AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT: "1800"
+      # Sobrescreve o MINIO_ENDPOINT do .env (que aponta para localhost, para
+      # scripts rodados no host): dentro da rede Docker o MinIO só é alcançável
+      # pelo nome do serviço/container.
+      MINIO_ENDPOINT: http://tcc-minio:9000
 
     command: standalone
