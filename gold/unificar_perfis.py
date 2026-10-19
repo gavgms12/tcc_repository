@@ -35,8 +35,8 @@ from storage.minio_storage import GOLD, ler_parquet_silver
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PERFIS_SIGAA = "perfis_sigaa_limpos.parquet"
-DEFAULT_PERFIS_LATTES = "perfis_lattes_limpos.parquet"
+DEFAULT_PERFIS_SIGAA = "perfis_sigaa_limpo.parquet"
+DEFAULT_PERFIS_LATTES = "perfis_lattes_limpo.parquet"
 DEFAULT_COMPONENTES_IESTI = "componentes_curriculares.parquet"
 DEFAULT_COMPONENTES_EXTERNOS = "componentes_curriculares_externos.parquet"
 DEFAULT_TRABALHOS_IC = "trabalhos_ic_periodicos.parquet"

@@ -340,6 +340,25 @@ def salvar_parquet_silver(chave: str, registros: list[dict[str, Any]]) -> None:
 def ler_parquet_silver(chave: str) -> list[dict[str, Any]]:
     return SILVER.ler_parquet(chave)
 
+def ler_parquet_gold(chave: str) -> list[dict[str, Any]]:
+    """Lê um Parquet da camada Gold e devolve seus registros."""
+    try:
+        resposta = _cliente().get_object(Bucket=GOLD_BUCKET, Key=chave)
+    except ClientError as erro:
+        if str(erro.response.get("Error", {}).get("Code", "")) in {
+            "403",
+            "AccessDenied",
+        }:
+            raise PermissionError(
+                f"O MinIO recusou a leitura de '{GOLD_BUCKET}/{chave}'. "
+                "Conceda a permissão s3:GetObject ao usuário configurado."
+            ) from erro
+        raise
+
+    dataframe = pd.read_parquet(BytesIO(resposta["Body"].read()), engine="pyarrow")
+    registros = dataframe.to_dict(orient="records")
+    return [_normalizar_valores(registro) for registro in registros]
+
 
 def _normalizar_valores(valor: Any) -> Any:
     """Converte para tipos nativos do Python o que o pandas/pyarrow devolve.

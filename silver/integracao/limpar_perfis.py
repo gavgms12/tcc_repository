@@ -40,13 +40,13 @@ from storage.minio_storage import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ROSTER = "professores_unificados.parquet"
+DEFAULT_ROSTER = "identidade_professores.parquet"
 DEFAULT_DOCENTES_SIGAA = "raw/sigaa/docentes_sigaa.json"
 DEFAULT_LATTES_PREFIXO = "raw/lattes/json"
 DEFAULT_TRABALHOS_IC = "raw/periodicos/trabalhos_ic_periodicos.json"
 DEFAULT_COMPONENTES_SIGAA = "raw/sigaa/componentes_sigaa.json"
-DEFAULT_SAIDA_SIGAA = "perfis_sigaa_limpos.parquet"
-DEFAULT_SAIDA_LATTES = "perfis_lattes_limpos.parquet"
+DEFAULT_SAIDA_SIGAA = "perfis_sigaa_limpo.parquet"
+DEFAULT_SAIDA_LATTES = "perfis_lattes_limpo.parquet"
 DEFAULT_SAIDA_TRABALHOS_IC = "trabalhos_ic_periodicos.parquet"
 DEFAULT_SAIDA_COMPONENTES = "componentes_curriculares.parquet"
 DEFAULT_SAIDA_COMPONENTES_EXTERNOS = "componentes_curriculares_externos.parquet"
