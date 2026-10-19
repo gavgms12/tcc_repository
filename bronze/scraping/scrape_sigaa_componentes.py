@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,7 +27,13 @@ from bronze.scraping.utils import (
     normalizar_texto,
     url_absoluta,
 )
-from storage.minio_storage import salvar_json_bronze
+from common.log import configurar_logging
+from storage.minio_storage import (
+    ler_json_bronze_ultima_versao_ou_none,
+    salvar_json_bronze_datado,
+)
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_OUTPUT = "raw/sigaa/componentes_sigaa.json"
 COMPONENTES_URL = (
@@ -123,8 +131,6 @@ def buscar_ementas(
 
     for indice, id_sigaa in enumerate(ids_unicos):
         if indice > 0 and pausa > 0:
-            import time
-
             time.sleep(pausa)
 
         url = url_absoluta(f"/sigaa/link/public/ensino/visualizarComponente/{id_sigaa}")
@@ -134,7 +140,7 @@ def buscar_ementas(
 
         status = "OK" if detalhe.get("ementa") else "sem ementa"
         rotulo = rotulo_por_id.get(id_sigaa, id_sigaa)
-        print(f"[{indice + 1}/{total}] {rotulo} -> {status}", flush=True)
+        logger.info("[%d/%d] %s -> %s", indice + 1, total, rotulo, status)
 
     for componente in componentes:
         id_sigaa = componente.get("idSigaa")
@@ -142,10 +148,42 @@ def buscar_ementas(
             continue
 
         detalhe = cache[id_sigaa]
+        # Distingue "ainda não buscado" de "buscado e sem ementa na fonte".
+        componente["ementaConsultada"] = True
         if detalhe.get("ementa"):
             componente["ementa"] = detalhe["ementa"]
         if detalhe.get("tipo"):
             componente["tipo"] = detalhe["tipo"]
+
+
+def aplicar_ementas_anteriores(
+    componentes: list[dict], anterior: dict | None
+) -> int:
+    """Reaproveita ementa/tipo já coletados numa execução anterior.
+
+    As ementas quase nunca mudam e buscá-las custa uma requisição por
+    componente (~12 min). Só os componentes sem ementa conhecida são buscados
+    de novo. Devolve quantos foram preenchidos a partir do histórico.
+    """
+    if not anterior:
+        return 0
+    conhecidos = {
+        c["idSigaa"]: c
+        for c in anterior.get("componentes", [])
+        if c.get("ementa") or c.get("ementaConsultada")
+    }
+    reaproveitados = 0
+    for componente in componentes:
+        antigo = conhecidos.get(componente.get("idSigaa"))
+        if not antigo:
+            continue
+        componente["ementaConsultada"] = True
+        if antigo.get("ementa"):
+            componente["ementa"] = antigo["ementa"]
+        if antigo.get("tipo"):
+            componente["tipo"] = antigo["tipo"]
+        reaproveitados += 1
+    return reaproveitados
 
 
 def executar_coleta(
@@ -162,8 +200,17 @@ def executar_coleta(
         raise RuntimeError("Nenhum componente encontrado.")
 
     if com_ementa:
-        print(f"Buscando ementas de {len(componentes)} componentes...")
-        buscar_ementas(session, componentes, pausa=pausa)
+        reaproveitados = aplicar_ementas_anteriores(
+            componentes, ler_json_bronze_ultima_versao_ou_none(output)
+        )
+        pendentes = [c for c in componentes if not c.get("ementaConsultada")]
+        logger.info(
+            "%d ementa(s) reaproveitada(s) da coleta anterior; buscando %d.",
+            reaproveitados,
+            len(pendentes),
+        )
+        if pendentes:
+            buscar_ementas(session, pendentes, pausa=pausa)
 
     payload = {
         "coletadoEm": datetime.now(timezone.utc).isoformat(),
@@ -172,11 +219,13 @@ def executar_coleta(
         "total": len(componentes),
         "componentes": componentes,
     }
-    salvar_json_bronze(output, payload)
+    chave = salvar_json_bronze_datado(output, payload)
 
     com_ementa_total = sum(1 for item in componentes if item.get("ementa"))
-    print(f"Extraídos {len(componentes)} componentes ({com_ementa_total} com ementa).")
-    print(f"Objeto salvo em: bronze/{output}")
+    logger.info(
+        "Extraídos %d componentes (%d com ementa).", len(componentes), com_ementa_total
+    )
+    logger.info("Objeto salvo em: bronze/%s", chave)
 
 
 def main() -> None:
@@ -200,6 +249,7 @@ def main() -> None:
         help="Pausa entre requisições ao buscar ementas (segundos).",
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_coleta(output=args.output, com_ementa=args.com_ementa, pausa=args.pausa)
 

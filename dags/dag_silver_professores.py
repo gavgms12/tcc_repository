@@ -1,54 +1,55 @@
 """DAG da camada Silver: merge de identidade, scriptLattes e limpeza dos perfis.
 
-Roda separada da Bronze (dag_scrape_professores_sigaa.py) — depende apenas de
-que os JSONs brutos já existam no bucket `bronze` do MinIO (rode a DAG Bronze
-antes, ao menos uma vez). Não há checagem automática de dependência entre as
-DAGs: dispare esta manualmente depois que a coleta terminar.
+Agendada pelo asset BRONZE_PRONTA (publicado pela DAG da Bronze) e, ao
+terminar, publica SILVER_PRONTA, que aciona a Gold.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 
 PROJECT_ROOT = "/opt/project"
 sys.path.append(PROJECT_ROOT)
-# "01_merge" e "02_integracao" começam com dígito e não são pacotes Python
-# válidos para import por ponto; os módulos são importados adicionando seus
-# diretórios ao sys.path (mesmo padrão já usado em limpar_perfis.py).
-sys.path.append(f"{PROJECT_ROOT}/silver/01_merge")
-sys.path.append(f"{PROJECT_ROOT}/silver/02_integracao")
+sys.path.append(f"{PROJECT_ROOT}/dags")
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.sdk import DAG, task
 
-from merge_professores import executar_merge as merge_perfis
-from executar_scriptlattes import executar_lattes as scrape_lattes
-from limpar_perfis import executar_limpeza as limpar_perfis
+from assets import BRONZE_PRONTA, SILVER_PRONTA
 
+default_args = {
+    "retries": 2,
+    "retry_delay": timedelta(minutes=10),
+    "retry_exponential_backoff": True,
+}
 
 with DAG(
     dag_id="silver_professores_sigaa",
     start_date=datetime(2026, 1, 1),
-    schedule=None,
+    schedule=[BRONZE_PRONTA],
     catchup=False,
+    default_args=default_args,
     tags=["tcc", "silver"],
 ) as dag:
 
-    t1_merge_perfis = PythonOperator(
-        task_id="merge_perfis_sigaa_iesti",
-        python_callable=merge_perfis,
-    )
+    @task
+    def merge_perfis_sigaa_iesti():
+        from silver.merge.merge_professores import executar_merge
 
-    t2_scrape_lattes = PythonOperator(
-        task_id="scrape_lattes",
-        python_callable=scrape_lattes,
-    )
+        executar_merge()
 
-    t3_limpar_perfis = PythonOperator(
-        task_id="limpar_perfis_sigaa_lattes",
-        python_callable=limpar_perfis,
-    )
+    @task
+    def scrape_lattes():
+        # O retry reaproveita o cache do scriptLattes: só os currículos que
+        # faltaram (rate limit do CNPq) são baixados de novo.
+        from silver.integracao.executar_scriptlattes import executar_lattes
 
-    # merge_perfis gera o roster de identidade (professores_unificados.parquet)
-    # que scrape_lattes lê para saber quais currículos baixar; limpar_perfis só
-    # roda depois, pois lê tanto o roster quanto os currículos já coletados.
-    t1_merge_perfis >> t2_scrape_lattes >> t3_limpar_perfis
+        executar_lattes()
+
+    @task(outlets=[SILVER_PRONTA])
+    def limpar_perfis_sigaa_lattes():
+        from silver.integracao.limpar_perfis import executar_limpeza
+
+        executar_limpeza()
+
+    # O merge gera o roster que o scriptLattes lê; a limpeza lê o roster e os
+    # currículos já coletados.
+    merge_perfis_sigaa_iesti() >> scrape_lattes() >> limpar_perfis_sigaa_lattes()

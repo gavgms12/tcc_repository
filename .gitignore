@@ -21,6 +21,5 @@ venv/
 # Cache local do scriptLattes (currículos baixados, retomável entre execuções)
 /.cache/
 
-docker-compose.yml
 
 data/

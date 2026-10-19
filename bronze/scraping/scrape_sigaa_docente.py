@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,7 +28,15 @@ from bronze.scraping.utils import (
     normalizar_texto,
     url_absoluta,
 )
-from storage.minio_storage import ler_json_bronze, salvar_json_bronze
+from common.log import configurar_logging
+from storage.minio_storage import ler_json_bronze_ultima_versao, salvar_json_bronze_datado
+
+logger = logging.getLogger(__name__)
+
+# Acima dessa fração de docentes com falha a coleta é considerada inválida e
+# nada é gravado; abaixo, o resultado parcial é salvo com as falhas listadas.
+MAX_TAXA_FALHA = 0.10
+MAX_WORKERS = 4
 
 DEFAULT_PROFESSORES = "raw/sigaa/professores_sigaa.json"
 DEFAULT_OUTPUT = "raw/sigaa/docentes_sigaa.json"
@@ -34,7 +45,7 @@ CATEGORIA_RE = re.compile(r"\s*\(\d+\)\s*$")
 
 
 def carregar_professores(chave: str) -> list[dict]:
-    return ler_json_bronze(chave)
+    return ler_json_bronze_ultima_versao(chave)
 
 
 def extrair_portal(html: str) -> dict:
@@ -192,32 +203,51 @@ def executar_coleta(
     if not com_siape:
         raise RuntimeError("Nenhum professor com siape encontrado.")
 
-    session = criar_sessao()
-    docentes: list[dict] = []
+    total = len(com_siape)
 
-    for indice, professor in enumerate(com_siape):
-        if indice > 0 and pausa > 0:
-            import time
-
-            time.sleep(pausa)
-
+    def tarefa(item: tuple[int, dict]) -> tuple[dict | None, dict | None]:
+        indice, professor = item
         siape = professor["siape"]
         nome = professor.get("nome", "")
-        print(f"[{indice + 1}/{len(com_siape)}] Coletando {nome} (siape={siape})...")
-        docentes.append(coletar_docente(session, siape, nome))
+        if pausa > 0:
+            time.sleep(pausa)
+        logger.info("[%d/%d] Coletando %s (siape=%s)...", indice + 1, total, nome, siape)
+        try:
+            # Uma sessão por tarefa: requests.Session não é thread-safe.
+            return coletar_docente(criar_sessao(), siape, nome), None
+        except Exception as erro:  # um docente com falha não derruba a coleta
+            logger.error("Falha ao coletar %s (siape=%s): %s", nome, siape, erro)
+            return None, {"siape": siape, "nome": nome, "erro": str(erro)}
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        resultados = list(pool.map(tarefa, enumerate(com_siape)))
+
+    docentes = [ok for ok, _ in resultados if ok]
+    falhas = [erro for _, erro in resultados if erro]
+
+    if len(falhas) / total > MAX_TAXA_FALHA:
+        raise RuntimeError(
+            f"{len(falhas)} de {total} docentes falharam (limite "
+            f"{MAX_TAXA_FALHA:.0%}); nada foi gravado. Falhas: "
+            + ", ".join(f["siape"] for f in falhas)
+        )
 
     payload = {
         "coletadoEm": datetime.now(timezone.utc).isoformat(),
         "total": len(docentes),
+        "falhas": falhas,
         "docentes": docentes,
     }
-    salvar_json_bronze(output, payload)
+    chave = salvar_json_bronze_datado(output, payload)
 
     total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
-    print(
-        f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina)."
+    logger.info(
+        "Coletados %d docentes (%d registros de disciplina, %d falha(s)).",
+        len(docentes),
+        total_disciplinas,
+        len(falhas),
     )
-    print(f"Objeto salvo em: bronze/{output}")
+    logger.info("Objeto salvo em: bronze/%s", chave)
 
 
 def main() -> None:
@@ -247,6 +277,7 @@ def main() -> None:
         help="Pausa entre docentes (segundos).",
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_coleta(
         professores=args.professores,

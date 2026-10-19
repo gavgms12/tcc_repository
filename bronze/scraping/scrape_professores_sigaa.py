@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -25,7 +25,10 @@ from bronze.scraping.utils import (
     url_absoluta,
     validar_endereco_lattes,
 )
-from storage.minio_storage import salvar_json_bronze
+from common.log import configurar_logging
+from storage.minio_storage import salvar_json_bronze_datado
+
+logger = logging.getLogger(__name__)
 
 OUTPUT_PATH = "raw/sigaa/professores_sigaa.json"
 DEFAULT_URL = (
@@ -69,15 +72,13 @@ def executar_scraping(url: str = DEFAULT_URL, output: str = OUTPUT_PATH) -> None
     if not professores:
         raise RuntimeError("Nenhum professor encontrado. Verifique a estrutura da página.")
 
-    salvar_json_bronze(output, professores)
+    chave = salvar_json_bronze_datado(output, professores)
 
     com_lattes = sum(1 for professor in professores if professor["enderecoLattes"])
     com_siape = sum(1 for professor in professores if professor["siape"])
-    print(f"Extraídos {len(professores)} professores.")
-    print(f"Com SIAPE: {com_siape}")
-    print(f"Com Lattes: {com_lattes}")
-    print(f"Objeto salvo em: bronze/{output}")
-    print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
+    logger.info("Extraídos %d professores (%d com SIAPE, %d com Lattes).",
+                len(professores), com_siape, com_lattes)
+    logger.info("Objeto salvo em: bronze/%s", chave)
 
 
 def main() -> None:
@@ -89,6 +90,7 @@ def main() -> None:
         "--output", default=OUTPUT_PATH, help="Chave do objeto JSON no bucket Bronze."
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_scraping(url=args.url, output=args.output)
 

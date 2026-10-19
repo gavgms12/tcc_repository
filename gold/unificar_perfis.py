@@ -2,10 +2,11 @@
 """Unifica os perfis SIGAA + Lattes já limpos (Silver) num perfil por professor.
 
 Lê `perfis_sigaa_limpos.parquet` e `perfis_lattes_limpos.parquet` da Silver e
-os funde num único documento por professor: resolve `disciplinasSigaa` (IDs)
-e `trabalhosIniciacaoCientifica` (IDs) para o texto real dos catálogos
-(`componentes_curriculares[_externos].parquet`, `trabalhos_ic_periodicos.parquet`),
-deduplica tópicos/áreas de interesse que aparecem nas duas fontes e evita
+os funde num único documento por professor. O perfil referencia por ID as
+produções, projetos, disciplinas e trabalhos de IC, cujo conteúdo completo
+fica em arquivos separados no bucket Gold (`producoes.json`, `projetos.json`,
+`orientacoes.json`, `trabalhos_ic.json`; as disciplinas continuam nos catálogos da Silver).
+Deduplica tópicos/áreas de interesse que aparecem nas duas fontes e evita
 repetir o mesmo resumo duas vezes. Cada perfil final é salvo como um JSON
 próprio no bucket Gold, sob o prefixo `perfil_professores/`.
 
@@ -18,15 +19,21 @@ descartados silenciosamente).
 from __future__ import annotations
 
 import argparse
-import re
+import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import TypedDict
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from storage.minio_storage import ler_parquet_silver, salvar_json_gold
+from common.log import configurar_logging
+from common.texto import normalizar_texto
+from storage.minio_storage import GOLD, ler_parquet_silver
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PERFIS_SIGAA = "perfis_sigaa_limpos.parquet"
 DEFAULT_PERFIS_LATTES = "perfis_lattes_limpos.parquet"
@@ -34,17 +41,42 @@ DEFAULT_COMPONENTES_IESTI = "componentes_curriculares.parquet"
 DEFAULT_COMPONENTES_EXTERNOS = "componentes_curriculares_externos.parquet"
 DEFAULT_TRABALHOS_IC = "trabalhos_ic_periodicos.parquet"
 DEFAULT_PREFIXO_SAIDA = "perfil_professores"
+CHAVE_PRODUCOES = "producoes.json"
+CHAVE_PROJETOS = "projetos.json"
+CHAVE_ORIENTACOES = "orientacoes.json"
+CHAVE_TRABALHOS_IC = "trabalhos_ic.json"
+CAMPOS_PROJETO = ("id", "nome", "tipo", "descricao", "ano_conclusao")
+
+# Cada execução grava tudo sob runs/<run_id>/ e só então atualiza current.json,
+# que aponta para a execução válida; consumidores nunca veem estado parcial.
+PREFIXO_RUNS = "runs"
+CHAVE_PONTEIRO = "current.json"
+RUNS_MANTIDAS = 3
+# Fração máxima de referências sem catálogo tolerada antes de falhar a Gold.
+MAX_TAXA_REFERENCIAS_ORFAS = 0.02
 
 
-def normalizar_texto(texto: str | None) -> str:
-    if not texto:
-        return ""
-    return re.sub(r"\s+", " ", str(texto)).strip()
+class PerfilGold(TypedDict):
+    nome: str | None
+    idLattes: str | None
+    siape: str
+    resumo: str | None
+    formacaoAcademicaProfissional: str | None
+    areasEspecializacao: list[str]
+    topicosInteresse: list[str]
+    producoes: list[str]
+    projetos: list[str]
+    orientacoes: list[str]
+    disciplinas: list[str]
+    trabalhosIniciacaoCientifica: list[str]
 
 
 def identificador_professor(perfil: dict) -> str:
-    """Nome de arquivo estável: idLattes quando existe, senão siape."""
-    return str(perfil.get("idLattes") or perfil.get("siape"))
+    """Chave estável do perfil: o siape existe para todos os docentes e não
+    muda quando o idLattes passa a ser conhecido (o que duplicaria o arquivo)."""
+    if not perfil.get("siape"):
+        raise ValueError(f"Perfil sem siape, sem chave estável: {perfil.get('nome')}")
+    return str(perfil["siape"])
 
 
 def construir_catalogo(*parquets: list[dict], chave_id: str) -> dict[str, dict]:
@@ -58,53 +90,42 @@ def construir_catalogo(*parquets: list[dict], chave_id: str) -> dict[str, dict]:
     return catalogo
 
 
-def resolver_disciplinas(ids: list[str], catalogo: dict[str, dict]) -> list[dict]:
-    """Troca os idSigaa por {codigo, nome, ementa} — o id sozinho não tem
-    nenhum valor semântico para o modelo de embedding.
+def ids_unicos(ids: list[str] | None) -> list[str]:
+    """Remove IDs repetidos preservando a ordem."""
+    return list(dict.fromkeys(i for i in ids or [] if i))
 
-    Códigos diferentes às vezes compartilham o mesmo nome de disciplina (ex.:
-    ofertas/currículos diferentes ao longo do tempo), mas com ementas
-    distintas — descartar por nome perderia uma ementa real. Só remove quando
-    nome E ementa são idênticos (duplicata de fato, ex.: o mesmo id aparecendo
-    duas vezes na lista de origem)."""
-    resolvidas: list[dict] = []
-    vistas: set[tuple[str, str]] = set()
-    ids_sem_correspondencia = []
-    for id_sigaa in ids or []:
-        info = catalogo.get(id_sigaa)
-        if not info:
-            ids_sem_correspondencia.append(id_sigaa)
-            continue
 
-        disciplina = {
-            k: v for k, v in info.items() if k != "idSigaa" and v not in (None, "")
-        }
-        chave = (
-            normalizar_texto(disciplina.get("nome")).lower(),
-            normalizar_texto(disciplina.get("ementa")).lower(),
+def extrair_subareas(areas: list[dict]) -> list[str]:
+    """Reduz as áreas do Lattes às subáreas: `grande_area` e `area` se
+    repetiam em todas as entradas. Quando não há subárea, cai para a
+    especialidade e, por último, para a própria área."""
+    subareas: list[str] = []
+    vistas: set[str] = set()
+    for area in areas or []:
+        texto = normalizar_texto(
+            area.get("subarea") or area.get("especialidade") or area.get("area")
         )
-        if chave in vistas:
+        if texto and texto.lower() not in vistas:
+            vistas.add(texto.lower())
+            subareas.append(texto)
+    return subareas
+
+
+def registrar_itens(
+    itens: list[dict], destino: dict[str, dict], campos: tuple[str, ...] | None = None
+) -> list[str]:
+    """Guarda cada item no catálogo `destino` (por id) e devolve só os IDs."""
+    ids: list[str] = []
+    for item in itens or []:
+        id_item = item.get("id")
+        if not id_item:
             continue
-        vistas.add(chave)
-        resolvidas.append(disciplina)
-
-    if ids_sem_correspondencia:
-        print(
-            f"  AVISO: {len(ids_sem_correspondencia)} idSigaa sem catálogo: "
-            f"{', '.join(ids_sem_correspondencia)}"
-        )
-    return resolvidas
-
-
-def resolver_trabalhos_ic(ids: list[str], catalogo: dict[str, dict]) -> list[dict]:
-    """Troca os ids de trabalho de IC pelo texto real (título, resumo,
-    palavras-chave) — mesmo racional de resolver_disciplinas."""
-    resolvidos = []
-    for id_trabalho in ids or []:
-        info = catalogo.get(id_trabalho)
-        if info:
-            resolvidos.append({k: v for k, v in info.items() if k != "id"})
-    return resolvidos
+        if id_item not in destino:
+            destino[id_item] = (
+                {k: item.get(k) for k in campos} if campos else dict(item)
+            )
+        ids.append(id_item)
+    return ids_unicos(ids)
 
 
 def unificar_topicos(*listas: list[str] | None, excluir: set[str] = frozenset()) -> list[str]:
@@ -151,9 +172,12 @@ def unificar_resumo(resumo_lattes: str | None, descricao_sigaa: str | None) -> s
 def montar_perfil_unificado(
     sigaa: dict,
     lattes: dict | None,
-    catalogo_disciplinas: dict[str, dict],
     catalogo_trabalhos: dict[str, dict],
-) -> dict:
+    producoes: dict[str, dict],
+    projetos: dict[str, dict],
+    orientacoes: dict[str, dict],
+    trabalhos_ic: dict[str, dict],
+) -> PerfilGold:
     lattes = lattes or {}
     competencias = lattes.get("competencias") or {}
     areas_lattes = competencias.get("areas") or []
@@ -173,13 +197,14 @@ def montar_perfil_unificado(
         excluir=termos_ja_estruturados,
     )
 
-    print(f"Unificando: {sigaa.get('nome')}")
-    disciplinas = resolver_disciplinas(
-        sigaa.get("disciplinasSigaa") or [], catalogo_disciplinas
-    )
-    trabalhos_ic = resolver_trabalhos_ic(
-        sigaa.get("trabalhosIniciacaoCientifica") or [], catalogo_trabalhos
-    )
+    logger.debug("Unificando: %s", sigaa.get("nome"))
+    ids_ic = ids_unicos(sigaa.get("trabalhosIniciacaoCientifica"))
+    for id_trabalho in ids_ic:
+        info = catalogo_trabalhos.get(id_trabalho)
+        if info:
+            trabalhos_ic.setdefault(
+                id_trabalho, {"id": id_trabalho} | {k: v for k, v in info.items() if k != "id"}
+            )
 
     return {
         "nome": sigaa.get("nome"),
@@ -187,23 +212,24 @@ def montar_perfil_unificado(
         "siape": sigaa.get("siape"),
         "resumo": unificar_resumo(lattes.get("resumo"), sigaa.get("descricaoPessoal")),
         "formacaoAcademicaProfissional": sigaa.get("formacaoAcademicaProfissional"),
-        "areasEspecializacao": areas_lattes,
+        "areasEspecializacao": extrair_subareas(areas_lattes),
         "topicosInteresse": topicos_interesse,
-        "producoes": lattes.get("producoes") or [],
-        "projetos": lattes.get("projetos") or [],
-        "orientacoes": lattes.get("orientacoes") or [],
-        "disciplinas": disciplinas,
-        "trabalhosIniciacaoCientifica": trabalhos_ic,
+        "producoes": registrar_itens(lattes.get("producoes"), producoes),
+        "projetos": registrar_itens(lattes.get("projetos"), projetos, CAMPOS_PROJETO),
+        "orientacoes": registrar_itens(lattes.get("orientacoes"), orientacoes),
+        "disciplinas": ids_unicos(sigaa.get("disciplinasSigaa")),
+        "trabalhosIniciacaoCientifica": ids_ic,
     }
 
 
-def campos_textuais_para_embedding(perfil: dict) -> list[str]:
+def campos_textuais_para_embedding(perfil: dict, catalogos: dict[str, dict]) -> list[str]:
     """Extrai só o texto que efetivamente vale a pena mandar pro BGE-M3.
 
-    Serve tanto para a validação abaixo quanto de referência para a etapa de
-    geração de embeddings propriamente dita: identificadores (nome, idLattes,
-    siape) e IDs crus não têm valor semântico e não devem ser tratados como
-    texto para gerar embedding.
+    O perfil guarda apenas IDs de produções, projetos, disciplinas e trabalhos
+    de IC; `catalogos` (chaves `producoes`, `projetos`, `orientacoes`, `disciplinas`,
+    `trabalhosIniciacaoCientifica`, cada uma um dict id -> registro) resolve
+    esses IDs para o texto. Identificadores (nome, idLattes, siape) e IDs
+    crus não têm valor semântico e não devem virar texto de embedding.
     """
     partes: list[str] = []
 
@@ -212,34 +238,29 @@ def campos_textuais_para_embedding(perfil: dict) -> list[str]:
     if perfil.get("formacaoAcademicaProfissional"):
         partes.append(perfil["formacaoAcademicaProfissional"])
     partes.extend(perfil.get("topicosInteresse") or [])
+    partes.extend(perfil.get("areasEspecializacao") or [])
 
-    for area in perfil.get("areasEspecializacao") or []:
-        # Uma string por entrada (não uma por campo): é normal a mesma área
-        # se repetir entre subáreas irmãs (ex.: mesma área, subáreas
-        # diferentes) — isso não é duplicata, é a granularidade da estrutura.
-        campos = [
-            v for v in (area.get("area"), area.get("subarea"), area.get("especialidade"))
-            if v
-        ]
-        if campos:
-            partes.append(" - ".join(campos))
-    for producao in perfil.get("producoes") or []:
+    def resolver(campo: str) -> list[dict]:
+        catalogo = catalogos.get(campo, {})
+        return [catalogo[i] for i in perfil.get(campo) or [] if i in catalogo]
+
+    for producao in resolver("producoes"):
         if producao.get("titulo"):
             partes.append(producao["titulo"])
-    for projeto in perfil.get("projetos") or []:
+    for projeto in resolver("projetos"):
         if projeto.get("nome"):
             partes.append(projeto["nome"])
         if projeto.get("descricao"):
             partes.append(projeto["descricao"])
-    for orientacao in perfil.get("orientacoes") or []:
+    for orientacao in resolver("orientacoes"):
         if orientacao.get("titulo"):
             partes.append(orientacao["titulo"])
-    for disciplina in perfil.get("disciplinas") or []:
+    for disciplina in resolver("disciplinas"):
         if disciplina.get("nome"):
             partes.append(disciplina["nome"])
         if disciplina.get("ementa"):
             partes.append(disciplina["ementa"])
-    for trabalho in perfil.get("trabalhosIniciacaoCientifica") or []:
+    for trabalho in resolver("trabalhosIniciacaoCientifica"):
         if trabalho.get("titulo"):
             partes.append(trabalho["titulo"])
         if trabalho.get("resumo"):
@@ -249,10 +270,10 @@ def campos_textuais_para_embedding(perfil: dict) -> list[str]:
     return partes
 
 
-def validar_para_embedding(perfil: dict) -> list[str]:
+def validar_para_embedding(perfil: dict, catalogos: dict[str, dict]) -> list[str]:
     """Sinaliza problemas que tornariam o embedding do perfil pouco útil."""
     problemas: list[str] = []
-    textos = campos_textuais_para_embedding(perfil)
+    textos = campos_textuais_para_embedding(perfil, catalogos)
 
     if not textos:
         problemas.append("nenhum campo textual — embedding não teria conteúdo real")
@@ -287,6 +308,78 @@ def validar_para_embedding(perfil: dict) -> list[str]:
     return problemas
 
 
+CAMPOS_REFERENCIA = (
+    "producoes",
+    "projetos",
+    "orientacoes",
+    "disciplinas",
+    "trabalhosIniciacaoCientifica",
+)
+
+
+def validar_referencias(
+    perfis: list[PerfilGold], catalogos: dict[str, set[str]]
+) -> tuple[dict[str, list[str]], int]:
+    """Confere se todo ID citado nos perfis existe no catálogo correspondente.
+
+    Devolve (órfãs por siape, total de referências verificadas).
+    """
+    orfas: dict[str, list[str]] = {}
+    total = 0
+    for perfil in perfis:
+        for campo in CAMPOS_REFERENCIA:
+            ids = perfil.get(campo) or []
+            total += len(ids)
+            faltando = [i for i in ids if i not in catalogos.get(campo, set())]
+            if faltando:
+                orfas.setdefault(perfil["siape"], []).extend(
+                    f"{campo}:{i}" for i in faltando
+                )
+    return orfas, total
+
+
+def publicar_execucao(
+    run_id: str,
+    prefixo_saida: str,
+    perfis: list[PerfilGold],
+    catalogos_json: dict[str, list[dict]],
+) -> None:
+    """Grava a execução em runs/<run_id>/ e só então move o ponteiro `current`.
+
+    Uma falha no meio deixa o ponteiro apontando para a execução anterior
+    (válida) em vez de um conjunto parcial de perfis.
+    """
+    base = f"{PREFIXO_RUNS}/{run_id}"
+    for perfil in perfis:
+        GOLD.salvar_json(
+            f"{base}/{prefixo_saida}/{identificador_professor(perfil)}.json", perfil
+        )
+    for nome, itens in catalogos_json.items():
+        GOLD.salvar_json(f"{base}/{nome}", itens)
+
+    GOLD.salvar_json(
+        CHAVE_PONTEIRO,
+        {
+            "run": run_id,
+            "prefixo": base,
+            "perfis": f"{base}/{prefixo_saida}/",
+            "total_perfis": len(perfis),
+            "catalogos": {nome: f"{base}/{nome}" for nome in catalogos_json},
+        },
+    )
+
+
+def limpar_execucoes_antigas(manter: int = RUNS_MANTIDAS) -> list[str]:
+    """Remove execuções além das `manter` mais recentes; devolve os run_ids."""
+    run_ids = sorted(
+        {chave.split("/")[1] for chave in GOLD.listar(f"{PREFIXO_RUNS}/")}
+    )
+    antigos = run_ids[:-manter] if manter > 0 else run_ids
+    for run_id in antigos:
+        GOLD.remover(GOLD.listar(f"{PREFIXO_RUNS}/{run_id}/"))
+    return antigos
+
+
 def executar_unificacao(
     perfis_sigaa: str = DEFAULT_PERFIS_SIGAA,
     perfis_lattes: str = DEFAULT_PERFIS_LATTES,
@@ -314,32 +407,92 @@ def executar_unificacao(
         if registro.get("idLattes")
     }
 
+    producoes: dict[str, dict] = {}
+    projetos: dict[str, dict] = {}
+    orientacoes: dict[str, dict] = {}
+    trabalhos_ic_usados: dict[str, dict] = {}
+    catalogos_validacao = {
+        "producoes": producoes,
+        "projetos": projetos,
+        "orientacoes": orientacoes,
+        "disciplinas": catalogo_componentes,
+        "trabalhosIniciacaoCientifica": trabalhos_ic_usados,
+    }
+
+    perfis: list[PerfilGold] = []
     perfis_com_problema: dict[str, list[str]] = {}
-    total = 0
     for sigaa in sigaa_registros:
         lattes = lattes_por_id.get(sigaa.get("idLattes")) if sigaa.get("idLattes") else None
         perfil = montar_perfil_unificado(
-            sigaa, lattes, catalogo_componentes, catalogo_trabalhos
+            sigaa,
+            lattes,
+            catalogo_trabalhos,
+            producoes,
+            projetos,
+            orientacoes,
+            trabalhos_ic_usados,
         )
+        perfis.append(perfil)
 
-        problemas = validar_para_embedding(perfil)
+        problemas = validar_para_embedding(perfil, catalogos_validacao)
         if problemas:
-            perfis_com_problema[perfil["nome"]] = problemas
+            perfis_com_problema[f"{perfil['siape']} {perfil['nome']}"] = problemas
 
-        chave = f"{prefixo_saida}/{identificador_professor(perfil)}.json"
-        salvar_json_gold(chave, perfil)
-        total += 1
+    # Integridade referencial: falha antes de publicar qualquer coisa.
+    orfas, total_refs = validar_referencias(
+        perfis, {campo: set(c) for campo, c in catalogos_validacao.items()}
+    )
+    if orfas:
+        qtd_orfas = sum(len(v) for v in orfas.values())
+        taxa = qtd_orfas / max(1, total_refs)
+        mensagem = (
+            f"{qtd_orfas} de {total_refs} referência(s) sem catálogo "
+            f"({taxa:.1%}): {orfas}"
+        )
+        if taxa > MAX_TAXA_REFERENCIAS_ORFAS:
+            raise ValueError(mensagem)
+        logger.warning(mensagem)
 
-    print(f"\n{total} perfil(is) unificado(s) e salvo(s) em gold/{prefixo_saida}/.")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    publicar_execucao(
+        run_id,
+        prefixo_saida,
+        perfis,
+        {
+            CHAVE_PRODUCOES: list(producoes.values()),
+            CHAVE_PROJETOS: list(projetos.values()),
+            CHAVE_ORIENTACOES: list(orientacoes.values()),
+            CHAVE_TRABALHOS_IC: list(trabalhos_ic_usados.values()),
+        },
+    )
+    removidas = limpar_execucoes_antigas()
+
+    logger.info(
+        "%d perfil(is) unificado(s) em gold/%s/%s/ (current.json atualizado).",
+        len(perfis),
+        PREFIXO_RUNS,
+        run_id,
+    )
+    logger.info(
+        "Catálogos: %d produção(ões), %d projeto(s), %d orientação(ões), "
+        "%d trabalho(s) de IC.",
+        len(producoes),
+        len(projetos),
+        len(orientacoes),
+        len(trabalhos_ic_usados),
+    )
+    if removidas:
+        logger.info("Execuções antigas removidas: %s", ", ".join(removidas))
+
     if perfis_com_problema:
-        print(
-            f"\nAVISO: {len(perfis_com_problema)} perfil(is) com possíveis "
-            "problemas para geração de embedding:"
+        logger.warning(
+            "%d perfil(is) com possíveis problemas para geração de embedding:",
+            len(perfis_com_problema),
         )
         for nome, problemas in perfis_com_problema.items():
-            print(f"  - {nome}: {'; '.join(problemas)}")
+            logger.warning("  - %s: %s", nome, "; ".join(problemas))
     else:
-        print("Todos os perfis têm conteúdo textual válido para o BGE-M3.")
+        logger.info("Todos os perfis têm conteúdo textual válido para o BGE-M3.")
 
 
 def main() -> None:
@@ -353,6 +506,7 @@ def main() -> None:
     parser.add_argument("--trabalhos-ic", default=DEFAULT_TRABALHOS_IC)
     parser.add_argument("--prefixo-saida", default=DEFAULT_PREFIXO_SAIDA)
     args = parser.parse_args()
+    configurar_logging()
 
     executar_unificacao(
         perfis_sigaa=args.perfis_sigaa,

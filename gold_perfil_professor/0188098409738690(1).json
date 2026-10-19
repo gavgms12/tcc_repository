@@ -1,0 +1,345 @@
+{
+  "nome": "ODILON DE OLIVEIRA DUTRA",
+  "idLattes": "0188098409738690",
+  "siape": "2019312",
+  "resumo": "Possui graduação em Engenharia de Computação pela Universidade Federal de Itajubá (2006). Experiência na área de Engenharia de Petróleo, tendo atuado por 3 anos na área de perfuração e perfilagem em tempo real de poços em águas profundas e ultra-Profundas no Brasil. Mestrado, pela Universidade Federal de Itajubá, em engenharia Elétrica - Microeletrônica, trabalhando com circuitos CMOS analógicos em tecnologia de 0.5 um. Atualmente estuda circuitos CMOS que operam em modo corrente, emulando as funções biológicas de neurônios em tecnologia de 130 nm com a utilização de transistores CMOS Halo implantados como parte de seu Doutorado pela Universidade Federal de Itajubá. A partir de Abril de 2013 tornou-se docente na Universidade Federal de Itajubá",
+  "formacaoAcademicaProfissional": "Formado em técnico em eletrônica, pela ETPC em Volta Redonda, no ano de 2000, tendo realizado estágio no alto forno 2 da CSN, na área de manutenção de sensores e manutenção preditiva. Formado em Engenharia de Computação na Unifei em 2006, trabalhei por 3 anos como engenheiro de petróleo como perfilador de poços MWD / LWD na empresa Schulumberger. Após me desligar da empresa em 2010, iniciei mestrado em Engenharia Elétrica com ênfase em Microeletrônica na Unifei, obtendo o título de mestre em Março de 2012. O doutorado foi iniciado em sequência. Já em 2013 iniciei minhas atividades como Professor do IESTI na Unifei, tendo passado em concurso na área de engenharia eletrônica e compatibilidade eletromagnética. Em Julho de 2015 obtive meu título de doutor em ciências de engenharia elétrica, com ênfase em microeletrônica, pela Unifei, tendo desenvolvido como tese o trabalho entitulado: Implementação de Neurônio Artificial em Tecnologia CMOS IBM 130 nm utilizando o Modelo de Izhikevich em Topologia Translinear Dinâmica com Transistores Halo-Implantados. Desde então, venho atuando como professor ministrando aulas de eletrônica analógica / digital, microcontroladores e compatibilidade eletromagnética, além de desenvolver atividades de pesquisa pelo grupo de microeletrônica.",
+  "areasEspecializacao": [
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": null,
+      "grande_area": "Engenharias",
+      "subarea": "Circuitos Integrados CMOS"
+    },
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": null,
+      "grande_area": "Engenharias",
+      "subarea": "Petróleo e Gas"
+    },
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": null,
+      "grande_area": "Engenharias",
+      "subarea": "Circuitos Eletrônicos"
+    },
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": null,
+      "grande_area": "Engenharias",
+      "subarea": "ENGENHARIA DE COMPUTAÇÃO"
+    },
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": null,
+      "grande_area": "Engenharias",
+      "subarea": "Processamento Digital de Sinais"
+    },
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": null,
+      "grande_area": "Engenharias",
+      "subarea": "Linguagens de Programação"
+    }
+  ],
+  "topicosInteresse": [
+    "Microeletrônica;",
+    "Circuitos eletrônicos;",
+    "Microcontroladores;",
+    "Engenharia de Petróleo;",
+    "Compatibilidade eletromagnética.",
+    "CMOS",
+    "Halo Implant",
+    "Izhikevich",
+    "Translinear",
+    "ultra-low-power",
+    "ultra-low-voltage",
+    "EEG",
+    "Electroencephalogram",
+    "Low Noise",
+    "Low Power",
+    "Neural Amplifier",
+    "OTA"
+  ],
+  "producoes": [
+    {
+      "ano": 2024,
+      "id": "bae1160ae966",
+      "tipo": "artigo_periodico",
+      "titulo": "A Low Power R-peak Detector Clocked at Signal Sampling Rate"
+    },
+    {
+      "ano": 2019,
+      "id": "0c76bc814f19",
+      "tipo": "artigo_periodico",
+      "titulo": "An Approach to Savitzky-Golay Differentiators"
+    },
+    {
+      "ano": 2019,
+      "id": "0076d89947f5",
+      "tipo": "artigo_periodico",
+      "titulo": "A 0.25-V calibration-less inverter-based OTA for low-frequency G-C applications"
+    },
+    {
+      "ano": 2018,
+      "id": "f9e7fb7af661",
+      "tipo": "trabalho_congresso",
+      "titulo": "Diferenciação simétrica de Savitzky-Golay aplicada em sinais de eletrocardiografia para determinação da frequência cardíaca"
+    },
+    {
+      "ano": 2017,
+      "id": "f1d97bf74cef",
+      "tipo": "trabalho_congresso",
+      "titulo": "Utilization of Savitzky-Golay filter for power line interference cancellation in an embedded electrocardiographic monitoring platform"
+    },
+    {
+      "ano": 2017,
+      "id": "924e3720719b",
+      "tipo": "trabalho_congresso",
+      "titulo": "Implementation of a reconfigurable neural network in FPGA"
+    },
+    {
+      "ano": 2017,
+      "id": "6a888b5a7c26",
+      "tipo": "trabalho_congresso",
+      "titulo": "Calibration-less Nauta OTA operating at 0.25-V power supply in a 130-nm digital CMOS process"
+    },
+    {
+      "ano": 2017,
+      "id": "ec3037e1c4b8",
+      "tipo": "trabalho_congresso",
+      "titulo": "Application of Savitzky-Golay digital differentiator for QRS complex detection in an electrocardiographic monitoring system"
+    },
+    {
+      "ano": 2017,
+      "id": "f8a9027294d0",
+      "tipo": "trabalho_congresso",
+      "titulo": "Android framework for automatic diagnosis of heart diseases"
+    },
+    {
+      "ano": 2016,
+      "id": "1880dd98e9ed",
+      "tipo": "trabalho_congresso",
+      "titulo": "An interchip Power Line Communication"
+    },
+    {
+      "ano": 2016,
+      "id": "3f5fca27f1ee",
+      "tipo": "trabalho_congresso",
+      "titulo": "A CMOS power line communication for EEG"
+    }
+  ],
+  "projetos": [
+    {
+      "ano_conclusao": 2026,
+      "ano_inicio": 2024,
+      "descricao": null,
+      "id": "34a6e39e886f",
+      "nome": "Estudo e desenvolvimento de redes neurais otimizadas para detecção de batimentos ventriculares prematuros (PVC).",
+      "situacao": "em_andamento",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2026,
+      "ano_inicio": 2023,
+      "descricao": "Este projeto de pesquisa envolve o desenvolvimento de novos processadores RISC-V, bem como a implementação de projeto existentes em hardware.São exploradas diferentes técnicas de projeto de processadores, como a implementação de pipelines de instruções, cache de dados e de instruções, bemcomo mecanismos de execução especulativa. O objetivo é produzir processadores RISC-V que sejam eficientes em termos de desempenho, consumo deenergia e custo..",
+      "id": "48250d47ed34",
+      "nome": "Análise de viabilidade de projeto e implementação de processadores RISC-V em FPGA",
+      "situacao": "em_andamento",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2026,
+      "ano_inicio": 2023,
+      "descricao": "Os circuitos neuromórficos são dispositivos eletrônicos inspirados na arquitetura do cérebro humano. Eles têm o potencial de resolver problemascomplexos de maneira rápida e eficiente, como a detecção de padrões em imagens e sinais. Neste projeto de pesquisa, é proposta a implementação decircuitos neuromórficos digitais utilizando a arquitetura Extreme Learning Machine (ELM).A ELM é uma técnica de aprendizado de máquina que permite o treinamento rápido de redes neurais com uma única camada oculta. Em comparação comoutras técnicas de aprendizado de máquina, a ELM é capaz de alcançar uma alta precisão de classificação com um tempo de treinamento reduzido. O usoda ELM em circuitos neuromórficos digitais pode permitir a construção de sistemas de processamento de informação que sejam mais rápidos e eficientesdo que os sistemas convencionais.O objetivo deste projeto é implementar circuitos neuromórficos digitais usando a arquitetura ELM e avaliar sua eficácia em resolver problemas complexosde processamento de informação. Serão realizados experimentos para avaliar a precisão, tempo de treinamento e o tempo de resposta dos circuitosneuromórficos digitais implementados, além de teste para validar o circuito em aplicações práticas específicas envolvendo análise de sinais biomédicos..",
+      "id": "dc1585d97340",
+      "nome": "Implementação de Circuitos Neuromórficos Digitais utilizando a Arquitetura Extreme Learning Machine",
+      "situacao": "em_andamento",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2022,
+      "ano_inicio": 2020,
+      "descricao": "Esse projeto de pesquisa visa o estudo e desenvolvimento de técnicas de processamento digital de sinais de eletrocardiograma (ECG) em dispositivosField Programmable Gate Array (FPGA), uma vez que sua utilização vem crescendo em aplicações de Internet of Things (IoT). Além disso, aplicaçõesbiomédicas como o monitoramento remoto do sinal de ECG também são tendências impulsionadas pelos crescentes movimentos de electronic-health (e-health) e mobile-health (m-health) proporcionado pela popularização dos smartphones.Essas técnicas compreendem métodos para condicionamento do sinal de ECG, extração de características, como o complexo QRS, de auxílio adiagnóstico ou mesmo criptografia para a segurança da informação trocada via internet. Dessa maneira, cada técnica desenvolvida individualmente podecontribuir para o desenvolvimento de um sistema digital completo em FPGA voltado para o monitoramento cardíaco remoto na forma de uma aplicaçãoIoT que vai ao encontro das necessidades dos movimentos e-health e m-health..",
+      "id": "5a607565e65e",
+      "nome": "Desenvolvimento de um sistema de monitoramento cardíaco em FPGA visando aplicações em IoT",
+      "situacao": "concluido",
+      "tipo": "pesquisa"
+    }
+  ],
+  "orientacoes": [
+    {
+      "ano_inicio": 2018,
+      "id": "b0ffba65ffd4",
+      "tipo": "tcc",
+      "titulo": "Layout PCB para electrocardiógrafo inteligente BLE baseado no microcontrolador CC2650"
+    },
+    {
+      "ano_inicio": 2018,
+      "id": "a1c346dbb79d",
+      "tipo": "mestrado",
+      "titulo": "Aplicação de Filtros de Savitzky-Golay no Processamento de Sinais de Eletrocardiografia"
+    },
+    {
+      "ano_inicio": 2017,
+      "id": "0852672baf06",
+      "tipo": "mestrado",
+      "titulo": "Uma Arquitetura Reconfigurável de Rede Neural Artificial Utilizando FPGA"
+    },
+    {
+      "ano_inicio": 2017,
+      "id": "ea653301a976",
+      "tipo": "mestrado",
+      "titulo": "Um framework para sistemas eletrocardiográficos baseado em Android HL7"
+    },
+    {
+      "ano_inicio": 2017,
+      "id": "969732541bee",
+      "tipo": "mestrado",
+      "titulo": "Propriedades da filtragem de Savitsky-Golay aplicadas na identificação de complexos QRS em sinais de eletrocardiograma."
+    }
+  ],
+  "disciplinas": [
+    {
+      "codigo": "ELT804.1",
+      "nome": "MICROCONTROLADORES",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELT804.2",
+      "nome": "MICROCONTROLADORES (PRÁTICA)",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "TIY026",
+      "nome": "DESENVOLVIMENTO DE CIRCUITO INTEGRADO",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELTD11A",
+      "nome": "LABORATÓRIO DE ELETRÔNICA DIGITAL 1",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELTD05A",
+      "nome": "PROJETO DE SISTEMAS DIGITAIS",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELTD15A",
+      "nome": "LABORATÓRIO DE PROJETO DE SISTEMAS DIGITAIS",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "IES0046",
+      "nome": "SD100 - INTRODUÇÃO À MICROELETRÔNICA",
+      "cargaHoraria": "15h"
+    },
+    {
+      "codigo": "IES0047",
+      "nome": "SD112 - INTRODUÇÃO AO VERILOG",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0048",
+      "nome": "SD122 - CIRCUITOS DIGITAIS I",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0049",
+      "nome": "SD132 - CIRCUITOS DIGITAIS II",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0050",
+      "nome": "SD142 - Circuitos Digitais III",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0051",
+      "nome": "SD202 - Circuitos Digitais IV",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0052",
+      "nome": "SD212 - Arquitetura de Sistemas Digitais",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0053",
+      "nome": "SD221 - Síntese Lógica",
+      "cargaHoraria": "15h"
+    },
+    {
+      "codigo": "IES0054",
+      "nome": "SD232 - Análise Estática de Timing",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "IES0055",
+      "nome": "SD242 - Verificação de Sistemas Digitais",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "ECA307",
+      "nome": "MICROPROCESSADORES/MICROCONTROLADORES",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ECA317",
+      "nome": "LABORATÓRIO DE MICROPROCESSADORES/MICROCONTROLADORES",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELT014",
+      "nome": "LABORATÓRIO DE ELETRÔNICA DIGITAL II",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELT026",
+      "nome": "LABORATÓRIO DE ELETRÔNICA ANALÓGICA I",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELT040",
+      "nome": "LABORATÓRIO DE AQUISIÇÃO E CONVERSÃO DE SINAIS",
+      "cargaHoraria": "24h"
+    },
+    {
+      "codigo": "ELT044",
+      "nome": "LABORATÓRIO DE MICROCONTROLADORES",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELT053",
+      "nome": "COMPATIBILIDADE ELETROMAGNÉTICA",
+      "cargaHoraria": "48h"
+    },
+    {
+      "codigo": "ELT413",
+      "nome": "LABORATÓRIO DE ELETRÔNICA ANALÓGICA II",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELTA10",
+      "nome": "LABORATÓRIO DE INTRODUÇÃO À ELETRÔNICA ANALÓGICA",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELTD03",
+      "nome": "MICROCONTROLADORES E MICROPROCESSADORES",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELTD11",
+      "nome": "LABORATÓRIO DE ELETRÔNICA DIGITAL I",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELTA00",
+      "nome": "INTRODUÇÃO À ELETRÔNICA ANALÓGICA",
+      "cargaHoraria": "32h"
+    }
+  ],
+  "trabalhosIniciacaoCientifica": []
+}

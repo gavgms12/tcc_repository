@@ -4,8 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -15,10 +15,15 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from bronze.scraping.utils import buscar_html, criar_sessao, normalizar_nome, validar_id_lattes
-from storage.minio_storage import salvar_json_bronze
+from common.log import configurar_logging
+from storage.minio_storage import salvar_json_bronze_datado
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_URL = "https://iesti.unifei.edu.br/corpo-docente/"
 DEFAULT_OUTPUT = "raw/iesti_site/professores_iesti_site.json"
+# O certificado de iesti.unifei.edu.br não valida (cadeia incompleta); a
+# verificação fica desligada só para este host, via --verify-ssl para religar.
 
 
 def extrair_professores(html: str) -> list[dict[str, str | None]]:
@@ -64,12 +69,11 @@ def executar_coleta(
     if not professores:
         raise RuntimeError("Nenhum professor encontrado. Verifique a estrutura da página.")
 
-    salvar_json_bronze(output, professores)
+    chave = salvar_json_bronze_datado(output, professores)
 
     com_lattes = sum(1 for professor in professores if professor["idLattes"])
-    print(f"Extraídos {len(professores)} professores ({com_lattes} com idLattes).")
-    print(f"Objeto salvo em: bronze/{output}")
-    print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
+    logger.info("Extraídos %d professores (%d com idLattes).", len(professores), com_lattes)
+    logger.info("Objeto salvo em: bronze/%s", chave)
 
 
 def main() -> None:
@@ -88,6 +92,7 @@ def main() -> None:
         help="Valida o certificado SSL do site (desativado por padrão).",
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_coleta(url=args.url, output=args.output, verify_ssl=args.verify_ssl)
 

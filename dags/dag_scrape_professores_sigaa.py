@@ -1,65 +1,79 @@
 """DAG da camada Bronze: só coleta bruta (web scraping), sem processamento.
 
 O merge de identidade, o scriptLattes e a limpeza dos perfis são etapas da
-Silver e ficam em dag_silver_professores.py, para poder rodar cada camada
-separadamente.
+Silver (dag_silver_professores.py), disparada automaticamente quando esta DAG
+termina (asset BRONZE_PRONTA). Os imports pesados ficam dentro das tasks para
+manter o parse da DAG rápido.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 
 PROJECT_ROOT = "/opt/project"
 sys.path.append(PROJECT_ROOT)
+sys.path.append(f"{PROJECT_ROOT}/dags")
 
-from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.sdk import DAG, task
 
-from bronze.scraping.scrape_professores_sigaa import executar_scraping as scrape_sigaa
-from bronze.scraping.scrape_sigaa_docente import executar_coleta as scrape_perfil_docente
-from bronze.scraping.scrape_sigaa_componentes import executar_coleta as scrape_componentes
-from bronze.scraping.scrape_professores_iesti import executar_coleta as scrape_iesti
-from bronze.scraping.scrape_trabalhos_ic import executar_coleta as scrape_trabalhos_ic
+from assets import BRONZE_PRONTA
 
+default_args = {
+    "retries": 2,
+    "retry_delay": timedelta(minutes=5),
+    "retry_exponential_backoff": True,
+}
 
 with DAG(
-    dag_id="scrape_professores_sigaa",
+    dag_id="bronze_scrape_professores_sigaa",
     start_date=datetime(2026, 1, 1),
     schedule=None,
     catchup=False,
+    default_args=default_args,
     tags=["tcc", "bronze"],
 ) as dag:
 
-    t1_scrape_sigaa = PythonOperator(
-        task_id="scrape_sigaa",
-        python_callable=scrape_sigaa,
-    )
+    @task
+    def scrape_sigaa():
+        from bronze.scraping.scrape_professores_sigaa import executar_scraping
 
-    t2_perfil_docente = PythonOperator(
-        task_id="scrape_perfil_docente_sigaa",
-        python_callable=scrape_perfil_docente,
-    )
+        executar_scraping()
 
-    t3_componentes_sigaa = PythonOperator(
-        task_id="scrape_componentes_sigaa",
-        python_callable=scrape_componentes,
-        # Sem isso, executar_coleta usa com_ementa=False por padrão e nenhum
-        # componente sai com ementa preenchida — a Silver depende dela para
-        # os textos irem pro embedding (bge-m3) na Gold.
-        op_kwargs={"com_ementa": True},
-    )
+    @task
+    def scrape_perfil_docente_sigaa():
+        from bronze.scraping.scrape_sigaa_docente import executar_coleta
 
-    t4_scrape_iesti = PythonOperator(
-        task_id="scrape_iesti",
-        python_callable=scrape_iesti,
-    )
+        executar_coleta()
 
-    t7_trabalhos_ic = PythonOperator(
-        task_id="scrape_trabalhos_ic",
-        python_callable=scrape_trabalhos_ic,
-    )
+    @task
+    def scrape_componentes_sigaa():
+        from bronze.scraping.scrape_sigaa_componentes import executar_coleta
 
-    # Perfil docente detalhado depende apenas da lista de professores do SIGAA.
-    t1_scrape_sigaa >> t2_perfil_docente
+        # A Silver depende das ementas para os textos irem pro embedding. Só
+        # são buscadas as que ainda não constam na coleta anterior.
+        executar_coleta(com_ementa=True)
 
-    # Componentes curriculares, IESTI e trabalhos de IC não dependem de
-    # nenhuma outra etapa; ficam soltos para rodar em paralelo.
+    @task
+    def scrape_iesti():
+        from bronze.scraping.scrape_professores_iesti import executar_coleta
+
+        executar_coleta()
+
+    @task
+    def scrape_trabalhos_ic():
+        from bronze.scraping.scrape_trabalhos_ic import executar_coleta
+
+        executar_coleta()
+
+    @task(outlets=[BRONZE_PRONTA])
+    def bronze_concluida():
+        """Marca a Bronze como pronta; aciona a DAG da Silver."""
+
+    # O perfil detalhado depende da lista de professores do SIGAA; os demais
+    # coletores são independentes e rodam em paralelo.
+    coletas = [
+        scrape_sigaa() >> scrape_perfil_docente_sigaa(),
+        scrape_componentes_sigaa(),
+        scrape_iesti(),
+        scrape_trabalhos_ic(),
+    ]
+    coletas >> bronze_concluida()

@@ -1,0 +1,1030 @@
+{
+  "nome": "ROBSON BAUWELZ GONZATTI",
+  "idLattes": "7615990862728462",
+  "siape": "2256795",
+  "resumo": "Possui graduação em Engenharia de Controle e Automação pela Universidade Federal de Itajubá (2011), mestrado em Engenharia Elétrica pela Universidade Federal de Itajubá (2012) e doutorado em Engenharia Elétrica pela Universidade Federal de Itajubá (2015). Realizou estudos de pós-doutorado como professor visitante na Florida State University, EUA, entre agosto de 2019 e julho de 2020. Atualmente é professor adjunto da Universidade Federal de Itajubá. É membro Sênior do IEEE desde 2021. Tem experiência na área de Engenharia Elétrica, com ênfase em Eletrônica Industrial, Sistemas e Controles Eletrônicos, atuando principalmente nos seguintes temas: FACTS, filtros ativos de potência, sistemas de armazenamento de energia e conversores multiníveis",
+  "formacaoAcademicaProfissional": "Possui graduação em Engenharia de Controle e Automação pela Universidade Federal de Itajubá (2011), mestrado em Engenharia Elétrica pela Universidade Federal de Itajubá (2012) e doutorado em Engenharia Elétrica pela Universidade Federal de Itajubá (2015). Foi professor visitante na Florida State University entre 2019 e 2020. Atualmente é Professor da Universidade Federal de Itajubá lotado no IESTI - Instituto de Engenharia de Sistemas e Tecnologia da Informação.",
+  "areasEspecializacao": [
+    {
+      "area": "Engenharia Elétrica",
+      "especialidade": "Aplicações de eletrônica de potência",
+      "grande_area": "Engenharias",
+      "subarea": "Eletrônica de Potência"
+    }
+  ],
+  "topicosInteresse": [
+    "Sistemas de Controle para Conversores de Potência",
+    "Filtro Ativos de Potência",
+    "FACTS",
+    "Sistemas de Armazenamento de Energia",
+    "Conversores Multiníveis",
+    "Filtro Ativo Híbrido",
+    "Controle",
+    "Compensação Harmônica"
+  ],
+  "producoes": [
+    {
+      "ano": 2025,
+      "id": "99f4b031328f",
+      "tipo": "artigo_periodico",
+      "titulo": "Thermodynamic and Economic Assessment of Steam Generation with Heavy Fuel Oil and Electric Boilers in a Brazilian Thermoelectric Power Plant"
+    },
+    {
+      "ano": 2025,
+      "id": "bf289129f617",
+      "tipo": "trabalho_congresso",
+      "titulo": "REGULAÇÃO ATIVA DE TENSÃO EM SISTEMAS DE DISTRIBUIÇÃO"
+    },
+    {
+      "ano": 2025,
+      "id": "e3176af31bf3",
+      "tipo": "trabalho_congresso",
+      "titulo": "Proposta de Metodologia de Controle Ótimo para Inversores de Frequência Monofásicos em D-Q"
+    },
+    {
+      "ano": 2025,
+      "id": "5c22d04d99dd",
+      "tipo": "trabalho_congresso",
+      "titulo": "PROJETO E SIMULAÇÃO DE RETIFICADOR PARA ELETROLISADOR PEM COM FOCO NA MELHORIA DA QUALIDADE DE ENERGIA"
+    },
+    {
+      "ano": 2025,
+      "id": "1f439d5b4fe6",
+      "tipo": "trabalho_congresso",
+      "titulo": "Optimal Allocation of D-STATCOM in Power Distribution Systems Using Particle Swarm Optimization"
+    },
+    {
+      "ano": 2025,
+      "id": "645635377e78",
+      "tipo": "trabalho_congresso",
+      "titulo": "Operação de Retificador com IGBTs para eletrolisador tipo PEM em Condição de Falta de Fase"
+    },
+    {
+      "ano": 2025,
+      "id": "4af872886f03",
+      "tipo": "trabalho_congresso",
+      "titulo": "Operation of IGBT Based Active Rectifier Applied to PEM Electrolyzer During Phase Loss"
+    },
+    {
+      "ano": 2025,
+      "id": "b3261874ced2",
+      "tipo": "trabalho_congresso",
+      "titulo": "Modeling and Simulation of Pi Control for Mmc-Based Statcom"
+    },
+    {
+      "ano": 2025,
+      "id": "ba7942264abc",
+      "tipo": "trabalho_congresso",
+      "titulo": "LQR-Based Optimal Control with Experimental Validation for Single-Phase D-Q Inverter"
+    },
+    {
+      "ano": 2025,
+      "id": "ad174d5f87c7",
+      "tipo": "trabalho_congresso",
+      "titulo": "IMPACTOS DA INTEGRAÇÃO DE FONTES DE ENERGIA BASEADAS EM HIDROGÊNIO DE BAIXO CARBONO NO SISTEMA ELÉTRICO BRASILEIRO"
+    },
+    {
+      "ano": 2025,
+      "id": "fc6e053cdc58",
+      "tipo": "trabalho_congresso",
+      "titulo": "Fixed Switching Frequency MPC for Grid-Connected Cascaded H-Bridge Converter"
+    },
+    {
+      "ano": 2025,
+      "id": "39a078198a6c",
+      "tipo": "artigo_periodico",
+      "titulo": "Finite Control Set Model Predictive Control Applied to Multilevel Hybrid Active Power Filter"
+    },
+    {
+      "ano": 2025,
+      "id": "70bb863e1611",
+      "tipo": "trabalho_congresso",
+      "titulo": "Active Imbalance Compensation and Voltage Regulation in Distribution Systems"
+    },
+    {
+      "ano": 2024,
+      "id": "0907c1e6a273",
+      "tipo": "artigo_periodico",
+      "titulo": "Low Frequency versus High Frequency PWM in Medium Voltage, High Power, Higher Level Inverters: THD, Harmonic Filtering, and Efficiency Comparison"
+    },
+    {
+      "ano": 2024,
+      "id": "fdef51b09f7d",
+      "tipo": "artigo_periodico",
+      "titulo": "Analysis, Modeling, and Experiments of a Nonlinear Inductor-Based Fault Current Commutation Strategy for a Hybrid Dc Circuit Breaker"
+    },
+    {
+      "ano": 2023,
+      "id": "3d3a42ad1716",
+      "tipo": "artigo_periodico",
+      "titulo": "Online Adaptive Parameter Estimation of a Finite Control Set Model Predictive Controlled Hybrid Active Power Filter"
+    },
+    {
+      "ano": 2023,
+      "id": "6d7c8e806e97",
+      "tipo": "trabalho_congresso",
+      "titulo": "Model Reference Adaptive Controller for a Distribution SSSC"
+    },
+    {
+      "ano": 2023,
+      "id": "0960f314e807",
+      "tipo": "trabalho_congresso",
+      "titulo": "MITIGAÇÃO DOS EFEITOS DE AFUNDAMENTOS DE TENSÃO EM CARREGADORES DE BATERIAS DE VEÍCULOS ELÉTRICOS"
+    },
+    {
+      "ano": 2023,
+      "id": "90bcc62caeea",
+      "tipo": "trabalho_congresso",
+      "titulo": "Equipamento Estático de Autorrecuperação para Controle de Fluxo Potência em Redes de Distribuição"
+    },
+    {
+      "ano": 2023,
+      "id": "d97e31937345",
+      "tipo": "trabalho_congresso",
+      "titulo": "Development and Field Demonstration of a Series Power Flow Controller for Distribution Grids"
+    },
+    {
+      "ano": 2023,
+      "id": "6cdc721db4ea",
+      "tipo": "trabalho_congresso",
+      "titulo": "Comparison of Parameters Estimation Techniques Applied to an FCS-MPC Controlled HAPF"
+    },
+    {
+      "ano": 2023,
+      "id": "efba1d58ef41",
+      "tipo": "artigo_periodico",
+      "titulo": "Comparison of Control Techniques for Harmonic Isolation in Series VSC-Based Power Flow Controller in Distribution Grids"
+    },
+    {
+      "ano": 2023,
+      "id": "415f65c6d9d3",
+      "tipo": "trabalho_congresso",
+      "titulo": "Bidirectional IGBT-based Battery Fast Charger"
+    },
+    {
+      "ano": 2022,
+      "id": "c656347b1fc9",
+      "tipo": "artigo_periodico",
+      "titulo": "Y-Matrix Modulation for SC-MMC Medium Voltage Grid-Tie Converter"
+    },
+    {
+      "ano": 2022,
+      "id": "3dff381a4580",
+      "tipo": "trabalho_congresso",
+      "titulo": "Startup of the Switched-Capacitor Modular Multilevel Converter with Middle Submodule"
+    },
+    {
+      "ano": 2022,
+      "id": "521b196caa50",
+      "tipo": "capitulo_livro",
+      "titulo": "SUPORTE E FORMAÇÃO DE MICRO-REDES ATRAVÉS DE CONVERSOR MULTINÍVEL. OPEN SCIENCE RESEARCH VI. 1ed"
+    },
+    {
+      "ano": 2022,
+      "id": "793756e2d57d",
+      "tipo": "artigo_periodico",
+      "titulo": "Power Flow Control Using Series Voltage Source Converters in Distribution Grids"
+    },
+    {
+      "ano": 2022,
+      "id": "c2e1fa5019c7",
+      "tipo": "trabalho_congresso",
+      "titulo": "Estimação de Parâmetros em um Filtro Ativo Híbrido controlado por FCS-MPC"
+    },
+    {
+      "ano": 2022,
+      "id": "207d867683aa",
+      "tipo": "capitulo_livro",
+      "titulo": "EQUIPAMENTO PARA CORTE DE PICOS DE DEMANDA BASEADO EM CONVERSOR MULTINÍVEL E ARMAZENAMENTO POR BATERIAS. OPEN SCIENCE RESEARCH VI. 1ed"
+    },
+    {
+      "ano": 2022,
+      "id": "78cb0baca682",
+      "tipo": "artigo_periodico",
+      "titulo": "An Overview of Converter Topologies and Their Derivations and Interrelationships"
+    },
+    {
+      "ano": 2021,
+      "id": "e97dca4b73bb",
+      "tipo": "artigo_periodico",
+      "titulo": "Performance evaluation of interphase transformers based on a new 48-pulse AC-DC converter for industrial applications"
+    },
+    {
+      "ano": 2021,
+      "id": "59a6a0bb4735",
+      "tipo": "capitulo_livro",
+      "titulo": "IMPLEMENTAÇÃO EM FPGA PARA PESQUISA E ENSINO NA ÁREA DE ELETRÔNICA DE POTÊNCIA DE MODULADOR PWM PARA CONVERSORES MULTINÍVEIS. Desvendando a Engenharia: sua abrangência e multidisciplinaridade. 1ed"
+    },
+    {
+      "ano": 2021,
+      "id": "74dd00078e77",
+      "tipo": "trabalho_congresso",
+      "titulo": "FCS-MPC Applied to Multilevel Hybrid Active Power Filter for Reactive Power and Harmonics Compensation"
+    },
+    {
+      "ano": 2021,
+      "id": "ef2e3a13b887",
+      "tipo": "trabalho_congresso",
+      "titulo": "Capacitor Voltage Ripple Suppression of the Switched Capacitor Modular Multilevel Converter"
+    },
+    {
+      "ano": 2021,
+      "id": "b55030c30110",
+      "tipo": "trabalho_congresso",
+      "titulo": "Avaliação da Compensação de Filtros Ativos Paralelos no Sistema de Distribuição com o OpenDSS e Matlab"
+    },
+    {
+      "ano": 2020,
+      "id": "db2d629557dc",
+      "tipo": "trabalho_congresso",
+      "titulo": "Virtual Impedance-based Grid Synchronization for Converters Connected Through Long Cables"
+    },
+    {
+      "ano": 2020,
+      "id": "07175b22fd19",
+      "tipo": "trabalho_congresso",
+      "titulo": "Switched Capacitor MMC Submodule Voltage Balancing with Reduced Number of Voltage Sensors"
+    },
+    {
+      "ano": 2020,
+      "id": "3a529c6fb04e",
+      "tipo": "trabalho_congresso",
+      "titulo": "Steady-State Analysis of the Switched-Capacitor Modular Multilevel Converter with \"-Matrix"
+    },
+    {
+      "ano": 2020,
+      "id": "ce06be092365",
+      "tipo": "trabalho_congresso",
+      "titulo": "Modular Multilevel Converter with Minimum Arm Inductance and Automatic Sub-module Voltage Balance - Y-Matrix Modulation and its Theoretical Proof of the Automatic Voltage Balance"
+    },
+    {
+      "ano": 2020,
+      "id": "acedd780be37",
+      "tipo": "trabalho_congresso",
+      "titulo": "Grid-connected converter without Interfacing Filters: Principle, Analysis and Implementation"
+    },
+    {
+      "ano": 2020,
+      "id": "698f051fa0bc",
+      "tipo": "artigo_periodico",
+      "titulo": "An alternative proposal for HVDC transmission systems using 24-pulse AC/DC converters based on three-winding non-conventional transformers"
+    },
+    {
+      "ano": 2020,
+      "id": "db3336a46134",
+      "tipo": "trabalho_congresso",
+      "titulo": "A New Bidirectional Three-phase Neutral Point Clamped (NPC) Grid-Connected Converter: Analysis and Simulation"
+    },
+    {
+      "ano": 2020,
+      "id": "518a2fd8f069",
+      "tipo": "artigo_periodico",
+      "titulo": "13.8 kV Operation of a Peak-Shaving Energy Storage Equipment With Voltage Harmonics Compensation Feature"
+    },
+    {
+      "ano": 2019,
+      "id": "e9e68df39c7f",
+      "tipo": "trabalho_congresso",
+      "titulo": "Implementation of Automatic Battery Charging Temperature Compensation on a Peak-Shaving Energy Storage Equipment"
+    },
+    {
+      "ano": 2019,
+      "id": "4d8b3604f136",
+      "tipo": "trabalho_congresso",
+      "titulo": "EQUIPAMENTO PARA CORTE DE PICOS DE DEMANDA BASEADO EM CONVERSOR MULTINÍVEL E ARMAZENAMENTO POR BATERIAS"
+    },
+    {
+      "ano": 2019,
+      "id": "9da0920a418f",
+      "tipo": "artigo_periodico",
+      "titulo": "Development and 24 Hour Behavior Analysis of a Peak-Shaving Equipment with Battery Storage"
+    },
+    {
+      "ano": 2019,
+      "id": "62def24eec70",
+      "tipo": "trabalho_congresso",
+      "titulo": "Developement of a Multilevel DVR with Battery Control and Harmonic Compensation"
+    },
+    {
+      "ano": 2019,
+      "id": "66ff336a220a",
+      "tipo": "trabalho_congresso",
+      "titulo": "COMPARAÇÃO DE TÉCNICAS DE CONTROLE PARA BLOQUEIO HARMÔNICO UTILIZANDO UM FILTRO ATIVO SÉRIE EM REDES DE DISTRIBUIÇÃO"
+    },
+    {
+      "ano": 2019,
+      "id": "939828eb570e",
+      "tipo": "trabalho_congresso",
+      "titulo": "ANÁLISE DE PERDAS EM CONVERSORES MULTINÍVEIS DEVIDO À TÉCNICAS DE MODULAÇÃO PWM BASEADAS EM DSP"
+    },
+    {
+      "ano": 2019,
+      "id": "65e6658bd21c",
+      "tipo": "trabalho_congresso",
+      "titulo": "A Review of FCS-MPC in Multilevel Converters Applied to Active Power Filters"
+    },
+    {
+      "ano": 2019,
+      "id": "7f9893314761",
+      "tipo": "trabalho_congresso",
+      "titulo": "A Practical Guide to Implement Model Based Predictive Control Applied on Cascaded H-Bridge Converters"
+    },
+    {
+      "ano": 2019,
+      "id": "ce6667051c21",
+      "tipo": "trabalho_congresso",
+      "titulo": "A Novel Technique for Switching States Reduction with Capacitor Voltage Balancing for CHB Converter Based on Model Predictive Control"
+    },
+    {
+      "ano": 2018,
+      "id": "4a4d404a9907",
+      "tipo": "trabalho_congresso",
+      "titulo": "Suporte e Formação de Micro-redes através de Conversor Multiníveis"
+    },
+    {
+      "ano": 2018,
+      "id": "2822a29549b5",
+      "tipo": "trabalho_congresso",
+      "titulo": "Implementação em FPGA de Modulador PWM para Conversores Multiníveis"
+    },
+    {
+      "ano": 2018,
+      "id": "24d521ba4d1d",
+      "tipo": "artigo_periodico",
+      "titulo": "IMPLEMENTATION OF HARMONIC PROPAGATION DAMPING FEATURE ON A STORAGE AND GRID SUPPORT EQUIPMENT"
+    },
+    {
+      "ano": 2018,
+      "id": "a5ef33b284b0",
+      "tipo": "trabalho_congresso",
+      "titulo": "Grid Connected PV with Storage System Simulation for Distribution Grid Supporting"
+    },
+    {
+      "ano": 2018,
+      "id": "861c2b5239dd",
+      "tipo": "artigo_periodico",
+      "titulo": "Finite Control Set Model Predictive Control for Dynamic Reactive Power Compensation With Hybrid Active Power Filters"
+    },
+    {
+      "ano": 2018,
+      "id": "3ae9c566cf8d",
+      "tipo": "trabalho_congresso",
+      "titulo": "Estudos de Implantação de Filtros Híbridos nas Redes de Distribuição para a Melhoria de sua Eficiência e Redução de suas Perdas Técnicas"
+    },
+    {
+      "ano": 2018,
+      "id": "c1eb6c7612c6",
+      "tipo": "trabalho_congresso",
+      "titulo": "Equipamento Híbrido de Auxílio à Operação das Redes de Distribuição"
+    },
+    {
+      "ano": 2018,
+      "id": "c9a7fe830a64",
+      "tipo": "trabalho_congresso",
+      "titulo": "Development of a multilevel converter for power systems applications based on DSP"
+    },
+    {
+      "ano": 2018,
+      "id": "0e659110a12a",
+      "tipo": "trabalho_congresso",
+      "titulo": "Análise de Lógicas de Intertravamentos Através de Simulação em Tempo Real Aplicando a Norma IEC 61850"
+    },
+    {
+      "ano": 2017,
+      "id": "45693b386c51",
+      "tipo": "artigo_periodico",
+      "titulo": "Using Smart Impedance to Transform High Impedance Microgrid in a Quasi-Infinite Busbar"
+    },
+    {
+      "ano": 2017,
+      "id": "0b9d391a4ff9",
+      "tipo": "trabalho_congresso",
+      "titulo": "Sistema Transformador Atenuador de Harmônicos"
+    },
+    {
+      "ano": 2017,
+      "id": "726e463615dc",
+      "tipo": "trabalho_congresso",
+      "titulo": "Low-cost didactic module for single-phase inverter teaching"
+    },
+    {
+      "ano": 2017,
+      "id": "49511c2478af",
+      "tipo": "trabalho_congresso",
+      "titulo": "Implementation of a single-stage single-phase grid connected PV converter"
+    },
+    {
+      "ano": 2016,
+      "id": "3482688b4f0c",
+      "tipo": "artigo_periodico",
+      "titulo": "Smart Impedance: A New Way to Look at Hybrid Filters"
+    }
+  ],
+  "projetos": [
+    {
+      "ano_conclusao": 2026,
+      "ano_inicio": 2024,
+      "descricao": "Neste projeto, os pesquisadores farão estudos e simulações de um módulo de gerenciamentoenergético, composto por conversores CC/CC e CC/CA, para um sistema de geração de H2 capaz deproduzir concomitantemente energia elétrica e hidrogênio por meio de mais de uma fonte de energia,neste caso, calor residual e geração fotovoltaica. O foco da aplicação será a utilização deste sistema degeração de hidrogênio em um ambiente industrial. Também serão realizadas simulações com foco naqualidade da energia elétrica fornecida ao eletrolisador, buscando a compensação do conteúdoharmônico e reativo. Para tanto será utilizado um conversor ligado em paralelo para compensação dascorrentes harmônicas e reativa.",
+      "id": "f54769e52b94",
+      "nome": "Desenvolvimento e Simulação de Módulo de Gerenciamento Energético para Sistema de Produção de H2 com Compensação Harmônica e Reativa",
+      "situacao": "concluido",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2024,
+      "ano_inicio": 2022,
+      "descricao": "As fontes de energia para a produção de H2 são das mais diversas. No escopo deste estudo, serão consideradas duas dessas fontes: a solar (fotovoltaica) e a recuperação de perdas térmicas (calor) em processos industriais. Desta forma, ambas as fontes de energia, calor residual e solar, podem ser gerenciadas por módulos de eletrônica de potência que condicionarão os níveis de tensão de saída a fim de atingir o melhor desempenho de um eletrolisador para geração de hidrogênio. Neste contexto, os pesquisadores farão estudos e simulações de um módulo de gerenciamento energético, composto por conversores CC/CC, para um sistema de geração de H2 capaz de produzir concomitantemente energia elétrica e hidrogênio por meio de mais de uma fonte de energia, neste caso, calor residual e solar.",
+      "id": "451e3307b347",
+      "nome": "Estudo e simulação de módulo de gerenciamento energético para sistema de produção de H2",
+      "situacao": "concluido",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2023,
+      "ano_inicio": 2022,
+      "descricao": "O Centro de Hidrogênio Verde (CH2V) constitui a iniciativa mais significativa e abrangente da Universidade no campo da produção e uso de hidrogênio, que foi obtida por sua clara vocação dos docentes e pesquisadores em desenvolver temas energéticos, especialmente os mais relevantes para as condições brasileiras e relacionados ao desenvolvimento sustentável. Para a construção do CH2V tem-se uma área aproximada de 3.000 m2 do campus sede, onde será instalada uma planta de eletrólise, tanques de armazenamento, compressores e sistema de abastecimento de veículos movidos a hidrogênio e um prédio com área aproximada de 800 m2 para desenvolver atividades relacionadas ao hidrogênio verde, contendo sala de administração, escritórios, sala de pesquisadores, sala de reuniões e laboratórios para realização de projetos de pesquisa e desenvolvimento em fase inicial de testes, acessos, adutoras de água e hidrogênio..",
+      "id": "6e370efa39b9",
+      "nome": "Centro de Hidrogênio Verde CH2V",
+      "situacao": "concluido",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2023,
+      "ano_inicio": 2021,
+      "descricao": "Neste projeto, os pesquisadores farão simulações de fluxo de potência em redes de distribuição, considerando modelos que permitam a construção de cenários em diversas condições operativas em regime permanente e transitórios de um equipamento série nos circuitos de distribuição.",
+      "id": "3a40c2bdce41",
+      "nome": "Simulação de Controle de Fluxo de Potência em Redes de Distribuição",
+      "situacao": "concluido",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2023,
+      "ano_inicio": 2020,
+      "descricao": "O foco deste projeto de pesquisa está no estudo, projeto e desenvolvimento de um protótipo de carregador rápido para VEs. Esses carregadores têm potência elevada e devem apresentar alta eficiência, fornecer um alto nível de qualidade de energia na rede de entrada com distorção harmônica reduzida, alto fator de potência, baixa interferência eletromagnética e tensão de saída CC regulada e insensível a perturbações de carga e alimentação. Busca-se explorar a melhor topologia e método de controle dos conversores de potência com o objetivo de atender aos requisitos mencionados anteriormente. A verificação destes objetivos será realizada através de simulações e testes experimentais no protótipo construído..",
+      "id": "4ce1999cef52",
+      "nome": "Desenvolvimento de Carregador Rápido para Veículos Elétricos",
+      "situacao": "concluido",
+      "tipo": "pesquisa"
+    },
+    {
+      "ano_conclusao": 2022,
+      "ano_inicio": 2019,
+      "descricao": null,
+      "id": "63718e63bdcf",
+      "nome": "Pesquisa e Desenvolvimento de Sistema Remoto de Monitoramento e Diagnóstico de BCSS Mediante a Técnica da Assinatura Elétrica do Motor Submarino de Acionamento",
+      "situacao": "concluido",
+      "tipo": "desenvolvimento"
+    },
+    {
+      "ano_conclusao": 2021,
+      "ano_inicio": 2017,
+      "descricao": "Neste projeto, os pesquisadores devem inicialmente desenvolver a pesquisa da um modelos para simulação para diversas condições operativas em regime permanente de um equipamento série nos circuitos de distribuição. Em seguida, os pesquisadores devem desenvolver um modelo para estudos transitórios que possa ser utilizado em programas de estudos desta natureza..",
+      "id": "74a3c742d08c",
+      "nome": "Simulação da Introdução de um Equipamento Série em Sistemas de Distribuição",
+      "situacao": "concluido",
+      "tipo": "desenvolvimento"
+    },
+    {
+      "ano_conclusao": 2021,
+      "ano_inicio": 2017,
+      "descricao": "Neste projeto, os pesquisadores devem inicialmente desenvolver a pesquisa da uma estrutura de testes para o sistemas de controle de equipamento, sendo desenvolvidos quais os testes e procedimentos para o sistema de controle de apenas um nível, verificando sua eficácia face a diversas situações operativas e de conteúdo harmônico. Em seguida, os pesquisadores devem transformar estes estudos de um nível para um sistema com diversos níveis, novamente verificando a eficácia dos procedimentos propostos..",
+      "id": "5e45ca2ad339",
+      "nome": "Desenvolvimento de uma Estrutura para Testes no Sistema de Controle de um Equipamento Multinível para Mitigação Harmônica",
+      "situacao": "concluido",
+      "tipo": "desenvolvimento"
+    }
+  ],
+  "orientacoes": [
+    {
+      "ano_inicio": 2026,
+      "id": "8254f1c78a02",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Sistema para monitoramento de conversores de potência"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "33b77a2340e6",
+      "tipo": "tcc",
+      "titulo": "Sistema de Monitoramento de Vibrações para Manutenção Preditiva de Motores Utilizando Microcontroladores e Aprendizado de Máquina"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "42c6f8c0786a",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Integração de Sistema de Célula a Combustível a Hidrogênio e Inversor de Frequência"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "799bbf8680a1",
+      "tipo": "tcc",
+      "titulo": "DESENVOLVIMENTO DE UM SISTEMA INTEGRADO DE CONTROLE E ACIONAMENTO DE INVERSOR DE FREQUÊNCIA UTILIZANDO UM ESP32"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "71ad0cd817b2",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Controle e monitoramento de conversor DC-DC para geração fotovoltaica utilizando um Single Board Computer"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "70d05ea259fb",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Controle de inversor de frequência utilizando RTOS embarcado em microcontrolador"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "5bff945bf39b",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Controle de inversor de frequência utilizando FPGA"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "e69a5d0fbdba",
+      "tipo": "especializacao",
+      "titulo": "AVALIAÇÃO DA INTERAÇÃO ENTRE FONTES DE ENERGIA RENOVÁVEL E ELOS DE CORRENTE CONTÍNUA NO SISTEMA ELÉTRICO BRASILEIRO"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "8720e3487599",
+      "tipo": "mestrado",
+      "titulo": "AVALIAÇÃO DA INTEGRAÇÃO DE CÉLULAS A COMBUSTÍVEL DE HIDROGÊNIO COM INÉRCIA VIRTUAL NO SISTEMA ELÉTRICO DE POTÊNCIA"
+    },
+    {
+      "ano_inicio": 2026,
+      "id": "d4cb42d8c996",
+      "tipo": "especializacao",
+      "titulo": "ANÁLISE DA VIABILIDADE TÉCNICA DA IMPLEMENTAÇÃO TCSC PARA COMPENSAÇÃO EM SÉRIE NO SISTEMA INTERCONECTADO DO PARAGUAI"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "e2a5b10be9c9",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Sistema para controle e monitoramento remoto de motor de indução trifásico"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "f86d0a07fcf2",
+      "tipo": "doutorado",
+      "titulo": "Plataforma Integrada de Realidade Virtual para Manutenção Prescritiva de Anéis de Regulação em Turbinas Hidrelétricas: Modelagem, Monitoramento e Diagnóstico"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "24fb8a462814",
+      "tipo": "mestrado",
+      "titulo": "Modelagem e simulação de carregador on-board para Veículos Elétricos"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "d351f0d315fd",
+      "tipo": "mestrado",
+      "titulo": "Controle adaptativo aplicado a Inversores monofásicos conectados à rede elétrica"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "32bed7991f09",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Aplicação de técnicas de inteligência artificial para controle de conversor DC-DC"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "929005184907",
+      "tipo": "mestrado",
+      "titulo": "Aplicação de células a combustível de H2 em microrredes"
+    },
+    {
+      "ano_inicio": 2025,
+      "id": "16dd32311f39",
+      "tipo": "mestrado",
+      "titulo": "Alocação ótima de equipamento STATCOM utilizando técnicas meta-heurísticas considerando a curva de carga do sistema"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "0d2b39d83fd6",
+      "tipo": "mestrado",
+      "titulo": "Sistema fotovoltaico híbrido para melhor aproveitamento do inversor"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "d74cb976a276",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Sistema de monitoramento e controle via celular de conversores de potência para módulo de gerenciamento energético"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "aa33019f3ebf",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Desenvolvimento de uma plataforma baseada em sistema operacional em tempo real para um módulo de gerenciamento energético"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "d1fc8ed31370",
+      "tipo": "doutorado",
+      "titulo": "Controle preditivo de conversores de 4 braços"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "a5bb4c177f5e",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Controle de conversores DC-DC para aplicação em módulo de gerenciamento energético"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "08221c4ca638",
+      "tipo": "doutorado",
+      "titulo": "Controle Adaptativo de D-SSSC por MRAC"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "58df3c66cdaf",
+      "tipo": "doutorado",
+      "titulo": "CONTROLE PREDITIVO BASEADO EM MODELO PARA CONVERSORES PONTE-H EM CASCATA NA COMPENSAÇÃO DE DISTÚRBIOS DE QUALIDADE DE ENERGIA GERADOS POR FORNOS A ARCO"
+    },
+    {
+      "ano_inicio": 2024,
+      "id": "fc410fdb65c6",
+      "tipo": "doutorado",
+      "titulo": "Aplicação de FCS-MPC em um filtro ativo híbrido para compensação harmônica e reativa com cálculo das referências baseado no modelo do sistema"
+    },
+    {
+      "ano_inicio": 2023,
+      "id": "465b313f6e35",
+      "tipo": "doutorado",
+      "titulo": "Proteção de Conversores Série Aplicados ao Sistema de Distribuição"
+    },
+    {
+      "ano_inicio": 2023,
+      "id": "b813dd4d7562",
+      "tipo": "doutorado",
+      "titulo": "Proposição de Metodologia de Monitoramento e Controle Inteligente para Sistemas de Vapor Industrial em Termelétricas Visando à Adaptação Climática e Redução na Emissão de CO2"
+    },
+    {
+      "ano_inicio": 2023,
+      "id": "6e6047cf2ba1",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Plataforma baseada em DSP e FPGA para controle de conversores de potência"
+    },
+    {
+      "ano_inicio": 2023,
+      "id": "6b439d0f418c",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Desenvolvimento de um sistema de comunicação para carregador de veículo elétrico"
+    },
+    {
+      "ano_inicio": 2023,
+      "id": "b1dbeb3cfeb4",
+      "tipo": "mestrado",
+      "titulo": "Desenvolvimento de Carregador Rápido para Veículos Elétricos"
+    },
+    {
+      "ano_inicio": 2022,
+      "id": "666e9f36c6c4",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Implementação de conversor CC-CC para carregamento de baterias"
+    },
+    {
+      "ano_inicio": 2022,
+      "id": "34530387c2c2",
+      "tipo": "doutorado",
+      "titulo": "CONTROLE DO FLUXO DE POTÊNCIA EM SISTEMAS DE DISTRIBUIÇÃO COM CONVERSOR SÉRIE"
+    },
+    {
+      "ano_inicio": 2022,
+      "id": "efe9af21da77",
+      "tipo": "doutorado",
+      "titulo": "APLICAÇÃO DE DSTATCOMS PARA REGULAÇÃO DE TENSÃO EM SISTEMAS DE DISTRIBUIÇÃO DIANTE DA ALTA PENETRAÇÃO DE GERAÇÃO DISTRIBUÍDA"
+    },
+    {
+      "ano_inicio": 2021,
+      "id": "63041bfb983d",
+      "tipo": "tcc",
+      "titulo": "SIMULAÇÃO DE UM CONTROLE DE MOTOR DE CORRENTE CONTÍNUA SEM ESCOVAS (BLDC)"
+    },
+    {
+      "ano_inicio": 2021,
+      "id": "ef269042da6c",
+      "tipo": "tcc",
+      "titulo": "SIMULAÇÃO DE SISTEMA FOTOVOLTAICO OFF-GRID DE BAIXO CONSUMO PARA REGIÕES REMOTAS"
+    },
+    {
+      "ano_inicio": 2021,
+      "id": "c16f294f6826",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Desenvolvimento de Carregadores Rápidos para Veículos Elétricos"
+    },
+    {
+      "ano_inicio": 2021,
+      "id": "df5c625e734f",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "Aplicação de Algoritmo de Busca Gravitacional para a Alocação Ótima de Filtros Ativos em Sistemas Elétricos de Potência"
+    },
+    {
+      "ano_inicio": 2020,
+      "id": "5d2f96e12e05",
+      "tipo": "mestrado",
+      "titulo": "Sistema de Armazenamento de Energia com Conversor Multinível para Redes de Média tensão"
+    },
+    {
+      "ano_inicio": 2020,
+      "id": "518866dd96b2",
+      "tipo": "mestrado",
+      "titulo": "METODOLOGIAS PARA MITIGAÇÃO DE INTERFERÊNCIAS NO SISTEMA DE PROTEÇÃO DE BANCO DE CAPACITORES DE MÉDIA E ALTA TENSÃO"
+    },
+    {
+      "ano_inicio": 2020,
+      "id": "15531144b6ae",
+      "tipo": "tcc",
+      "titulo": "Desenvolvimento de sistema de rastreamento solar"
+    },
+    {
+      "ano_inicio": 2019,
+      "id": "bf7005728890",
+      "tipo": "tcc",
+      "titulo": "PROJETO DE SISTEMAS DE CONDICIONAMENTO DE SINAIS ANALÓGICOS E DIGITAIS PARA MICROCONTROLADORES"
+    },
+    {
+      "ano_inicio": 2019,
+      "id": "69a4796a88b6",
+      "tipo": "tcc",
+      "titulo": "Desenvolvimento de um controlador para inversores de potência pelo método de histerese de corrente utilizando dispositivos FPGA?s"
+    },
+    {
+      "ano_inicio": 2019,
+      "id": "a5fa88b5e3d7",
+      "tipo": "mestrado",
+      "titulo": "Controle Preditivo Baseado em Modelo aplicado a Conversor Multinível Ponte-H em Cascata com estabilização das tensões nos barramentos CC"
+    },
+    {
+      "ano_inicio": 2018,
+      "id": "fc4b464f418e",
+      "tipo": "tcc",
+      "titulo": "SIMULAÇÃO E CONTROLE DE UM STATCOM PARA COMPENSAÇÃO DE REATIVO EM REDES TRIFÁSICAS"
+    },
+    {
+      "ano_inicio": 2018,
+      "id": "6d7dde3d117f",
+      "tipo": "tcc",
+      "titulo": "Projeto de um controlador digital empregando a técnica de ação repetitiva para aplicação no estágio de saída de uma UPS"
+    },
+    {
+      "ano_inicio": 2018,
+      "id": "12e5f60c3e79",
+      "tipo": "tcc",
+      "titulo": "IMPLEMENTAÇÃO DE UM SOGI-FLL DISCRETO PARA APLICAÇÃO EM CONVERSORES DE POTÊNCIA"
+    },
+    {
+      "ano_inicio": 2018,
+      "id": "8fd3737507b9",
+      "tipo": "tcc",
+      "titulo": "AUTOMAÇÃO DE UMA LINHA DE MONTAGEM DE LIQUIDIFICADORES"
+    },
+    {
+      "ano_inicio": 2018,
+      "id": "9f03f047f0bd",
+      "tipo": "tcc",
+      "titulo": "ANÁLISE HARMÔNICA DE UM SISTEMA DE GERAÇÃO DISTRIBUÍDA FOTOVOLTAICA"
+    },
+    {
+      "ano_inicio": 2017,
+      "id": "24dec185a34c",
+      "tipo": "tcc",
+      "titulo": "MICRO INVERSOR PARA SISTEMA FOTOVOLTAICO"
+    },
+    {
+      "ano_inicio": 2017,
+      "id": "a94ea243b99e",
+      "tipo": "iniciacao_cientifica",
+      "titulo": "DESENVOLVIMENTO DE UM SISTEMA DE GERENCIAMENTO DE BATERIAS COM CARREGADOR INTEGRADO PARA BATERIAS DE LÍTIO"
+    },
+    {
+      "ano_inicio": 2017,
+      "id": "9a12f9f326c9",
+      "tipo": "tcc",
+      "titulo": "CONTROLE MULTIVARIÁVEL BASEADO EM PI PARA O CONTROLE DE CORRENTE DE UM INVERSOR DE FREQUÊNCIA"
+    }
+  ],
+  "disciplinas": [
+    {
+      "codigo": "EEN502.1",
+      "nome": "FUNDAMENTOS DE ELETRÔNICA DE POTÊNCIA",
+      "cargaHoraria": "48h"
+    },
+    {
+      "codigo": "EEN502.2",
+      "nome": "FUNDAMENTOS DE ELETRÔNICA DE POTÊNCIA (PRÁTICA)",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "EC336E",
+      "nome": "NON-ISOLATED DC-DC CONVERTERS",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "EA516E",
+      "nome": "STATISTICAL DIGITAL SIGNAL PROCESSING",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "EA517E",
+      "nome": "ADVANCED SOLUTIONS IN POWER SYSTEMS",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "EA503E",
+      "nome": "DSP-DIGITAL SIGNAL PROCESSING",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "ELTA12A",
+      "nome": "LABORATÓRIO DE ELETRÔNICA ANALÓGICA 2",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "EC315E",
+      "nome": "POWER ELECTRONICS IN POWER SYSTEMS",
+      "cargaHoraria": "45h"
+    },
+    {
+      "codigo": "ELTP01A",
+      "nome": "MÁQUINAS E ACIONAMENTOS ELETRÔNICOS",
+      "cargaHoraria": "64h"
+    },
+    {
+      "codigo": "ELTP11A",
+      "nome": "LABORATÓRIO DE MÁQUINAS E ACIONAMENTOS ELETRÔNICOS",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELT510T",
+      "nome": "ELETRÔNICA BÁSICA E INSTRUMENTAÇÃO",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ISE0068",
+      "nome": "ELETRÔNICA DE POTÊNCIA APLICADA A SISTEMAS ELÉTRICOS",
+      "cargaHoraria": "40h"
+    },
+    {
+      "codigo": "ECA316",
+      "nome": "LABORATÓRIO DE ELETRÔNICA DE POTÊNCIA E ACIONAMENTOS CONTROLADOS",
+      "cargaHoraria": "24h"
+    },
+    {
+      "codigo": "ECA717",
+      "nome": "LABORATÓRIO DE AUTOMAÇÃO DE SISTEMAS",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ECA707",
+      "nome": "AUTOMAÇÃO DE SISTEMAS",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "EEL105",
+      "nome": "CIRCUITOS ELÉTRICOS I",
+      "cargaHoraria": "48h"
+    },
+    {
+      "codigo": "EEL115",
+      "nome": "LABORATÓRIO DE CIRCUITOS ELÉTRICOS I",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "EEL310",
+      "nome": "ELETRICIDADE I",
+      "cargaHoraria": "48h"
+    },
+    {
+      "codigo": "EEL812",
+      "nome": "LABORATÓRIO DE ELETRÔNICA DE POTÊNCIA I",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELE211",
+      "nome": "INTRODUÇÃO A ANÁLISE DE CIRCUITOS EXPERIMENTAL",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELE932",
+      "nome": "Tópicos Especiais II",
+      "cargaHoraria": "32h"
+    },
+    {
+      "codigo": "ELT403",
+      "nome": "ELETRÔNICA ANALÓGICA II",
+      "cargaHoraria": "48h"
+    },
+    {
+      "codigo": "ELT413",
+      "nome": "LABORATÓRIO DE ELETRÔNICA ANALÓGICA II",
+      "cargaHoraria": "16h"
+    },
+    {
+      "codigo": "ELTP01",
+      "nome": "ELETRÔNICA DE POTÊNCIA E ACIONAMENTOS CONTROLADOS",
+      "cargaHoraria": "64h"
+    },
+    {
+      "codigo": "EME702T",
+      "nome": "ELETRÔNICA E INSTRUMENTAÇÃO",
+      "cargaHoraria": "32h"
+    }
+  ],
+  "trabalhosIniciacaoCientifica": [
+    {
+      "titulo": "APLICAÇÃO DE TÉCNICAS DE INTELIGÊNCIA ARTIFICIAL PARA CONTROLE DE CONVERSOR DC-DC",
+      "autores": "Gabriel Del Monte Schiavi Noda, Robson Bauwelz Gonzatti",
+      "resumo": "A pesquisa realizada permitiu demonstrar a viabilidade da aplicação de redes neurais artificiais no controle de conversores DC-DC do tipo buck. Apesar de apresentarem resposta mais lenta em comparação ao controlador clássico, as redes neurais mostraram-se capazes de manter estabilidade e regulação adequada da tensão de saída, tanto em condições nominais quanto diante de alterações nos parâmetros do circuito. O teste prático de redução do indutor evidenciou que a capacidade de adaptação automática em relação ao circuito se torna a principal contribuição desta abordagem. Enquanto o controlador PI necessitaria de uma nova sintonia dos parâmetros de controle, a rede neural foi capaz de se ajustar em tempo de execução. Outro ponto de destaque foi a integração da plataforma Web de monitoramento. A plataforma permitiu o acompanhamento em tempo real, proporcionando maior confiabilidade e transparência ao processo de validação, além do acompanhamento remoto da aplicação. Portanto, pode-se concluir que o uso de redes neurais em controladores para conversores DC-DC representa uma alternativa sólida em relação às técnicas clássicas. Como colaborações futuras, sugere-se a exploração de arquiteturas neurais mais complexas, estratégias de aprendizado híbrido e ainda estratégias com apenas aprendizado prévio.",
+      "palavrasChaves": [
+        "Aprendizado de máquina",
+        "Conversor DC-DC",
+        "Eletrônica de potência",
+        "Rede neural artificial",
+        "Sistemas embarcados"
+      ],
+      "ano": 2025
+    },
+    {
+      "titulo": "SISTEMA DE MONITORAMENTO E CONTROLE VIA CELULAR DE CONVERSORES DE POTÊNCIA PARA MÓDULO DE GERENCIAMENTO ENERGÉTICO",
+      "autores": "Gabrielle Gomes Almeida, Robson Bauwelz Gonzatti",
+      "resumo": "O desenvolvimento do aplicativo para controle de conversores de potência via comunicação Bluetooth mostrou-se funcional, atingindo os objetivos estabelecidos nesta pesquisa. O aplicativo, implementado utilizando o framework Flutter e a linguagem Dart, demonstrou ser uma ferramenta eficiente para o controle remoto dos conversores de potência em um ambiente educacional, facilitando a interação dos alunos com os sistemas de potência. A interface redesenhada, baseada nas Heurísticas de Nielsen, resultou em melhorias significativas na usabilidade e na experiência do usuário. Os testes realizados com os conversores validaram os parâmetros configurados, com o osciloscópio exibindo sinais PWM consistentes com a frequência e o ciclo de trabalho definidos no aplicativo. A resposta da carga, representada pela luminosidade da lâmpada, confirmou o controle efetivo sobre a potência fornecida, refletindo diretamente o duty cycle aplicado. Esses resultados demonstram que o sistema desenvolvido é estável e confiável, proporcionando uma plataforma prática para o ensino de eletrônica de potência. Em resumo, a pesquisa atingiu seu objetivo principal de criar uma solução interativa e acessível para o controle de conversores de potência, oferecendo um recurso valioso para o aprendizado de conceitos teóricos e práticos.",
+      "palavrasChaves": [
+        "Aplicativo didático",
+        "Comunicação Bluetooth",
+        "Eletrônica de potência"
+      ],
+      "ano": 2024
+    },
+    {
+      "titulo": "DESENVOLVIMENTO DE UMA PLATAFORMA BASEADA EM SISTEMA OPERACIONAL EM TEMPO REAL PARA UM MÓDULO DE GERENCIAMENTO ENERGÉTICO",
+      "autores": "Gabriel Del Monte Schiavi Noda, Robson Bauwelz Gonzatti",
+      "resumo": "De modo geral, este projeto estudou o desenvolvimento de uma plataforma baseada em um sistema operacional de tempo real para controle de um conversor DC-DC do tipo buck, integrando um sistema de conexão à internet para envio de dados a um banco de dados local. Durante os testes, o sistema se mostrou estável e eficiente dentro dos limites de operação, destacando a escalabilidade da placa de desenvolvimento utilizada. O F28379D, junto com o freeRTOS, foi essencial para o gerenciamento de tarefas em tempo real e para a PWM, garantindo o controle preciso da tensão de saída em diferentes condições. Além disso, mecanismos de proteção, como o watchdog e botões de desligamento, adicionaram uma camada de segurança ao sistema, garantindo continuidade mesmo em casos de falha, o que é crucial em aplicações críticas. A integração com o ESP32 facilitou a comunicação via UART e o envio de dados para um banco de dados PostgreSQL, assegurando a integridade e consistência das informações monitoradas. A análise dos dados coletados permitiu identificar e corrigir pontos de melhoria tanto no software quanto no hardware, como a troca de componentes eletrônicos e ajustes na lógica de programação. Para otimizar o sistema, foram sugeridas melhorias na precisão dos componentes e na organização da bancada de testes. Por fim, o projeto ofereceu um valioso aprendizado prático, validando o uso de sistemas operacionais de tempo real e técnicas de controle em eletrônica de potência e estabelecendo uma base sólida para futuras aplicações.",
+      "palavrasChaves": [
+        "Conversor DC-DC",
+        "Eletrônica de potência",
+        "Sistema operacional de tempo real"
+      ],
+      "ano": 2024
+    },
+    {
+      "titulo": "Desenvolvimento de um Sistema de Comunicação para Carregador de Veículo Elétrico",
+      "autores": "Victor Eduardo Cauvilla de Oliveira, Robson Bawelz Gonzatti",
+      "resumo": "Em resumo, esta pesquisa explorou uma possibilidade de implementação de tecnologias relacionadas a eletrônica de potência em veículos elétricos, com foco na comunicação e controle de sistemas. Os principais resultados incluem o desenvolvimento de uma metodologia de comunicação que usa o protocolo SPI e Ethernet. Essa abordagem permite a aquisição de dados em tempo real e o controle remoto dos sistemas de eletrônica de potência. Essas metodologias desenvolvidas têm aplicações práticas na indústria de veículos elétricos, permitindo o monitoramento preciso dos sistemas, identificação precoce de problemas e aumento da eficiência. Além disso, contribuem para a redução da poluição do ar, apoiando a mobilidade sustentável. Embora este estudo seja promissor, reconhece-se a necessidade de pesquisas futuras em sistemas mais complexos e melhorias na comunicação e controle dado a complexidade que sistemas reais de propulsão e carregamento de veículos elétricos possuem. Em última análise, esta pesquisa destaca a importância da eletrônica de potência e comunicação para o avanço dos veículos elétricos e um futuro mais sustentável.",
+      "palavrasChaves": [
+        "Banco de dados",
+        "Comunicação serial",
+        "Eletrônica de potência",
+        "Ethernet",
+        "SPI"
+      ],
+      "ano": 2023
+    },
+    {
+      "titulo": "IMPLEMENTAÇÃO DE CONVERSOR CC-CC PARA CARREGAMENTO DE BATERIAS",
+      "autores": "João Marcos Sousa Torres, Robson Bauwelz Gonzatti",
+      "resumo": "Em resumo, esta pesquisa investigou com êxito o desenvolvimento de um sistema de carregamento de baterias utilizando o conversor CC-CC do tipo Buck. Os resultados obtidos durante os testes reais de carregamento evidenciaram que o sistema é capaz de manter a tensão e a corrente dentro dos limites especificados, resultando em um carregamento eficiente, confiável e seguro. A análise detalhada dos gráficos permitiu uma compreensão mais profunda do comportamento da bateria durante o processo de carregamento, incluindo as variações da tensão interna da bateria a medida que ela adquire carga. Além disso, ficou claro que, para otimizar o tempo de carregamento, é essencial considerar a utilização de fontes de alimentação mais potentes, com limites de corrente mais elevados. No entanto, percebe-se que a eficiência do processo de carregamento também depende da tecnologia embarcada na bateria, que desempenha um papel crítico. Uma possível melhoria para o sistema consiste em aumentar a precisão dispositivos de aquisição de dados, bem como diminuir a faixa de variação permitida da tensão de saída do carregador, com o objetivo de refinar os sinais de saída do sistema. Em síntese, este estudo contribuiu para validar a capacidade e a viabilidade dos conversores CC-CC no contexto do carregamento de baterias, representando um avanço nas tecnologias associadas à transição energética global e à crescente demanda por veículos elétricos. Além disso, os insights obtidos fornecem informações para pesquisas futuras nesta área em constante evolução, contribuindo para um futuro mais sustentável e eficiente no setor de energia e mobilidade.",
+      "palavrasChaves": [
+        "Conversor buck",
+        "Eletrônica de potência",
+        "Microcontrolador",
+        "PWM",
+        "Sistema de carregamento"
+      ],
+      "ano": 2023
+    },
+    {
+      "titulo": "PLATAFORMA BASEADA EM DSP E FPGA PARA CONTROLE DE CONVERSORES DE POTÊNCIA",
+      "autores": "Maria Clara Ferreira Félix, Robson Bauwelz Gonzatti",
+      "resumo": "Retomando a questão principal deste trabalho na área de Eletrônica de Potência, a busca baseia-se em dispositivos semicondutores capazes de conduzir altas correntes e aguentar tensões elevadas. Dessa maneira, realiza-se associações em série e em paralelo. Para garantir operação em níveis elevados de tensão ou corrente e melhorar a confiabilidade da associação série e paralela, uma das soluções abordadas foi o desenvolvimento de um modulador PWM para conversores multiníveis em FPGA. Foi apresentada uma arquitetura em blocos, onde blocos menores quando agrupados ajudaram a construir o sistema, que foi a síntese de sinais para três pontes H em cascata gerando sete níveis de tensão. Apesar de não ter sido possível observar a tensão total das 3 pontes, observou-se a soma das tensões em 2 pontes que geraram 5 níveis de tensão. Ademais, a frequência de chaveamento foi medida em apenas uma ponte. Cabe ressaltar que o microcontrolador DE0-nano possui um número limitado de pinos de entrada e saída. Dessa maneira, seria interessante a realização deste trabalho em um dispositivo com mais pinos, como o microcontrolador Snickerdoodle, o qual possui 180 pinos de entrada e saída. Dessa maneira, todos eles poderiam ser utilizados na construção do PWM.",
+      "palavrasChaves": [
+        "Conversores multiníveis",
+        "FPGA",
+        "modulação PWM",
+        "distorção harmônica"
+      ],
+      "ano": 2023
+    },
+    {
+      "titulo": "Aplicação de algoritmo de busca gravitacional para a alocação ótima de filtros ativos em sistemas elétricos de potência",
+      "autores": "Thallia Fernanda Dias Fagundes, Robson Bauwelz Gonzatti",
+      "resumo": "Na pesquisa realizada, foi possível adquirir um maior conhecimento acerca dos estudos relacionados à eletrônica de potência, aos harmônicos, ao fluxo de potência e aos algoritmos metaheuríscos, como o GSA, de modo que a familiarização desses temas foram cruciais para o desenvolvimento deste trabalho. Além disso, a aprendizagem dos softwares OpenDSS e Matlab foi muito importante para a aplicação de alocação ótima de filtro ativos “shunt” no sistema de 13 barras do IEEE, principalmente, por permitir uma comunicação entre os dois programas por meio da interface COM. A partir do código criado no Matlab para a alocação manual dos dispositivos FACTS no sistema estudado, notou-se que o melhor local para sua instalação foi na barra 674, uma vez que apresentou o menor THD. Dessa forma, foi possível verificar que o GSA estava funcionando adequadamente, apesar de nas primeiras simulações convergir para o segundo melhor resultado de alocação ótima do filtro. Com isso, analisou-se que para iterações máximas maiores ou iguais a 20, o resultado convergia para o esperado. Esse fenômeno foi justificado pelo algoritmo possuir um espaço de busca maior para o número de soluções diversificadas, garantindo uma maior probabilidade de convergência e intensificação para o resultado ótimo. Já, para iterações máximas menores que 20, dispunha de um espaço de busca menor para o mesmo número de soluções diversificadas. Assim, o GSA tinha menos probabilidade de passar pela partícula ótima. Todavia, conforme analisado em Resultados e discussão, como as posições são geradas aleatoriamente, pode ocorrer divergência de resultado, uma vez que o algoritmo não conseguiu avaliar todas as possibilidades. O contrário também é válido, visto que o algoritmo pode passar de imediato pela melhor partícula, intensificando esse resultado até o fim da simulação. Partindo dessas observações, percebe-se que o GSA é um bom algoritmo para problemas de alocação ótima, considerando um bom ajuste de suas variáveis. Todavia, o sistema de distribuição estudado é muito pequeno comparado a outros do SEP. Desse modo, é importante que em pesquisas futuras, nessa área, sistemas mais complexos sejam explorados, a fim de analisar a semelhança e a diferença nos parâmetros e nas condições de simulação entre sistemas de pequeno, médio e grande porte. Conforme todos os resultados e análises apresentados, nota-se que esta pesquisa foi extremante importante para o aperfeiçoamento profissional, uma vez que contribuiu para a aprendizagem de temas relacionados à Engenharia Elétrica, além envolver problemas reais do SEP. Desse modo, esses conhecimentos adquiridos serão lembrados e farão parte de futuras pesquisas e projetos.",
+      "palavrasChaves": [
+        "compensação harmônica",
+        "gsa",
+        "opendss",
+        "otimização"
+      ],
+      "ano": 2022
+    },
+    {
+      "titulo": "Conversor cc-cc para aplicação no carregamento de baterias de veículos elétricos",
+      "autores": "Victor Eduardo Cauvilla de Oliveira, Robson Bauwelz Gonzatti",
+      "resumo": "Nos últimos anos, quase um século depois de atingir seu primeiro auge no início de 1900, os veículos elétricos (EVs) vêm se destacando novamente. Diversos países reconheceram os veículos elétricos como uma alternativa tecnológica promissora aos carros movidos a combustíveis fósseis no combate ao aquecimento global. No entanto, para uma penetração mais ampla no mercado, barreiras consideráveis devem ser rompidas. Os desafios mais importantes são as baixas autonomias, tempo de carregamento e os altos custos de investimento, ambos causados pela principal fraqueza dos EVs - sua bateria. Por fim, até o momento pôde-se concluir que as perspectivas futuras dos VEs só são possíveis se os custos das baterias puderem ser reduzidos, o armazenamento aprimorado para levar a maiores autonomias e, principalmente, se o tempo de recarga das baterias for reduzido.",
+      "palavrasChaves": [
+        "baterias tipo evb",
+        "comunicação em veículos elétricos",
+        "modelagem de conversores elétricos"
+      ],
+      "ano": 2022
+    }
+  ]
+}

@@ -4,19 +4,23 @@ from __future__ import annotations
 
 import re
 import time
-import unicodedata
+import warnings
 from typing import Callable
 
 import requests
-from bs4 import BeautifulSoup, Tag
 import urllib3
+from bs4 import Tag
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from common.lattes import (  # noqa: F401  (reexportados para os scrapers)
+    TAMANHO_ID_LATTES,
+    extrair_id_lattes,
+    id_lattes_valido,
+    validar_id_lattes,
+)
+from common.texto import normalizar_nome, normalizar_texto  # noqa: F401
 
 BASE_URL = "https://sigaa.unifei.edu.br"
 DEPARTAMENTO_ID = "127"
-TAMANHO_ID_LATTES = 16
-ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 SIAPE_RE = re.compile(r"siape=(\d+)", re.IGNORECASE)
 USER_AGENT = (
     "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; +https://unifei.edu.br)"
@@ -27,17 +31,6 @@ def criar_sessao() -> requests.Session:
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
     return session
-
-
-def normalizar_texto(texto: str) -> str:
-    return re.sub(r"\s+", " ", texto).strip()
-
-
-def normalizar_nome(nome: str) -> str:
-    nome = normalizar_texto(nome)
-    nome = unicodedata.normalize("NFKD", nome)
-    nome = "".join(char for char in nome if not unicodedata.combining(char))
-    return nome.upper()
 
 
 def limpar_nome(nome: str) -> str:
@@ -55,25 +48,6 @@ def extrair_siape(url: str | None) -> str | None:
 
     match = SIAPE_RE.search(url)
     return match.group(1) if match else None
-
-
-def extrair_id_lattes(url: str | None) -> str | None:
-    if not url:
-        return None
-    match = ID_LATTES_NUMERICO.search(url)
-    return match.group(1) if match else None
-
-
-def id_lattes_valido(id_lattes: str | None) -> bool:
-    return bool(
-        id_lattes and id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES
-    )
-
-
-def validar_id_lattes(url: str | None) -> str | None:
-    """Extrai o id Lattes de uma URL e o devolve só se for válido."""
-    id_lattes = extrair_id_lattes(url)
-    return id_lattes if id_lattes_valido(id_lattes) else None
 
 
 def validar_endereco_lattes(url: str | None) -> str | None:
@@ -96,7 +70,7 @@ def buscar_html(
     timeout: int = 30,
     pausa: float = 0.0,
     tentativas: int = 3,
-    verify: bool = False,
+    verify: bool = True,
 ) -> str:
     if pausa > 0:
         time.sleep(pausa)
@@ -105,7 +79,15 @@ def buscar_html(
     ultimo_erro: Exception | None = None
     for tentativa in range(1, tentativas + 1):
         try:
-            response = sessao.get(url, timeout=timeout, verify=verify)
+            with warnings.catch_warnings():
+                # Só silencia o aviso quando a verificação foi desligada de
+                # propósito para esta chamada (host com cadeia de certificado
+                # incompleta); nunca de forma global.
+                if not verify:
+                    warnings.simplefilter(
+                        "ignore", urllib3.exceptions.InsecureRequestWarning
+                    )
+                response = sessao.get(url, timeout=timeout, verify=verify)
             response.raise_for_status()
             response.encoding = response.apparent_encoding or "utf-8"
             return response.text

@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 import sys
-import unicodedata
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -15,13 +15,16 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from storage.minio_storage import ler_json_bronze, salvar_parquet_silver
+from common.lattes import id_lattes_valido, validar_id_lattes
+from common.log import configurar_logging
+from common.texto import normalizar_nome as _normalizar_nome_comum
+from storage.minio_storage import ler_json_bronze_recente, salvar_parquet_silver
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_SIGAA = "raw/sigaa/professores_sigaa.json"
 DEFAULT_IESTI = "raw/iesti_site/professores_iesti_site.json"
 DEFAULT_OUTPUT = "professores_unificados.parquet"
-TAMANHO_ID_LATTES = len("8122238750933560")
-ID_LATTES_NUMERICO = re.compile(r"lattes\.cnpq\.br/(\d+)", re.IGNORECASE)
 LIMIAR_SIMILARIDADE = 0.92
 
 
@@ -34,17 +37,10 @@ class Professor:
     fontes: set[str] = field(default_factory=set)
 
 
-def normalizar_texto(texto: str) -> str:
-    return re.sub(r"\s+", " ", texto).strip()
-
-
 def normalizar_nome(nome: str) -> str:
-    nome = normalizar_texto(nome)
-    nome = unicodedata.normalize("NFKD", nome)
-    nome = "".join(char for char in nome if not unicodedata.combining(char))
-    nome = nome.upper()
-    nome = re.sub(r"[`'´’‘]", "'", nome)
-    return nome
+    """Nome comparável entre fontes: maiúsculas, sem acentos e com um único
+    tipo de apóstrofo (D'ÁVILA / D´AVILA / D`AVILA)."""
+    return re.sub(r"[`'´’‘]", "'", _normalizar_nome_comum(nome))
 
 
 def chave_nome(nome: str) -> str:
@@ -52,27 +48,6 @@ def chave_nome(nome: str) -> str:
     chave = re.sub(r"\bDE\b", "", chave)
     chave = re.sub(r"[^A-Z0-9' ]+", "", chave)
     return re.sub(r"\s+", " ", chave).strip()
-
-
-def extrair_id_lattes_de_url(url: str | None) -> str | None:
-    if not url:
-        return None
-
-    match = ID_LATTES_NUMERICO.search(url)
-    if not match:
-        return None
-
-    id_lattes = match.group(1)
-    if id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES:
-        return id_lattes
-
-    return None
-
-
-def id_lattes_valido(id_lattes: str | None) -> bool:
-    return bool(
-        id_lattes and id_lattes.isdigit() and len(id_lattes) == TAMANHO_ID_LATTES
-    )
 
 
 def similaridade_nomes(nome_a: str, nome_b: str) -> float:
@@ -86,14 +61,14 @@ def escolher_nome(nome_atual: str, nome_novo: str) -> str:
 
 
 def carregar_sigaa(chave: str) -> list[Professor]:
-    dados = ler_json_bronze(chave)
+    dados = ler_json_bronze_recente(chave)
 
     professores: list[Professor] = []
     for item in dados:
         professores.append(
             Professor(
                 nome=normalizar_nome(item["nome"]),
-                id_lattes=extrair_id_lattes_de_url(item.get("enderecoLattes")),
+                id_lattes=validar_id_lattes(item.get("enderecoLattes")),
                 siape=item.get("siape"),
                 url_portal_sigaa=item.get("urlPortalSigaa"),
                 fontes={"sigaa"},
@@ -104,7 +79,7 @@ def carregar_sigaa(chave: str) -> list[Professor]:
 
 
 def carregar_iesti(chave: str) -> list[Professor]:
-    dados = ler_json_bronze(chave)
+    dados = ler_json_bronze_recente(chave)
 
     professores: list[Professor] = []
     for item in dados:
@@ -212,10 +187,12 @@ def executar_merge(
     salvar_parquet(professores, output)
 
     com_lattes = sum(1 for professor in professores if professor.id_lattes)
-    print(
-        f"Merge concluído: {len(professores)} professores ({com_lattes} com idLattes)."
+    logger.info(
+        "Merge concluído: %d professores (%d com idLattes).",
+        len(professores),
+        com_lattes,
     )
-    print(f"Objeto Parquet salvo em: silver/{output}")
+    logger.info("Objeto Parquet salvo em: silver/%s", output)
 
 
 def main() -> None:
@@ -228,6 +205,7 @@ def main() -> None:
         "--output", default=DEFAULT_OUTPUT, help="Chave Parquet no bucket Silver."
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_merge(sigaa=args.sigaa, iesti=args.iesti, output=args.output)
 

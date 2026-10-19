@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -15,9 +15,14 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from bronze.scraping.utils import buscar_html, criar_sessao, normalizar_texto
-from storage.minio_storage import salvar_json_bronze
+from common.config import ANO_MINIMO
+from common.log import configurar_logging
+from storage.minio_storage import (
+    ler_json_bronze_ultima_versao_ou_none,
+    salvar_json_bronze_datado,
+)
 
-ANO_LIMITE = datetime.now().year - 10
+logger = logging.getLogger(__name__)
 
 SECOES_ALVO = {
     "Ciência da Computação e Engenharia da Computação",
@@ -40,15 +45,39 @@ def get_urls_edicoes_ics(session, *, verify_ssl: bool = False) -> list[dict]:
             continue
 
         ano_numero = int(ano_tag.get_text().strip())
-        if ano_numero < ANO_LIMITE:
+        # As edições vêm da mais recente para a mais antiga; parar aqui evita
+        # baixar centenas de páginas fora da janela de relevância.
+        if ano_numero < ANO_MINIMO:
             break
         urls.append({"url": str(nome_tag["href"]), "ano": ano_numero})
 
     return urls
 
 
-def extrair_trabalhos(session, urls: list[dict], *, verify_ssl: bool = False) -> list[dict]:
+def indexar_trabalhos_anteriores(anterior: list[dict] | None) -> dict[str, dict]:
+    """Indexa a coleta anterior pela URL do artigo.
+
+    Um artigo publicado não muda; reaproveitar resumo e palavras-chave evita
+    uma requisição por trabalho (a etapa mais lenta da Bronze). Registros de
+    coletas antigas, sem `url`, simplesmente não entram no índice.
+    """
+    return {
+        t["url"]: t
+        for t in anterior or []
+        if t.get("url") and t["url"] != "Não informado"
+    }
+
+
+def extrair_trabalhos(
+    session,
+    urls: list[dict],
+    *,
+    verify_ssl: bool = False,
+    anteriores: dict[str, dict] | None = None,
+) -> list[dict]:
+    anteriores = anteriores or {}
     trabalhos = []
+    reaproveitados = buscados = 0
 
     for url in urls:
         html = buscar_html(session, url["url"], verify=verify_ssl)
@@ -78,24 +107,32 @@ def extrair_trabalhos(session, urls: list[dict], *, verify_ssl: bool = False) ->
                     trabalho_url = "Não informado"
                     trabalho_autores = "Não informado"
 
-                # Ir até a página do trabalho e obter as palavras-chaves associadas
-                html_trabalho = buscar_html(session, trabalho_url, verify=verify_ssl)
-                soup_trabalho = BeautifulSoup(html_trabalho, "html.parser")
-                for palavra_chave in soup_trabalho.find_all(
-                    "meta", attrs={"name": "citation_keywords"}
-                ):
-                    palavras_chaves.append(palavra_chave["content"])
+                anterior = anteriores.get(trabalho_url)
+                if anterior:
+                    resumo = anterior.get("resumo")
+                    palavras_chaves = list(anterior.get("palavrasChaves") or [])
+                    reaproveitados += 1
+                else:
+                    # Ir até a página do trabalho e obter as palavras-chaves associadas
+                    html_trabalho = buscar_html(session, trabalho_url, verify=verify_ssl)
+                    soup_trabalho = BeautifulSoup(html_trabalho, "html.parser")
+                    for palavra_chave in soup_trabalho.find_all(
+                        "meta", attrs={"name": "citation_keywords"}
+                    ):
+                        palavras_chaves.append(palavra_chave["content"])
 
-                secao_resumo = soup_trabalho.find("section", class_="item abstract")
-                resumo = None
-                if secao_resumo:
-                    paragrafo = secao_resumo.find("p")
-                    if paragrafo:
-                        resumo = normalizar_texto(paragrafo.get_text(separator=" "))
+                    secao_resumo = soup_trabalho.find("section", class_="item abstract")
+                    resumo = None
+                    if secao_resumo:
+                        paragrafo = secao_resumo.find("p")
+                        if paragrafo:
+                            resumo = normalizar_texto(paragrafo.get_text(separator=" "))
+                    buscados += 1
 
                 trabalhos.append(
                     {
                         "titulo": trabalho_titulo,
+                        "url": trabalho_url,
                         "autores": trabalho_autores,
                         "resumo": resumo,
                         "palavrasChaves": palavras_chaves,
@@ -103,6 +140,11 @@ def extrair_trabalhos(session, urls: list[dict], *, verify_ssl: bool = False) ->
                     }
                 )
 
+    logger.info(
+        "%d trabalho(s) reaproveitado(s) da coleta anterior; %d buscado(s).",
+        reaproveitados,
+        buscados,
+    )
     return trabalhos
 
 
@@ -114,15 +156,18 @@ def executar_coleta(
     """Função utilizada pelo Airflow e pela CLI."""
     session = criar_sessao()
     urls = get_urls_edicoes_ics(session, verify_ssl=verify_ssl)
-    trabalhos = extrair_trabalhos(session, urls, verify_ssl=verify_ssl)
+    anteriores = indexar_trabalhos_anteriores(ler_json_bronze_ultima_versao_ou_none(output))
+    trabalhos = extrair_trabalhos(
+        session, urls, verify_ssl=verify_ssl, anteriores=anteriores
+    )
 
     if not trabalhos:
         raise RuntimeError("Nenhum trabalho encontrado. Verifique a estrutura da página.")
 
-    salvar_json_bronze(output, trabalhos)
+    chave = salvar_json_bronze_datado(output, trabalhos)
 
-    print(f"Objeto salvo em: bronze/{output}")
-    print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
+    logger.info("Extraídos %d trabalhos de IC.", len(trabalhos))
+    logger.info("Objeto salvo em: bronze/%s", chave)
 
 
 def main() -> None:
@@ -143,6 +188,7 @@ def main() -> None:
         help="Valida o certificado SSL (desabilitado por padrão: certificado do site UNIFEI).",
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_coleta(url=args.url, output=args.output, verify_ssl=args.verify_ssl)
 

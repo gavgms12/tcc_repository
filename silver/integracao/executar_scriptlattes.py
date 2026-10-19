@@ -5,16 +5,26 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from storage.minio_storage import ler_parquet_silver, salvar_json_bronze
+from common.log import configurar_logging
+from storage.minio_storage import (
+    data_bronze_leitura,
+    ler_parquet_silver,
+    salvar_json_bronze_datado,
+)
+
+logger = logging.getLogger(__name__)
 
 SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
 SCRIPTLATTES_PYTHON = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
@@ -28,6 +38,30 @@ ID_LATTES_RE = re.compile(r"(\d{16})(?:\.json)?$")
 # baixar de novo um CV já obtido. Um diretório temporário seria apagado a cada
 # falha, perdendo o progresso e forçando reiniciar do zero.
 CACHE_DIR = ROOT_DIR / ".cache" / "scriptlattes"
+
+# Validade dos currículos em cache. Sem prazo, o pipeline reutilizaria para
+# sempre a cópia antiga de um currículo que o docente já atualizou. 0 desativa.
+CACHE_VALIDADE_DIAS = int(os.getenv("LATTES_CACHE_DIAS", "30"))
+
+
+def expirar_cache(
+    diretorio_cvs: Path, validade_dias: int = CACHE_VALIDADE_DIAS, agora: float | None = None
+) -> list[str]:
+    """Remove currículos em cache mais antigos que `validade_dias`.
+
+    A idade é a data de modificação do arquivo, que o scriptLattes grava ao
+    baixar o currículo. Devolve os nomes removidos; o scriptLattes baixa de
+    novo, na execução seguinte, apenas esses.
+    """
+    if validade_dias <= 0 or not diretorio_cvs.is_dir():
+        return []
+    limite = (agora if agora is not None else time.time()) - validade_dias * 86400
+    expirados: list[str] = []
+    for arquivo in sorted(diretorio_cvs.iterdir()):
+        if arquivo.is_file() and arquivo.stat().st_mtime < limite:
+            arquivo.unlink()
+            expirados.append(arquivo.name)
+    return expirados
 
 
 def gerar_lista_lattes(professores: list[dict], limite: int = 0) -> list[str]:
@@ -63,8 +97,12 @@ def escrever_config(caminho: Path, entrada: Path, saida: Path, cache: Path) -> N
     )
 
 
-def enviar_jsons(diretorio_json: Path, prefixo_saida: str) -> int:
+def enviar_jsons(diretorio_json: Path, prefixo_saida: str, data: str) -> int:
     """Envia os JSONs já renderizados pelo scriptLattes para o MinIO.
+
+    Os currículos são gravados na pasta de data da coleta que a Silver lê (a do
+    cadastro de onde saíram os ids), não na data de hoje: assim todas as
+    entradas de uma execução da Silver ficam numa única pasta de data.
 
     Tolerante a diretório ausente/vazio (ex.: o scriptLattes falhou antes de
     gerar qualquer saída) para permitir reaproveitar o progresso parcial de
@@ -77,10 +115,12 @@ def enviar_jsons(diretorio_json: Path, prefixo_saida: str) -> int:
     for arquivo in sorted(diretorio_json.glob("*.json")):
         id_lattes = ID_LATTES_RE.search(arquivo.name)
         if not id_lattes:
-            print(f"Ignorando arquivo sem ID Lattes no nome: {arquivo.name}")
+            logger.info(f"Ignorando arquivo sem ID Lattes no nome: {arquivo.name}")
             continue
         dados = json.loads(arquivo.read_text(encoding="utf-8"))
-        salvar_json_bronze(f"{prefixo_saida}/{id_lattes.group(1)}.json", dados)
+        salvar_json_bronze_datado(
+            f"{prefixo_saida}/{id_lattes.group(1)}.json", dados, data=data
+        )
         enviados += 1
 
     return enviados
@@ -104,7 +144,15 @@ def executar_lattes(
             "Nenhum professor com ID Lattes válido foi encontrado na Silver."
         )
 
+    data_coleta_bronze = data_bronze_leitura()
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    expirados = expirar_cache(CACHE_DIR / "cvs")
+    if expirados:
+        logger.info(
+            "%d currículo(s) em cache com mais de %d dia(s) serão baixados de novo.",
+            len(expirados),
+            CACHE_VALIDADE_DIAS,
+        )
     arquivo_lista = CACHE_DIR / "professores_lattes.list"
     diretorio_saida = CACHE_DIR / "saida"
     arquivo_config = CACHE_DIR / "scriptlattes_tcc.config"
@@ -116,22 +164,32 @@ def executar_lattes(
         CACHE_DIR / "cvs",
     )
 
-    print(f"Baixando {len(linhas)} currículo(s) com scriptLattes...")
+    # A saída do scriptLattes é muito verbosa (centenas de linhas DEBUG por
+    # currículo) e escondia o resumo do pipeline; vai para um arquivo próprio.
+    arquivo_log = CACHE_DIR / "scriptlattes.log"
+    logger.info(
+        "Baixando %d currículo(s) com scriptLattes (log em %s)...",
+        len(linhas),
+        arquivo_log,
+    )
     try:
-        subprocess.run(
-            [
-                str(SCRIPTLATTES_PYTHON),
-                str(SCRIPTLATTES_EXECUTAVEL),
-                str(arquivo_config),
-            ],
-            cwd=SCRIPTLATTES_DIR,
-            check=True,
-        )
+        with arquivo_log.open("w", encoding="utf-8") as log:
+            subprocess.run(
+                [
+                    str(SCRIPTLATTES_PYTHON),
+                    str(SCRIPTLATTES_EXECUTAVEL),
+                    str(arquivo_config),
+                ],
+                cwd=SCRIPTLATTES_DIR,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
     except subprocess.CalledProcessError:
         enviados_parciais = enviar_jsons(
-            diretorio_saida / "json", prefixo_saida.rstrip("/")
+            diretorio_saida / "json", prefixo_saida.rstrip("/"), data_coleta_bronze
         )
-        print(
+        logger.warning(
             f"AVISO: o scriptLattes falhou no meio da execução (provável rate limit do "
             f"CNPq). {enviados_parciais} currículo(s) já baixado(s) foram enviados ao "
             f"MinIO antes do erro. O cache foi preservado em {CACHE_DIR} — rode o comando "
@@ -139,11 +197,13 @@ def executar_lattes(
         )
         raise
 
-    enviados = enviar_jsons(diretorio_saida / "json", prefixo_saida.rstrip("/"))
+    enviados = enviar_jsons(
+        diretorio_saida / "json", prefixo_saida.rstrip("/"), data_coleta_bronze
+    )
     if not enviados:
         raise RuntimeError("Nenhum JSON válido do scriptLattes foi enviado ao MinIO.")
 
-    print(f"{enviados} currículo(s) enviado(s) para bronze/{prefixo_saida.rstrip('/')}.")
+    logger.info(f"{enviados} currículo(s) enviado(s) para bronze/{prefixo_saida.rstrip('/')}.")
 
 
 def main() -> None:
@@ -164,6 +224,7 @@ def main() -> None:
         "--limite", type=int, default=0, help="Limita currículos para teste."
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_lattes(
         entrada_silver=args.entrada_silver,

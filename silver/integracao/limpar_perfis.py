@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import logging
 import re
 import sys
 from datetime import datetime, timezone
@@ -25,15 +26,19 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-sys.path.insert(0, str(ROOT_DIR / "silver" / "01_merge"))
-
+from common.config import ANO_MINIMO
+from common.log import configurar_logging
+from common.texto import normalizar_texto
+from silver.merge.merge_professores import chave_nome, similaridade_nomes
 from storage.minio_storage import (
-    ler_json_bronze,  # noqa: E402
+    BRONZE,
+    chaves_bronze_da_data,
+    ler_json_bronze_recente,
     ler_parquet_silver,
-    listar_chaves_bronze,
     salvar_parquet_silver,
 )
-from merge_professores import chave_nome, similaridade_nomes  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_ROSTER = "professores_unificados.parquet"
 DEFAULT_DOCENTES_SIGAA = "raw/sigaa/docentes_sigaa.json"
@@ -46,7 +51,7 @@ DEFAULT_SAIDA_TRABALHOS_IC = "trabalhos_ic_periodicos.parquet"
 DEFAULT_SAIDA_COMPONENTES = "componentes_curriculares.parquet"
 DEFAULT_SAIDA_COMPONENTES_EXTERNOS = "componentes_curriculares_externos.parquet"
 
-ANO_LIMITE = datetime.now().year - 10
+ANO_LIMITE = ANO_MINIMO
 LIMIAR_SIMILARIDADE_ORIENTADOR = 0.92
 
 MAPEAMENTO_PRODUCAO = {
@@ -71,12 +76,6 @@ CATEGORIAS_ORIENTACAO = (
 )
 
 SUFIXO_RESUMO = "(Texto informado pelo autor)"
-
-
-def normalizar_texto(texto: str | None) -> str:
-    if not texto:
-        return ""
-    return re.sub(r"\s+", " ", str(texto)).strip()
 
 
 def limpar_resumo(texto: str | None) -> str:
@@ -424,15 +423,18 @@ def extrair_orientador(autores_texto: str) -> str:
     return partes[-1] if partes else ""
 
 
-def indexar_lattes_disponiveis() -> set[str]:
-    chaves = listar_chaves_bronze(f"{DEFAULT_LATTES_PREFIXO}/")
-    ids = set()
-    for chave in chaves:
-        nome_arquivo = chave.rsplit("/", 1)[-1]
-        id_lattes = nome_arquivo.removesuffix(".json")
+def indexar_lattes_disponiveis() -> dict[str, str]:
+    """idLattes -> chave real do currículo na pasta de data mais recente.
+
+    Só a coleta mais recente é considerada; o professor cujo currículo não
+    consta nela é avisado e fica sem perfil Lattes.
+    """
+    disponiveis: dict[str, str] = {}
+    for logica, real in chaves_bronze_da_data(f"{DEFAULT_LATTES_PREFIXO}/").items():
+        id_lattes = logica.rsplit("/", 1)[-1].removesuffix(".json")
         if id_lattes:
-            ids.add(id_lattes)
-    return ids
+            disponiveis[id_lattes] = real
+    return disponiveis
 
 
 def processar_trabalhos_ic(
@@ -443,7 +445,7 @@ def processar_trabalhos_ic(
 
     Retorna (mapa siape -> lista de ids de trabalhos, catálogo de trabalhos).
     """
-    trabalhos = ler_json_bronze(chave_trabalhos)
+    trabalhos = ler_json_bronze_recente(chave_trabalhos)
     roster_por_chave = [(chave_nome(p["nome"]), p) for p in roster if p.get("nome")]
 
     trabalhos_por_siape: dict[str, list[dict]] = {}
@@ -518,7 +520,7 @@ def montar_perfil_sigaa(
 
 
 def montar_perfil_lattes(
-    identidade: dict, lattes_disponiveis: set[str]
+    identidade: dict, lattes_disponiveis: dict[str, str]
 ) -> dict[str, Any] | None:
     """Perfil Lattes limpo de um professor, ou None se não houver currículo
     coletado para o idLattes dele (não gera linha vazia no Parquet)."""
@@ -529,10 +531,10 @@ def montar_perfil_lattes(
         return None
 
     if id_lattes not in lattes_disponiveis:
-        print(f"AVISO: sem JSON Lattes para {nome} (idLattes={id_lattes}).")
+        logger.warning(f"AVISO: sem JSON Lattes para {nome} (idLattes={id_lattes}).")
         return None
 
-    dados_lattes = ler_json_bronze(f"{DEFAULT_LATTES_PREFIXO}/{id_lattes}.json")
+    dados_lattes = BRONZE.ler_json(lattes_disponiveis[id_lattes])
     perfil = limpar_perfil_lattes(dados_lattes)
 
     return {
@@ -556,25 +558,33 @@ def executar_limpeza(
 ) -> None:
     """Função utilizada pelo Airflow e pela CLI."""
     roster_dados = ler_parquet_silver(roster)
-    docentes_sigaa_payload = ler_json_bronze(docentes_sigaa)
+    docentes_sigaa_payload = ler_json_bronze_recente(docentes_sigaa)
     docentes_sigaa_por_siape = {
         d["siape"]: d
         for d in docentes_sigaa_payload.get("docentes", [])
         if d.get("siape")
     }
-    componentes_payload = ler_json_bronze(componentes_sigaa)
+    componentes_payload = ler_json_bronze_recente(componentes_sigaa)
     lattes_disponiveis = indexar_lattes_disponiveis()
 
     catalogo_iesti, catalogo_externos = construir_catalogos_disciplinas(
         componentes_payload, docentes_sigaa_payload
     )
     sem_ementa = validar_ementas(catalogo_iesti)
-    if sem_ementa:
-        ids_sem_ementa = ", ".join(c["idSigaa"] for c in sem_ementa)
-        print(
-            f"AVISO: {len(sem_ementa)} componente(s) do IESTI sem ementa "
-            f"(ids: {ids_sem_ementa}). Rode "
-            "bronze/scraping/scrape_sigaa_componentes.py --com-ementa para completar."
+    if sem_ementa and len(sem_ementa) == len(catalogo_iesti):
+        # Nenhum componente tem ementa: a coleta foi feita sem --com-ementa.
+        logger.warning(
+            "AVISO: nenhum dos %d componentes do IESTI tem ementa. Rode "
+            "bronze/scraping/scrape_sigaa_componentes.py --com-ementa para coletá-las.",
+            len(catalogo_iesti),
+        )
+    elif sem_ementa:
+        # Há ementas coletadas; o restante não tem ementa na própria fonte
+        # (ex.: turmas práticas), e buscar de novo não muda isso.
+        logger.info(
+            "%d de %d componente(s) do IESTI sem ementa na fonte.",
+            len(sem_ementa),
+            len(catalogo_iesti),
         )
 
     salvar_parquet_silver(saida_componentes, catalogo_iesti)
@@ -603,21 +613,21 @@ def executar_limpeza(
 
     com_descricao = sum(1 for p in perfis_sigaa if p["descricaoPessoal"])
     com_ic = sum(1 for p in perfis_sigaa if p["trabalhosIniciacaoCientifica"])
-    print(
+    logger.info(
         f"Perfis SIGAA limpos: {len(perfis_sigaa)} ({com_descricao} com descrição pessoal)."
     )
-    print(
+    logger.info(
         f"Perfis Lattes limpos: {len(perfis_lattes)} (de {len(roster_dados)} professores)."
     )
-    print(
+    logger.info(
         f"Trabalhos de IC catalogados: {len(catalogo_trabalhos_ic)} ({com_ic} professores com IC vinculada)."
     )
-    print(
+    logger.info(
         f"Componentes curriculares IESTI catalogados: {len(catalogo_iesti)} "
         f"({len(sem_ementa)} sem ementa)."
     )
-    print(f"Componentes curriculares externos ao IESTI: {len(catalogo_externos)}.")
-    print(f"Parquets salvos em: silver/{saida_sigaa} e silver/{saida_lattes}")
+    logger.info(f"Componentes curriculares externos ao IESTI: {len(catalogo_externos)}.")
+    logger.info(f"Parquets salvos em: silver/{saida_sigaa} e silver/{saida_lattes}")
 
 
 def main() -> None:
@@ -639,6 +649,7 @@ def main() -> None:
         "--saida-componentes-externos", default=DEFAULT_SAIDA_COMPONENTES_EXTERNOS
     )
     args = parser.parse_args()
+    configurar_logging()
 
     executar_limpeza(
         roster=args.roster,

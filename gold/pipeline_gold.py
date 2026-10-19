@@ -1,30 +1,26 @@
 #!/usr/bin/env python3
-"""Orquestra a camada Gold: perfis Parquet da Silver para perfis JSON unificados na Gold."""
+"""Pipeline da camada Gold: perfis Parquet da Silver para perfis JSON unificados."""
 
 from __future__ import annotations
 
-import subprocess
+import logging
 import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-GOLD_DIR = ROOT_DIR / "gold"
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
+from common.log import configurar_logging
+from gold.unificar_perfis import executar_unificacao
 
-def executar_etapa(nome: str, comando: list[str]) -> None:
-    print(f"\n=== {nome} ===")
-    resultado = subprocess.run(comando, cwd=GOLD_DIR, check=False)
-    if resultado.returncode != 0:
-        raise RuntimeError(f"Etapa '{nome}' falhou com código {resultado.returncode}.")
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    python = sys.executable
-    executar_etapa(
-        "Unificar perfis SIGAA + Lattes",
-        [python, "unificar_perfis.py"],
-    )
-    print("\nPipeline Gold concluído.")
+    configurar_logging()
+    executar_unificacao()
+    logger.info("Pipeline Gold concluído.")
 
 
 if __name__ == "__main__":
