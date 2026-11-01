@@ -109,11 +109,11 @@ Lê **somente a pasta de data mais recente** da Bronze (ver [Leitura da Bronze](
 
 1. `merge/merge_professores.py` — mescla SIGAA + IESTI (normalização e similaridade de nomes, limiar 0,92) em `professores_unificados.parquet`.
 2. `integracao/executar_scriptlattes.py` — roda o scriptLattes para os ids do roster e grava os currículos na Bronze, **na mesma pasta de data que a Silver está lendo**. Os currículos ficam em cache local (`.cache/scriptlattes/cvs`) e expiram após 30 dias.
-3. `integracao/limpar_perfis.py` — limpa os perfis e grava **dois Parquets separados** (SIGAA e Lattes), sem mesclá-los. Disciplinas, trabalhos de IC, produções, projetos e orientações passam a ser referenciados por ID (hash do conteúdo, estável entre execuções), com catálogos à parte.
+3. `integracao/limpar_perfis.py` — limpa os perfis e grava **dois Parquets separados** (SIGAA e Lattes), sem mesclá-los. Disciplinas, trabalhos de IC, produções, projetos e orientações passam a ser referenciados por ID (hash do conteúdo, estável entre execuções), com catálogos à parte. O catálogo de trabalhos de IC guarda todos os trabalhos coletados, mesmo os sem orientador reconhecido.
 
 ### Gold — produto de dados
 
-`unificar_perfis.py` funde os perfis SIGAA e Lattes em um documento por docente (chave: **siape**). Áreas de especialização são reduzidas às subáreas, tópicos de interesse são unificados sem repetição, e produções, projetos, orientações, disciplinas e trabalhos de IC ficam **só como IDs** no perfil, com o conteúdo em catálogos.
+`unificar_perfis.py` funde os perfis SIGAA e Lattes em um documento por docente (chave: **siape**). Áreas de especialização são reduzidas às subáreas, tópicos de interesse são unificados sem repetição, e produções, projetos, orientações, disciplinas e trabalhos de IC ficam **só como IDs** no perfil, com o conteúdo em catálogos. As iniciações científicas do Lattes saem das orientações e entram nos trabalhos de IC: usam o trabalho coletado de mesmo título, com resumo, ou um registro só com título e ano.
 
 A publicação é atômica: cada execução grava tudo em `runs/<AAAAMMDDTHHMMSSZ>/` e só ao final atualiza `current.json`. A Gold confere se todo ID citado existe no catálogo e falha se mais de 2% das referências estiverem órfãs. Também valida se cada perfil tem texto suficiente para gerar embedding e avisa sobre os que não têm. Fica só a última execução de cada dia, no fuso da coleta, nos 3 dias mais recentes.
 
@@ -161,6 +161,8 @@ cp .env.example .env                       # e ajuste usuário/senha do MinIO
 ```bash
 docker compose up -d
 ```
+
+Esse comando sobe só o Airflow, que usa o MinIO antigo (container `tcc_minio`, portas 9000 e 9001, conectado à rede `tcc_repository_default` com o alias `tcc-minio`). Em uma instalação nova, sem esse container, suba o MinIO do projeto com `docker compose --profile minio-local up -d`, nas portas da tabela abaixo. Não mantenha os dois ligados, porque o nome `tcc-minio` passaria a apontar para dois servidores.
 
 | Serviço | URL | Acesso |
 |---------|-----|--------|
@@ -217,7 +219,7 @@ Etapas individuais: `python bronze/scraping/scrape_trabalhos_ic.py`, `python sil
 | | `perfis_sigaa_limpos.parquet`, `perfis_lattes_limpos.parquet` — perfis limpos por professor |
 | | `componentes_curriculares.parquet` — catálogo oficial do IESTI (nome, carga horária, ementa) |
 | | `componentes_curriculares_externos.parquet` — disciplinas ministradas fora do IESTI (sem ementa) |
-| | `trabalhos_ic_periodicos.parquet` — catálogo de trabalhos de IC com ID |
+| | `trabalhos_ic_periodicos.parquet` — catálogo de todos os trabalhos de IC coletados, com ID |
 | `gold` | `current.json` — ponteiro para a execução válida |
 | | `runs/<execução>/perfil_professores/<siape>.json` — um perfil por docente |
 | | `runs/<execução>/producoes.json`, `projetos.json`, `orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json` — catálogos referenciados pelos perfis |

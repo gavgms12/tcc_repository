@@ -141,3 +141,61 @@ def test_formacao_do_resumo_so_entra_se_sigaa_nao_informar():
     montar = lambda sigaa: g.montar_perfil_unificado(sigaa, lattes, {}, {}, {}, {}, {})
     assert montar(base)["formacaoAcademicaProfissional"] == "Doutor pela UNIFEI."
     assert montar(base | {"formacaoAcademicaProfissional": "SIGAA"})["formacaoAcademicaProfissional"] == "SIGAA"
+
+
+def _perfil_com_iniciacoes(iniciacoes, catalogo, ids_sigaa=(), trabalhos=None):
+    sigaa = {"nome": "F", "siape": "10", "trabalhosIniciacaoCientifica": list(ids_sigaa)}
+    orientacoes = {}
+    trabalhos = {} if trabalhos is None else trabalhos
+    perfil = g.montar_perfil_unificado(
+        sigaa, {"orientacoes": iniciacoes}, catalogo, {}, {}, orientacoes, trabalhos
+    )
+    return perfil, orientacoes, trabalhos
+
+
+def _ic(titulo, ano=2024):
+    return {"id": titulo, "tipo": "iniciacao_cientifica", "titulo": titulo, "ano_inicio": ano}
+
+
+def test_iniciacao_vai_para_trabalhos_ic_e_sai_de_orientacoes():
+    tcc = {"id": "t1", "tipo": "tcc", "titulo": "Um TCC", "ano_inicio": 2024}
+    perfil, orientacoes, trabalhos = _perfil_com_iniciacoes([tcc, _ic("Só título")], {})
+    assert perfil["orientacoes"] == ["t1"] and list(orientacoes) == ["t1"]
+    assert len(perfil["trabalhosIniciacaoCientifica"]) == 1
+    registro = trabalhos[perfil["trabalhosIniciacaoCientifica"][0]]
+    assert registro == {
+        "id": registro["id"], "titulo": "Só título", "autores": None,
+        "resumo": None, "palavrasChaves": [], "ano": 2024,
+    }
+
+
+def test_iniciacao_com_mesmo_titulo_usa_o_trabalho_com_resumo():
+    catalogo = {"c1": {"id": "c1", "titulo": "ESTUDO DE ROBÓTICA MÓVEL", "resumo": "R", "ano": 2023}}
+    perfil, _, trabalhos = _perfil_com_iniciacoes([_ic("Estudo de robotica movel.", 2023)], catalogo)
+    assert perfil["trabalhosIniciacaoCientifica"] == ["c1"]
+    assert trabalhos["c1"]["resumo"] == "R"
+
+
+def test_iniciacao_com_pequena_variacao_casa_mas_titulo_diferente_nao():
+    catalogo = {"c1": {"id": "c1", "titulo": "Multiplicadores binários em microarquitetura RISC-V", "resumo": "R"}}
+    perfil, _, _ = _perfil_com_iniciacoes([_ic("Multiplicadores binários em arquitetura RISC-V")], catalogo)
+    assert perfil["trabalhosIniciacaoCientifica"] == ["c1"]
+    perfil, _, trabalhos = _perfil_com_iniciacoes([_ic("Controle de drones agrícolas")], catalogo)
+    assert trabalhos[perfil["trabalhosIniciacaoCientifica"][0]]["resumo"] is None
+
+
+def test_iniciacao_nao_duplica_trabalho_vindo_do_sigaa_nem_renovacao():
+    catalogo = {"c1": {"id": "c1", "titulo": "Tema A", "resumo": "R", "ano": 2023}}
+    perfil, _, _ = _perfil_com_iniciacoes([_ic("Tema A", 2023)], catalogo, ids_sigaa=["c1"])
+    assert perfil["trabalhosIniciacaoCientifica"] == ["c1"]
+    perfil, _, trabalhos = _perfil_com_iniciacoes([_ic("Tema B", 2021), _ic("Tema B", 2022)], {})
+    assert len(perfil["trabalhosIniciacaoCientifica"]) == 1
+    assert trabalhos[perfil["trabalhosIniciacaoCientifica"][0]]["ano"] == 2022
+
+
+def test_mesma_iniciacao_em_dois_professores_gera_um_registro():
+    trabalhos = {}
+    a, _, _ = _perfil_com_iniciacoes([_ic("Tema C")], {}, trabalhos=trabalhos)
+    b, _, _ = _perfil_com_iniciacoes([_ic("Tema C")], {}, trabalhos=trabalhos)
+    assert a["trabalhosIniciacaoCientifica"] == b["trabalhosIniciacaoCientifica"]
+    assert len(trabalhos) == 1

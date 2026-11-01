@@ -260,6 +260,16 @@ def parse_descricao_projeto(
     return texto, situacao
 
 
+def titulo_orientacao_invalido(titulo: str, orientando: str | None) -> bool:
+    """Currículos às vezes trazem um rótulo ou o nome do aluno no lugar do título."""
+    return (
+        not titulo
+        or titulo == "Estágio Supervisionado"
+        or titulo.endswith(":")
+        or titulo == normalizar_texto(orientando)
+    )
+
+
 def transformar_orientacoes(orientacoes: dict | None) -> list[dict]:
     if not orientacoes:
         return []
@@ -271,7 +281,7 @@ def transformar_orientacoes(orientacoes: dict | None) -> list[dict]:
         for categoria in CATEGORIAS_ORIENTACAO:
             for orientacao in bloco.get(categoria, []) or []:
                 titulo = normalizar_texto(orientacao.get("titulo"))
-                if not titulo or titulo == "Estágio Supervisionado":
+                if titulo_orientacao_invalido(titulo, orientacao.get("orientando")):
                     continue
 
                 ano_inicio = normalizar_ano(orientacao.get("ano_inicio"))
@@ -455,15 +465,35 @@ def processar_trabalhos_ic(
     """Casa cada trabalho de IC com um professor do roster pelo orientador.
 
     Retorna (mapa siape -> lista de ids de trabalhos, catálogo de trabalhos).
+    O catálogo traz também os trabalhos sem orientador reconhecido: a Gold pode
+    ligá-los a um professor pelo título das iniciações do Lattes.
     """
     trabalhos = ler_json_bronze_recente(chave_trabalhos)
     roster_por_chave = [(chave_nome(p["nome"]), p) for p in roster if p.get("nome")]
 
     trabalhos_por_siape: dict[str, list[dict]] = {}
-    catalogo: list[dict] = []
+    catalogo: dict[str, dict] = {}
 
     for trabalho in trabalhos:
         autores = trabalho.get("autores") or ""
+        titulo = normalizar_texto(trabalho.get("titulo"))
+        if not titulo:
+            continue
+
+        ano = normalizar_ano(trabalho.get("ano"))
+        id_trabalho = gerar_id("trabalho_ic", titulo, ano)
+        catalogo.setdefault(
+            id_trabalho,
+            {
+                "id": id_trabalho,
+                "titulo": titulo,
+                "autores": normalizar_texto(autores),
+                "resumo": normalizar_texto(trabalho.get("resumo")) or None,
+                "palavrasChaves": trabalho.get("palavrasChaves", []),
+                "ano": ano,
+            },
+        )
+
         orientador = extrair_orientador(autores)
         if not orientador:
             continue
@@ -479,26 +509,11 @@ def processar_trabalhos_ic(
         if melhor_professor is None:
             continue
 
-        titulo = normalizar_texto(trabalho.get("titulo"))
-        ano = normalizar_ano(trabalho.get("ano"))
-        id_trabalho = gerar_id("trabalho_ic", titulo, ano)
-
-        catalogo.append(
-            {
-                "id": id_trabalho,
-                "titulo": titulo,
-                "autores": normalizar_texto(autores),
-                "resumo": normalizar_texto(trabalho.get("resumo")) or None,
-                "palavrasChaves": trabalho.get("palavrasChaves", []),
-                "ano": ano,
-            }
-        )
-
         siape = melhor_professor.get("siape")
         if siape:
             trabalhos_por_siape.setdefault(siape, []).append(id_trabalho)
 
-    return trabalhos_por_siape, catalogo
+    return trabalhos_por_siape, list(catalogo.values())
 
 
 def montar_perfil_sigaa(

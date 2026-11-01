@@ -5,7 +5,8 @@ Lê `perfis_sigaa_limpos.parquet` e `perfis_lattes_limpos.parquet` da Silver e
 os funde num único documento por professor. O perfil referencia por ID as
 produções, projetos, disciplinas e trabalhos de IC, cujo conteúdo completo
 fica em arquivos separados no bucket Gold (`producoes.json`, `projetos.json`,
-`orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json`).
+`orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json`). As iniciações
+científicas do Lattes vão para `trabalhos_ic.json`, não para `orientacoes.json`.
 Deduplica tópicos/áreas de interesse que aparecem nas duas fontes e evita
 repetir o mesmo resumo duas vezes. Cada perfil final é salvo como um JSON
 próprio no bucket Gold, sob o prefixo `perfil_professores/`.
@@ -19,8 +20,12 @@ descartados silenciosamente).
 from __future__ import annotations
 
 import argparse
+import difflib
+import hashlib
 import logging
+import re
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
@@ -57,6 +62,11 @@ FORMATO_RUN_ID = "%Y%m%dT%H%M%SZ"
 DIAS_MANTIDOS = 3
 # Fração máxima de referências sem catálogo tolerada antes de falhar a Gold.
 MAX_TAXA_REFERENCIAS_ORFAS = 0.02
+TIPO_INICIACAO_CIENTIFICA = "iniciacao_cientifica"
+# Acima deste valor os títulos são o mesmo trabalho com pequenas variações
+# ("arquitetura"/"microarquitetura"); abaixo de 0,82 já aparecem trabalhos
+# diferentes com início parecido.
+LIMIAR_TITULO_IC = 0.93
 
 
 class PerfilGold(TypedDict):
@@ -131,6 +141,50 @@ def registrar_itens(
     return ids_unicos(ids)
 
 
+def chave_titulo(titulo: str | None) -> str:
+    """Forma de comparação de um título: sem caixa, acentos e pontuação."""
+    texto = unicodedata.normalize("NFKD", normalizar_texto(titulo).lower())
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return " ".join(re.sub(r"[\W_]+", " ", texto).split())
+
+
+def indexar_trabalhos_por_titulo(catalogo_trabalhos: dict[str, dict]) -> dict[str, dict]:
+    """chave do título -> trabalho, preferindo o registro que tem resumo."""
+    indice: dict[str, dict] = {}
+    for trabalho in catalogo_trabalhos.values():
+        chave = chave_titulo(trabalho.get("titulo"))
+        if chave and (chave not in indice or (trabalho.get("resumo") and not indice[chave].get("resumo"))):
+            indice[chave] = trabalho
+    return indice
+
+
+def trabalho_da_iniciacao(orientacao: dict, indice_trabalhos: dict[str, dict]) -> dict:
+    """Trabalho coletado de mesmo título, ou um registro só com título e ano."""
+    chave = chave_titulo(orientacao.get("titulo"))
+    if chave in indice_trabalhos:
+        return indice_trabalhos[chave]
+    parecidos = difflib.get_close_matches(chave, indice_trabalhos, 1, LIMIAR_TITULO_IC)
+    if parecidos:
+        return indice_trabalhos[parecidos[0]]
+    # O ID vem só do título: renovações da mesma bolsa viram um único trabalho.
+    return {
+        "id": hashlib.sha1(f"{TIPO_INICIACAO_CIENTIFICA}|{chave}".encode()).hexdigest()[:12],
+        "titulo": orientacao.get("titulo"),
+        "autores": None,
+        "resumo": None,
+        "palavrasChaves": [],
+        "ano": orientacao.get("ano_inicio"),
+    }
+
+
+def registrar_trabalho(trabalho: dict, trabalhos_ic: dict[str, dict]) -> str:
+    """Guarda o trabalho no catálogo; entre renovações, fica o ano mais recente."""
+    existente = trabalhos_ic.setdefault(trabalho["id"], dict(trabalho))
+    if trabalho.get("ano") and (existente.get("ano") or 0) < trabalho["ano"]:
+        existente["ano"] = trabalho["ano"]
+    return trabalho["id"]
+
+
 def disciplinas_referenciadas(
     perfis: list[PerfilGold], catalogo_componentes: dict[str, dict]
 ) -> list[dict]:
@@ -198,8 +252,11 @@ def montar_perfil_unificado(
     projetos: dict[str, dict],
     orientacoes: dict[str, dict],
     trabalhos_ic: dict[str, dict],
+    indice_trabalhos: dict[str, dict] | None = None,
 ) -> PerfilGold:
     lattes = lattes or {}
+    if indice_trabalhos is None:
+        indice_trabalhos = indexar_trabalhos_por_titulo(catalogo_trabalhos)
     competencias = lattes.get("competencias") or {}
     areas_lattes = competencias.get("areas") or []
     linhas_pesquisa = competencias.get("linhas_pesquisa") or []
@@ -220,12 +277,27 @@ def montar_perfil_unificado(
 
     logger.debug("Unificando: %s", sigaa.get("nome"))
     ids_ic = ids_unicos(sigaa.get("trabalhosIniciacaoCientifica"))
+    id_por_titulo: dict[str, str] = {}
     for id_trabalho in ids_ic:
         info = catalogo_trabalhos.get(id_trabalho)
         if info:
-            trabalhos_ic.setdefault(
-                id_trabalho, {"id": id_trabalho} | {k: v for k, v in info.items() if k != "id"}
-            )
+            registrar_trabalho(info | {"id": id_trabalho}, trabalhos_ic)
+            id_por_titulo[chave_titulo(info.get("titulo"))] = id_trabalho
+
+    # Iniciações do Lattes: o mesmo trabalho pode já ter vindo do SIGAA.
+    demais_orientacoes: list[dict] = []
+    for orientacao in lattes.get("orientacoes") or []:
+        if orientacao.get("tipo") != TIPO_INICIACAO_CIENTIFICA:
+            demais_orientacoes.append(orientacao)
+            continue
+        trabalho = trabalho_da_iniciacao(orientacao, indice_trabalhos)
+        chave = chave_titulo(trabalho.get("titulo"))
+        if chave in id_por_titulo:
+            trabalho = trabalho | {"id": id_por_titulo[chave]}
+        else:
+            id_por_titulo[chave] = trabalho["id"]
+            ids_ic.append(trabalho["id"])
+        registrar_trabalho(trabalho, trabalhos_ic)
 
     return {
         "nome": sigaa.get("nome"),
@@ -241,7 +313,7 @@ def montar_perfil_unificado(
         "topicosInteresse": topicos_interesse,
         "producoes": registrar_itens(lattes.get("producoes"), producoes),
         "projetos": registrar_itens(lattes.get("projetos"), projetos, CAMPOS_PROJETO),
-        "orientacoes": registrar_itens(lattes.get("orientacoes"), orientacoes),
+        "orientacoes": registrar_itens(demais_orientacoes, orientacoes),
         "disciplinas": ids_unicos(sigaa.get("disciplinasSigaa")),
         "trabalhosIniciacaoCientifica": ids_ic,
     }
@@ -446,6 +518,7 @@ def executar_unificacao(
     projetos: dict[str, dict] = {}
     orientacoes: dict[str, dict] = {}
     trabalhos_ic_usados: dict[str, dict] = {}
+    indice_trabalhos = indexar_trabalhos_por_titulo(catalogo_trabalhos)
     catalogos_validacao = {
         "producoes": producoes,
         "projetos": projetos,
@@ -466,6 +539,7 @@ def executar_unificacao(
             projetos,
             orientacoes,
             trabalhos_ic_usados,
+            indice_trabalhos,
         )
         perfis.append(perfil)
 
