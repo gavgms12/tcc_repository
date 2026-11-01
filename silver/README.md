@@ -16,3 +16,12 @@ A Silver concentra a lógica de integração, merge e limpeza dos dados coletado
 4. Limpa os perfis SIGAA e Lattes em Parquets separados e gera os catálogos
 
 A unificação dos dois perfis fica na Gold.
+
+## Limpeza dos resumos
+
+`integracao/resumo.py` reduz o resumo do Lattes e a descrição pessoal do SIGAA ao que descreve a atuação do docente, sem corte por tamanho. Saem traduções marcadas, frases repetidas e frases só de titulação ou de cargo. Uma frase que cite área, ênfase, temas ou pesquisa é mantida inteira.
+
+| Parquet | Campo | Conteúdo |
+|---------|-------|----------|
+| `perfis_lattes_limpos` | `resumo`, `resumoCompleto`, `formacaoResumo` | texto limpo, original e frases de titulação retiradas |
+| `perfis_sigaa_limpos` | `descricaoPessoal`, `descricaoPessoalCompleta`, `formacaoDescricao` | texto limpo, original e frases de titulação retiradas |

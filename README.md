@@ -220,7 +220,7 @@ Etapas individuais: `python bronze/scraping/scrape_trabalhos_ic.py`, `python sil
 | | `trabalhos_ic_periodicos.parquet` — catálogo de trabalhos de IC com ID |
 | `gold` | `current.json` — ponteiro para a execução válida |
 | | `runs/<execução>/perfil_professores/<siape>.json` — um perfil por docente |
-| | `runs/<execução>/producoes.json`, `projetos.json`, `orientacoes.json`, `trabalhos_ic.json` — catálogos referenciados pelos perfis |
+| | `runs/<execução>/producoes.json`, `projetos.json`, `orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json` — catálogos referenciados pelos perfis |
 
 Números de referência (coleta de 15/10/2026): 43 professores no cadastro (42 com id Lattes), 1249 componentes (837 com ementa; os demais não têm ementa na fonte), 177 trabalhos de IC coletados (46 vinculados a docentes), 729 produções, 125 projetos e 768 orientações no catálogo da Gold.
 

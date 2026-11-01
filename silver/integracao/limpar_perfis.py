@@ -29,6 +29,7 @@ if str(ROOT_DIR) not in sys.path:
 from common.config import ANO_MINIMO
 from common.log import configurar_logging
 from common.texto import normalizar_texto
+from silver.integracao.resumo import separar_resumo
 from silver.merge.merge_professores import chave_nome, similaridade_nomes
 from storage.minio_storage import (
     BRONZE,
@@ -310,8 +311,13 @@ def limpar_perfil_lattes(dados_bronze: dict) -> dict:
         )
     )
 
+    resumo_completo = limpar_resumo(info.get("texto_resumo")) or None
+    resumo = separar_resumo(resumo_completo)
+
     return {
-        "resumo": limpar_resumo(info.get("texto_resumo")) or None,
+        "resumo": resumo["essencial"],
+        "resumoCompleto": resumo_completo,
+        "formacaoResumo": resumo["titulacao"],
         "competencias": {
             "areas": transformar_areas(dados_bronze.get("areas_de_atuacao") or []),
             "linhas_pesquisa": transformar_linhas(
@@ -344,8 +350,13 @@ def limpar_perfil_sigaa(docente_bruto: dict) -> dict:
         if normalizar_texto(a)
         and normalizar_texto(a).lower() not in PLACEHOLDERS_AREA_INTERESSE
     ]
+    descricao_completa = normalizar_texto(perfil.get("descricaoPessoal")) or None
+    descricao = separar_resumo(descricao_completa)
+
     return {
-        "descricaoPessoal": normalizar_texto(perfil.get("descricaoPessoal")) or None,
+        "descricaoPessoal": descricao["essencial"],
+        "descricaoPessoalCompleta": descricao_completa,
+        "formacaoDescricao": descricao["titulacao"],
         "formacaoAcademicaProfissional": normalizar_texto(
             perfil.get("formacaoAcademicaProfissional")
         )
@@ -510,6 +521,8 @@ def montar_perfil_sigaa(
         "idLattes": identidade.get("idLattes"),
         "siape": siape,
         "descricaoPessoal": perfil["descricaoPessoal"],
+        "descricaoPessoalCompleta": perfil["descricaoPessoalCompleta"],
+        "formacaoDescricao": perfil["formacaoDescricao"],
         "formacaoAcademicaProfissional": perfil["formacaoAcademicaProfissional"],
         "areasInteresse": perfil["areasInteresse"],
         "disciplinasSigaa": disciplinas,

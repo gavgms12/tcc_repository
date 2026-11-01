@@ -98,3 +98,31 @@ def test_aviso_de_embedding_resolve_ids_pelos_catalogos():
     assert "sem resumo (nem Lattes nem SIGAA)" in g.validar_para_embedding(
         perfil, {"producoes": {"a": {"titulo": "Título"}}}
     )
+
+
+def test_disciplinas_referenciadas_resolve_ids_e_uniformiza_campos():
+    catalogo = {
+        "5": {"idSigaa": "5", "codigo": "A", "nome": "Interna", "cargaHoraria": "32h", "ementa": "texto"},
+        "6": {"idSigaa": "6", "codigo": "B", "nome": "Externa", "cargaHoraria": "45h"},
+        "7": {"idSigaa": "7", "codigo": "C", "nome": "Sem professor", "cargaHoraria": "45h"},
+    }
+    perfis = [{"disciplinas": ["5", "6"]}, {"disciplinas": ["6", "ausente"]}]
+
+    assert g.disciplinas_referenciadas(perfis, catalogo) == [
+        {"idSigaa": "5", "codigo": "A", "nome": "Interna", "cargaHoraria": "32h", "ementa": "texto"},
+        {"idSigaa": "6", "codigo": "B", "nome": "Externa", "cargaHoraria": "45h", "ementa": None},
+    ]
+
+
+def test_unificar_resumo_nao_repete_frases_entre_fontes():
+    assert g.unificar_resumo("Atua em redes. Pesquisa IoT", "Pesquisa IoT. Leciona redes.") == (
+        "Atua em redes. Pesquisa IoT\n\nLeciona redes."
+    )
+
+
+def test_formacao_do_resumo_so_entra_se_sigaa_nao_informar():
+    base = {"nome": "F", "siape": "1"}
+    lattes = {"formacaoResumo": "Doutor pela UNIFEI."}
+    montar = lambda sigaa: g.montar_perfil_unificado(sigaa, lattes, {}, {}, {}, {}, {})
+    assert montar(base)["formacaoAcademicaProfissional"] == "Doutor pela UNIFEI."
+    assert montar(base | {"formacaoAcademicaProfissional": "SIGAA"})["formacaoAcademicaProfissional"] == "SIGAA"

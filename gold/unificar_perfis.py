@@ -5,7 +5,7 @@ Lê `perfis_sigaa_limpos.parquet` e `perfis_lattes_limpos.parquet` da Silver e
 os funde num único documento por professor. O perfil referencia por ID as
 produções, projetos, disciplinas e trabalhos de IC, cujo conteúdo completo
 fica em arquivos separados no bucket Gold (`producoes.json`, `projetos.json`,
-`orientacoes.json`, `trabalhos_ic.json`; as disciplinas continuam nos catálogos da Silver).
+`orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json`).
 Deduplica tópicos/áreas de interesse que aparecem nas duas fontes e evita
 repetir o mesmo resumo duas vezes. Cada perfil final é salvo como um JSON
 próprio no bucket Gold, sob o prefixo `perfil_professores/`.
@@ -30,7 +30,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from common.log import configurar_logging
-from common.texto import normalizar_texto
+from common.texto import chave_frase, dividir_frases, normalizar_texto
 from storage.minio_storage import GOLD, ler_parquet_silver
 
 logger = logging.getLogger(__name__)
@@ -44,8 +44,10 @@ DEFAULT_PREFIXO_SAIDA = "perfil_professores"
 CHAVE_PRODUCOES = "producoes.json"
 CHAVE_PROJETOS = "projetos.json"
 CHAVE_ORIENTACOES = "orientacoes.json"
+CHAVE_DISCIPLINAS = "disciplinas.json"
 CHAVE_TRABALHOS_IC = "trabalhos_ic.json"
 CAMPOS_PROJETO = ("id", "nome", "tipo", "descricao", "ano_conclusao")
+CAMPOS_DISCIPLINA = ("idSigaa", "codigo", "nome", "cargaHoraria", "ementa")
 
 # Cada execução grava tudo sob runs/<run_id>/ e só então atualiza current.json,
 # que aponta para a execução válida; consumidores nunca veem estado parcial.
@@ -128,6 +130,23 @@ def registrar_itens(
     return ids_unicos(ids)
 
 
+def disciplinas_referenciadas(
+    perfis: list[PerfilGold], catalogo_componentes: dict[str, dict]
+) -> list[dict]:
+    """Registros das disciplinas citadas nos perfis, sem repetição.
+
+    Os componentes externos ao IESTI não têm ementa na Silver; nesses casos o
+    campo `ementa` sai como None, para todo registro ter o mesmo formato.
+    """
+    usadas: dict[str, dict] = {}
+    for perfil in perfis:
+        for id_disciplina in perfil["disciplinas"]:
+            componente = catalogo_componentes.get(id_disciplina)
+            if componente and id_disciplina not in usadas:
+                usadas[id_disciplina] = {c: componente.get(c) for c in CAMPOS_DISCIPLINA}
+    return list(usadas.values())
+
+
 def unificar_topicos(*listas: list[str] | None, excluir: set[str] = frozenset()) -> list[str]:
     """Junta listas de tópicos/áreas de interesse vindas de fontes diferentes,
     removendo duplicatas (comparação case-insensitive) sem perder a ordem.
@@ -157,14 +176,15 @@ def unificar_topicos(*listas: list[str] | None, excluir: set[str] = frozenset())
 
 
 def unificar_resumo(resumo_lattes: str | None, descricao_sigaa: str | None) -> str | None:
-    """Combina o resumo do Lattes com a descrição pessoal do SIGAA sem
-    repetir o texto quando as duas fontes dizem a mesma coisa."""
+    """Combina o resumo do Lattes com a descrição pessoal do SIGAA, sem repetir
+    as frases que as duas fontes têm em comum."""
     resumo_lattes = normalizar_texto(resumo_lattes)
-    descricao_sigaa = normalizar_texto(descricao_sigaa)
+    frases_lattes = {chave_frase(f) for f in dividir_frases(resumo_lattes)}
+    descricao_sigaa = " ".join(
+        f for f in dividir_frases(descricao_sigaa) if chave_frase(f) not in frases_lattes
+    )
 
     if resumo_lattes and descricao_sigaa:
-        if resumo_lattes.lower() == descricao_sigaa.lower():
-            return resumo_lattes
         return f"{resumo_lattes}\n\n{descricao_sigaa}"
     return resumo_lattes or descricao_sigaa or None
 
@@ -211,7 +231,11 @@ def montar_perfil_unificado(
         "idLattes": sigaa.get("idLattes"),
         "siape": sigaa.get("siape"),
         "resumo": unificar_resumo(lattes.get("resumo"), sigaa.get("descricaoPessoal")),
-        "formacaoAcademicaProfissional": sigaa.get("formacaoAcademicaProfissional"),
+        # As frases de titulação saem do resumo na Silver; viram formação quando
+        # o SIGAA não a informa, para a informação não se perder.
+        "formacaoAcademicaProfissional": sigaa.get("formacaoAcademicaProfissional")
+        or lattes.get("formacaoResumo")
+        or sigaa.get("formacaoDescricao"),
         "areasEspecializacao": extrair_subareas(areas_lattes),
         "topicosInteresse": topicos_interesse,
         "producoes": registrar_itens(lattes.get("producoes"), producoes),
@@ -453,6 +477,8 @@ def executar_unificacao(
             raise ValueError(mensagem)
         logger.warning(mensagem)
 
+    disciplinas = disciplinas_referenciadas(perfis, catalogo_componentes)
+
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     publicar_execucao(
         run_id,
@@ -462,6 +488,7 @@ def executar_unificacao(
             CHAVE_PRODUCOES: list(producoes.values()),
             CHAVE_PROJETOS: list(projetos.values()),
             CHAVE_ORIENTACOES: list(orientacoes.values()),
+            CHAVE_DISCIPLINAS: disciplinas,
             CHAVE_TRABALHOS_IC: list(trabalhos_ic_usados.values()),
         },
     )
@@ -475,10 +502,11 @@ def executar_unificacao(
     )
     logger.info(
         "Catálogos: %d produção(ões), %d projeto(s), %d orientação(ões), "
-        "%d trabalho(s) de IC.",
+        "%d disciplina(s), %d trabalho(s) de IC.",
         len(producoes),
         len(projetos),
         len(orientacoes),
+        len(disciplinas),
         len(trabalhos_ic_usados),
     )
     if removidas:
