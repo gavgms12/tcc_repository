@@ -82,13 +82,28 @@ def test_publicacao_move_ponteiro_so_no_fim_e_limpa_runs_antigas(s3):
     perfil = {"siape": "10", "nome": "F"}
     for run in ("20261001T000000Z", "20261002T000000Z", "20261003T000000Z", "20261004T000000Z"):
         g.publicar_execucao(run, "perfil_professores", [perfil], {"producoes.json": []})
-    removidas = g.limpar_execucoes_antigas(manter=3)
+    removidas = g.limpar_execucoes_antigas(manter_dias=3)
     assert removidas == ["20261001T000000Z"]
 
     ponteiro = g.GOLD.ler_json(g.CHAVE_PONTEIRO)
     assert ponteiro["run"] == "20261004T000000Z"
     assert g.GOLD.existe("runs/20261004T000000Z/perfil_professores/10.json")
     assert not g.GOLD.existe("runs/20261001T000000Z/perfil_professores/10.json")
+
+
+def test_limpeza_mantem_so_a_ultima_execucao_de_cada_dia(s3, monkeypatch):
+    monkeypatch.setenv("TZ_COLETA", "America/Sao_Paulo")
+    perfil = {"siape": "10", "nome": "F"}
+    # 02:00Z ainda é 23:00 do dia anterior em São Paulo.
+    for run in ("20261001T150000Z", "20261001T180000Z", "20261002T020000Z", "20261002T150000Z"):
+        g.publicar_execucao(run, "perfil_professores", [perfil], {"producoes.json": []})
+
+    removidas = g.limpar_execucoes_antigas()
+
+    assert removidas == ["20261001T150000Z", "20261001T180000Z"]
+    assert g.GOLD.existe("runs/20261002T020000Z/perfil_professores/10.json")
+    assert g.GOLD.existe("runs/20261002T150000Z/producoes.json")
+    assert g.GOLD.ler_json(g.CHAVE_PONTEIRO)["run"] == "20261002T150000Z"
 
 
 def test_aviso_de_embedding_resolve_ids_pelos_catalogos():

@@ -31,7 +31,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from common.log import configurar_logging
 from common.texto import chave_frase, dividir_frases, normalizar_texto
-from storage.minio_storage import GOLD, ler_parquet_silver
+from storage.minio_storage import GOLD, data_no_fuso_coleta, ler_parquet_silver
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,8 @@ CAMPOS_DISCIPLINA = ("idSigaa", "codigo", "nome", "cargaHoraria", "ementa")
 # que aponta para a execução válida; consumidores nunca veem estado parcial.
 PREFIXO_RUNS = "runs"
 CHAVE_PONTEIRO = "current.json"
-RUNS_MANTIDAS = 3
+FORMATO_RUN_ID = "%Y%m%dT%H%M%SZ"
+DIAS_MANTIDOS = 3
 # Fração máxima de referências sem catálogo tolerada antes de falhar a Gold.
 MAX_TAXA_REFERENCIAS_ORFAS = 0.02
 
@@ -393,12 +394,22 @@ def publicar_execucao(
     )
 
 
-def limpar_execucoes_antigas(manter: int = RUNS_MANTIDAS) -> list[str]:
-    """Remove execuções além das `manter` mais recentes; devolve os run_ids."""
+def dia_da_execucao(run_id: str) -> str:
+    """Dia de uma execução no fuso da coleta (o run_id está em UTC)."""
+    momento = datetime.strptime(run_id, FORMATO_RUN_ID).replace(tzinfo=timezone.utc)
+    return data_no_fuso_coleta(momento)
+
+
+def limpar_execucoes_antigas(manter_dias: int = DIAS_MANTIDOS) -> list[str]:
+    """Mantém só a última execução de cada dia, nos `manter_dias` dias mais
+    recentes; remove as demais e devolve os run_ids removidos."""
     run_ids = sorted(
         {chave.split("/")[1] for chave in GOLD.listar(f"{PREFIXO_RUNS}/")}
     )
-    antigos = run_ids[:-manter] if manter > 0 else run_ids
+    ultima_do_dia = {dia_da_execucao(run_id): run_id for run_id in run_ids}
+    dias_mantidos = sorted(ultima_do_dia)[-manter_dias:] if manter_dias > 0 else []
+    mantidas = {ultima_do_dia[dia] for dia in dias_mantidos}
+    antigos = [run_id for run_id in run_ids if run_id not in mantidas]
     for run_id in antigos:
         GOLD.remover(GOLD.listar(f"{PREFIXO_RUNS}/{run_id}/"))
     return antigos
@@ -479,7 +490,7 @@ def executar_unificacao(
 
     disciplinas = disciplinas_referenciadas(perfis, catalogo_componentes)
 
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.now(timezone.utc).strftime(FORMATO_RUN_ID)
     publicar_execucao(
         run_id,
         prefixo_saida,

@@ -11,8 +11,8 @@ A Gold consome os Parquets já limpos da Silver e produz o perfil final por prof
 
 Cada execução grava tudo sob `runs/{AAAAMMDDTHHMMSSZ}/` no bucket `gold` e só
 depois atualiza `current.json`, que aponta para a execução válida. Uma falha no
-meio da publicação não altera o que os consumidores veem. As 3 execuções mais
-recentes são mantidas.
+meio da publicação não altera o que os consumidores veem. Fica só a última execução
+de cada dia, no fuso da coleta, nos 3 dias mais recentes.
 
 - `current.json` — ponteiro: `run`, `perfis`, `total_perfis` e a chave de cada catálogo.
 - `runs/{run}/perfil_professores/{siape}.json` — um JSON por professor, que **referencia por ID** os itens abaixo. A chave é o siape (existe para todos os docentes e não muda).
