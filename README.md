@@ -1,3 +1,5 @@
+#rodar windows senha docker -> docker logs tcc-airflow 2>&1 | Select-String "Password"
+
 # Pipeline de Dados — Docentes do IESTI/UNIFEI
 
 Projeto de TCC com arquitetura **medalhão** (Bronze → Silver → Gold) para coletar, integrar e estruturar dados dos professores do Instituto de Engenharia de Sistemas e Tecnologia da Informação (IESTI/UNIFEI).

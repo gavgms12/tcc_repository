@@ -1,22 +1,72 @@
-from storage.minio_storage import ler_parquet_silver,ler_parquet_gold
-from recuperacao.sistema_de_busca.indexacao.perfis import criar_perfis
-from recuperacao.sistema_de_busca.textos import producao_montar_texto_para_modelo
-from recuperacao.sistema_de_busca.database_vetores import conectar_Qdrant, criar_collection_qdrant,adicionar_trabalhos_qdrant
-from recuperacao.sistema_de_busca.modelo import carregar_modelo,criar_representacao_densa_esparso
+from storage.minio_storage import ler_json_gold
+from recuperacao.sistema_de_busca.indexacao.perfis import criar_perfis, _ano
+from recuperacao.sistema_de_busca.database_vetores import conectar_Qdrant, garantir_colecao, filtrar_alterados, upsert_perfis
+from recuperacao.sistema_de_busca.modelo import gerar_embeddings, carregar_modelo
+from recuperacao.sistema_de_busca.textos import (
+    disciplina_montar_texto_para_modelo,
+    ics_montar_texto_para_modelo,
+    professor_montar_texto_para_modelo,
+    projeto_montar_texto_para_modelo
+)
 from dotenv import load_dotenv
+from recuperacao.sistema_de_busca.indexacao.relacoes import construir_relacoes, professores_por_objeto
+from recuperacao.sistema_de_busca import config
 
 load_dotenv()
 
-ic_dados = ler_parquet_silver("trabalhos_ic_periodicos.parquet")
+from storage.minio_storage import ultima_run_gold, ler_jsons_gold, GOLD
 
-modelo = carregar_modelo()
+def indexar_colecao(client, modelo, nome: str, perfis: list[dict]) -> None:
+    garantir_colecao(client, nome)
+    novos = filtrar_alterados(client, nome, perfis)
+    print(f"{nome}: {len(perfis)} perfis, {len(novos)} novos/alterados")
 
-ics_perfil = criar_perfis(ic_dados, producao_montar_texto_para_modelo, "id", ["titulo", "ano"])
+    if not novos:
+        return
 
-ics_valores_denso_esparso = criar_representacao_densa_esparso(ics_perfil)
+    embeddings = gerar_embeddings(modelo, novos)
+    upsert_perfis(client, nome, novos, embeddings)
 
-client = conectar_Qdrant
+def main() -> None:
+    run = ultima_run_gold()
+    print("Run:", run)
 
-criar_collection_qdrant(client, "iniciacao_cientifica")
+    professores = ler_jsons_gold(f"{run}perfil_professores")
+    ics = ler_json_gold(f"{run}trabalhos_ic.json")
+    #disciplinas = ler_json_gold(f"{run}...")   # a definir
+    projetos = ler_json_gold(f"{run}projetos.json")
 
-adicionar_trabalhos_qdrant(client,ics_perfil,ics_valores_denso_esparso,collection="iniciacao_cientifica")
+    relacoes = construir_relacoes(professores)
+    mapa_ic = professores_por_objeto(relacoes, "ic")
+    mapa_projeto = professores_por_objeto(relacoes, "projeto")
+
+    #mapa_disciplina = professores_por_objeto(relacoes, "disciplina")
+    perfis_ics = criar_perfis(
+        ics, ics_montar_texto_para_modelo, "id",
+        lambda t: {"titulo": t.get("titulo"), "ano": _ano(t.get("ano"))},
+        mapa_ic,
+    )
+
+    perfis_projetos = criar_perfis(
+        projetos, projeto_montar_texto_para_modelo, "id",
+        lambda p: {"nome": p.get("nome"), "tipo": p.get("tipo"), "ano": _ano(p.get("ano_conclusao"))},
+        mapa_projeto,
+    )
+
+    perfis_professores = criar_perfis(
+        professores, professor_montar_texto_para_modelo, "siape",
+        lambda p: {"nome": p["nome"]},
+    )
+    #perfis_disciplinas = criar_perfis_disciplinas(disciplinas, mapa_disciplina)
+
+    client = conectar_Qdrant()
+    modelo = carregar_modelo()
+
+    indexar_colecao(client, modelo, config.COLLECTION_PROFESSORES, perfis_professores)
+    indexar_colecao(client, modelo, config.COLLECTION_ICS, perfis_ics)
+    indexar_colecao(client, modelo, config.COLLECTION_PROJETOS, perfis_projetos)
+    # indexar_colecao(client, modelo, config.COLLECTION_DISCIPLINAS, perfis_disciplinas)
+
+
+if __name__ == "__main__":
+    main()

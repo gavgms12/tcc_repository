@@ -64,55 +64,18 @@ def main() -> None:
         help="Limita currículos Lattes para teste (0 = todos).",
     )
     parser.add_argument(
-        "--skip-limpeza-sigaa",
+        "--skip-limpeza",
         action="store_true",
-        help="Pula a limpeza dos perfis SIGAA.",
-    )
-    parser.add_argument(
-        "--skip-limpeza-lattes",
-        action="store_true",
-        help="Pula a limpeza dos currículos Lattes.",
-    )
-    parser.add_argument(
-        "--skip-limpeza-ic",
-        action="store_true",
-        help="Pula a limpeza do catálogo de trabalhos de IC/periódicos.",
+        help="Pula a limpeza dos perfis SIGAA e Lattes.",
     )
     args = parser.parse_args()
-
-    python = sys.executable
-
-    if not args.skip_merge:
-        executar_etapa(
-            "Unificar professores e gravar Parquet",
-            [python, "01_merge/merge_professores.py"],
-        )
-
-    if not args.skip_lattes:
-        comando_lattes = [python, "02_integracao/executar_scriptlattes.py"]
-        if args.limite_lattes > 0:
-            comando_lattes.extend(["--limite", str(args.limite_lattes)])
-        executar_etapa("Extrair currículos Lattes", comando_lattes)
-
-    if not args.skip_limpeza_sigaa:
-        executar_etapa(
-            "Limpar perfis SIGAA",
-            [python, "03_limpeza/limpar_perfil_sigaa.py"],
-        )
-
-    if not args.skip_limpeza_lattes:
-        executar_etapa(
-            "Limpar currículos Lattes",
-            [python, "03_limpeza/limpar_perfil_lattes.py"],
-        )
-
-    if not args.skip_limpeza_ic:
-        executar_etapa(
-            "Limpar catálogo de trabalhos de IC/periódicos",
-            [python, "03_limpeza/limpar_trabalhos_ic.py"],
-        )
-
-    print("\nPipeline Silver concluído.")
+    configurar_logging()
+    executar(
+        skip_merge=args.skip_merge,
+        skip_lattes=args.skip_lattes,
+        limite_lattes=args.limite_lattes,
+        skip_limpeza=args.skip_limpeza,
+    )
 
 
 if __name__ == "__main__":

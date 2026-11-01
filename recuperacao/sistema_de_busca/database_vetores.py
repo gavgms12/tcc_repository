@@ -3,7 +3,9 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, SparseVector, models, Distance, VectorParams, SparseVectorParams
 from dotenv import load_dotenv
 from recuperacao.sistema_de_busca.config import VECTOR_SIZE
+from recuperacao.sistema_de_busca import config
 import os
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 load_dotenv()
 
@@ -35,125 +37,97 @@ def criacao_payload_filter(client, collection, field, tipo = models.PayloadSchem
         field_schema=tipo,
     )
     
-def adicionar_disciplinas_qdrant(
-    client_qdrant,
-    conteudo,
-    resultados,
-    collection="",
-    batch_size=50
-):
-    points = []
+def garantir_colecao(client: QdrantClient, nome: str) -> None:
+    if client.collection_exists(nome):
+        return
+    client.create_collection(
+        collection_name=nome,
+        vectors_config={"dense": VectorParams(size=config.VECTOR_SIZE, distance=Distance.COSINE)},
+        sparse_vectors_config={"sparse": SparseVectorParams()},
+    )
+    
+def upsert_perfis(client: QdrantClient, nome: str, perfis: list[dict],
+                  embeddings: dict[str, dict], lote: int = 50) -> None:
+    pontos = []
+    for p in perfis:
+        emb = embeddings[p["id"]]
+        pontos.append(PointStruct(
+            id=qdrant_id(p["id"]),
+            vector={
+                "dense": emb["dense"].tolist(),
+                "sparse": SparseVector(
+                    indices=[int(k) for k in emb["sparse"]],
+                    values=[float(v) for v in emb["sparse"].values()],
+                ),
+            },
+            payload={"id": p["id"], "hash": p["hash"], "texto": p["texto"], **p["metadata"]},
+        ))
 
-    for objeto in conteudo:
-
-        objeto_id = objeto.get("id")
-        resultado = resultados[objeto_id]
-
-        sparse = resultado["sparse"]
-
-        sparse_indices = [int(k) for k in sparse.keys()]
-        sparse_values = [float(v) for v in sparse.values()]
-
-        dense = resultado["dense"]
-
-        points.append(
-            PointStruct(
-                id=qdrant_id(objeto_id),
-                vector={
-                    "dense": dense.tolist(),
-                    "sparse": SparseVector(
-                        indices=sparse_indices,
-                        values=sparse_values
-                    ),
-                },
-                payload={
-                    "id": objeto_id,
-                    "nome": objeto.get("metadata", {}).get("nome"),
-                    "texto": objeto.get("texto_embedding"),                    
-                    "hash": objeto.get("hash")
-                }
-            )
-        )
-    #Enviando aos poucos já que tem muitas disciplinas
-    for i in range(0, len(points), batch_size):
-        batch = points[i:i + batch_size]
-
-        client_qdrant.upsert(
-            collection_name=collection,
-            points=batch,
-            wait=True
-        )
-        
-def adicionar_professores_qdrant(client_qdrant, professores, resultados, collection = ""):
-    points = []
-    for objeto in professores:
-        
-        objeto_id  = objeto.get('id')
-        
-        resultado = resultados[objeto_id]
-
-        sparse = resultado["sparse"]
-
-        sparse_indices = [int(k) for k in sparse.keys()]
-        sparse_values = [float(v) for v in sparse.values()]
-            
-        dense = resultado["dense"]
-            
-        points.append(
-            PointStruct(
-                id=qdrant_id(objeto.get("id")),
-                vector={
-                    "dense": dense.tolist(),
-                    "sparse": SparseVector(indices=sparse_indices, values=sparse_values),
-                },
-                # metadados
-                payload={
-                    "id": objeto.get("id"),
-                    "nome":  objeto.get("metadata", {}).get("nome"),
-                    "texto": objeto.get("texto_embedding"),
-                    "hash" :  objeto.get("hash")
-                }
-            )
-        )
-            
-    client_qdrant.upsert(collection_name=collection, points=points)
-
-def adicionar_trabalhos_qdrant(client_qdrant, conteudo, resultados, collection = ""):
-    points = []
-    for objeto in conteudo:
-        
-        objeto_id  = objeto.get('id')
-        
-        resultado = resultados[objeto_id]
-
-        sparse = resultado["sparse"]
-
-        sparse_indices = [int(k) for k in sparse.keys()]
-        sparse_values = [float(v) for v in sparse.values()]
-            
-        dense = resultado["dense"]
-            
-        points.append(
-            PointStruct(
-                id=qdrant_id(objeto.get("id")),
-                vector={
-                    "dense": dense.tolist(),
-                    "sparse": SparseVector(indices=sparse_indices, values=sparse_values),
-                },
-                # metadados
-                payload={
-                    "id": objeto.get("id"),
-                    "titulo":  objeto.get("metadata", {}).get("titulo"),
-                    "ano": objeto.get("metadata", {}).get("ano"),
-                    "texto": objeto.get("texto_embedding"),
-                    "hash":objeto.get("hash")
-                    
-                }
-            )
-        )
-            
-    client_qdrant.upsert(collection_name=collection, points=points)
+    for i in range(0, len(pontos), lote):
+        try:
+            client.upsert(collection_name=nome, points=pontos[i:i + lote], wait=True)
+        except UnexpectedResponse as e:
+            print("Status:", e.status_code)
+            print("Motivo:", e.content.decode("utf-8", errors="replace"))
+            raise
     
 def deletar_collection(client, classe=''):
     client.delete_collection(classe)
-    
+
+def filtrar_alterados(client: QdrantClient, nome: str, perfis: list[dict], lote: int = 200) -> list[dict]:
+    """Devolve só os perfis novos ou cujo hash mudou."""
+    alterados = []
+    for i in range(0, len(perfis), lote):
+        parte = perfis[i:i + lote]
+        existentes = client.retrieve(
+            collection_name=nome,
+            ids=[qdrant_id(p["id"]) for p in parte],
+            with_payload=["hash"],
+            with_vectors=False,
+        )
+        hash_salvo = {str(r.id): (r.payload or {}).get("hash") for r in existentes}
+
+        alterados.extend(
+            p for p in parte
+            if hash_salvo.get(qdrant_id(p["id"])) != p["hash"]
+        )
+    return alterados
+
+from qdrant_client.models import Fusion, FusionQuery, Prefetch
+
+
+def busca_hibrida(client, nome: str, emb: dict, limit: int,
+                  campos=("id", "nome", "titulo", "professor_ids", "tipo")):
+    """Busca densa + esparsa com fusão RRF. Não traz o texto (só os campos pedidos)."""
+    if not client.collection_exists(nome):
+        return []
+
+    sparse = SparseVector(
+        indices=[int(k) for k in emb["sparse"]],
+        values=[float(v) for v in emb["sparse"].values()],
+    )
+    resultado = client.query_points(
+        collection_name=nome,
+        prefetch=[
+            Prefetch(query=emb["dense"].tolist(), using="dense", limit=limit),
+            Prefetch(query=sparse, using="sparse", limit=limit),
+        ],
+        query=FusionQuery(fusion=Fusion.RRF),
+        limit=limit,
+        with_payload=list(campos),
+    )
+    return resultado.points
+
+
+def buscar_payloads(client, nome: str, ids) -> dict[str, dict]:
+    """Payload completo (com `texto`) de ids específicos. Uma chamada em lote."""
+    ids = list(dict.fromkeys(str(i) for i in ids))
+    if not ids or not client.collection_exists(nome):
+        return {}
+    registros = client.retrieve(
+        collection_name=nome,
+        ids=[qdrant_id(i) for i in ids],
+        with_payload=True,
+        with_vectors=False,
+    )
+    return {str(r.payload["id"]): r.payload for r in registros}

@@ -33,34 +33,10 @@ DEFAULT_URL = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
 DEFAULT_OUTPUT = "raw/periodicos/trabalhos_ic_periodicos.json"
 
 
-def normalizar_texto(texto: str) -> str:
-    return re.sub(r"\s+", " ", texto).strip()
+def get_urls_edicoes_ics(session, *, verify_ssl: bool = False) -> list[dict]:
+    html = buscar_html(session, DEFAULT_URL, verify=verify_ssl)
+    soup = BeautifulSoup(html, "html.parser")
 
-
-def normalizar_nome(nome: str) -> str:
-    nome = normalizar_texto(nome)
-    nome = unicodedata.normalize("NFKD", nome)
-    nome = "".join(char for char in nome if not unicodedata.combining(char))
-    return nome.upper()
-
-def buscar_html(url: str, timeout: int = 30, *, verify_ssl: bool = False) -> str:
-    response = requests.get(
-        url,
-        timeout=timeout,
-        verify=verify_ssl,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; TCC-Bronze-Colletor/1.0; "
-                "+https://iesti.unifei.edu.br)"
-            )
-        },
-    )
-    response.raise_for_status()
-    response.encoding = response.apparent_encoding or "utf-8"
-    return response.text
-
-
-def get_urls_edicoes_ics(*, verify_ssl: bool = False) -> list[dict]:
     urls: list[dict] = []
     for edicao in soup.find_all("h2"):
         nome_tag = edicao.find("a")

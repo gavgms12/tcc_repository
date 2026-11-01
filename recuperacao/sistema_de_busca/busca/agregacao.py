@@ -1,151 +1,63 @@
 import pandas as pd
-from recuperacao.sistema_de_busca.config import PESO_DISCIPLINAS,PESO_IC,PESO_PERFIL
+from recuperacao.sistema_de_busca import config
 
-# ligar conteúdo com o professor pelo id
-def relacionar_dados(professores, relacionado = ""):
-    relacoes = []
+def hits_para_df(pontos) -> pd.DataFrame:
+    linhas = [
+        {
+            "professor_id": str(pid),
+            "objeto_id": str(p.payload["id"]),
+            "score": p.score * config.peso_do_item(p.payload),
+        }
+        for p in pontos
+        for pid in p.payload.get("professor_ids", [])
+    ]
+    df = pd.DataFrame(linhas, columns=["professor_id", "objeto_id", "score"])
+    df["score"] = df["score"].astype("float64")
+    return df
 
-    for professor in professores:
-        siape = professor.get("siape")
-        nome = professor.get("nome")
 
-        trabalhos = professor.get(relacionado, [])
-
-        for trabalho in trabalhos:
-            relacoes.append({
-                "professor_id": siape,
-                "nome": nome,
-                "objeto_id": trabalho
-            })
-            
-    return pd.DataFrame(relacoes)
-# utilizando dataframe para realizarmos o merge
-def criar_dataframe_scores_dos_objetos(resultados_trabalhos):
-    resultados = []
-
-    for point in resultados_trabalhos:
-        resultados.append({
-            "objeto_id": str(point.payload["id"]),
-            "score": point.score
+def score_top_n(rel: pd.DataFrame, coluna: str, n: int = 3) -> pd.DataFrame:
+    """Média dos n melhores itens de cada professor."""
+    if rel.empty:
+        return pd.DataFrame({
+            "professor_id": pd.Series(dtype="object"),
+            coluna: pd.Series(dtype="float64"),
         })
-
-    return pd.DataFrame(resultados)
-
-def criar_dataframe_resultados_perfil_professores(resultados):
-    dados = []
-
-    for ponto in resultados:
-        if not ponto.payload:
-            continue
-
-        dados.append({
-            "professor_id": ponto.payload["id"],
-            "professor_nome": ponto.payload["nome"],
-            "professor_score": ponto.score
-        })
-
-    return pd.DataFrame(dados)
-
-def associar_scores_a_professores(resultados_trabalhos,relacao):
-    objetos_df = criar_dataframe_scores_dos_objetos(
-        resultados_trabalhos
+    return (
+        rel.sort_values("score", ascending=False)
+           .groupby("professor_id").head(n)
+           .groupby("professor_id")["score"].mean()
+           .reset_index()
+           .rename(columns={"score": coluna})
     )
 
-    resultado = relacao.merge(
-        objetos_df,
-        on="objeto_id",
-        how="inner"
+
+def scores_perfis(pontos) -> pd.DataFrame:
+    df = pd.DataFrame(
+        [{"professor_id": str(p.payload["id"]), "professor_score": p.score} for p in pontos],
+        columns=["professor_id", "professor_score"],
     )
-
-    return resultado.sort_values(
-        by="score",
-        ascending=False
-    ).reset_index(drop=True)
-
-# calculo dos scores das classes em geral
-def calcular_score_iniciacao_cientifica(resultado):
-    scores = (
-        resultado
-        .sort_values(
-            by=["professor_id", "score"],
-            ascending=[True, False]
-        )
-        .groupby("professor_id")
-        .head(3)
-        .groupby("professor_id")["score"]
-        .mean()
-        .reset_index()
-        .rename(columns={
-            "score": "ic_score"
-        })
-    )
-
-    return scores
+    df["professor_score"] = df["professor_score"].astype("float64")
+    return df
 
 
-def calcular_score_disciplinas(resultado):
-    scores = (
-        resultado
-        .sort_values(
-            by=["professor_id", "score"],
-            ascending=[True, False]
-        )
-        .groupby("professor_id")
-        .head(3)
-        .groupby("professor_id")["score"]
-        .mean()
-        .reset_index()
-        .rename(columns={
-            "score": "disciplina_score"
-        })
-    )
+def combinar_scores(scores_perfil: pd.DataFrame, scores_itens: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """scores_itens: {tipo: DataFrame[professor_id, '<tipo>_score']}"""
+    df = scores_perfil
+    for s in scores_itens.values():
+        df = df.merge(s, on="professor_id", how="outer")
 
-    return scores
+    pesos = {"professor_score": config.PESO_PROFESSOR}
+    pesos.update({f"{tipo}_score": cfg["peso"] for tipo, cfg in config.FONTES_ITENS.items()})
 
-def combinar_scores(
-    scores_trabalhos,
-    scores_professores,
-    scores_disciplinas,
-    peso_iniciacao_cientifica=PESO_IC,
-    peso_professor=PESO_PERFIL,
-    peso_disciplinas=PESO_DISCIPLINAS
-):
-    resultado = (
-        scores_trabalhos
-        .merge(
-            scores_professores,
-            on="professor_id",
-            how="outer"
-        )
-        .merge(
-            scores_disciplinas,
-            on="professor_id",
-            how="outer"
-        )
-    )
+    for coluna in pesos:
+        if coluna not in df:
+            df[coluna] = float("nan")
+        df[coluna] = pd.to_numeric(df[coluna], errors="coerce")
 
-    resultado["ic_score"] = (
-        resultado["ic_score"].fillna(0)
-    )
+    # média ponderada só com os componentes que existem para cada professor
+    numerador = sum(df[c].fillna(0.0) * w for c, w in pesos.items())
+    denominador = sum(df[c].notna() * w for c, w in pesos.items())
+    df["score_final"] = (numerador / denominador).fillna(0.0)
 
-    resultado["professor_score"] = (
-        resultado["professor_score"].fillna(0)
-    )
-
-    resultado["disciplina_score"] = (
-        resultado["disciplina_score"].fillna(0)
-    )
-
-    resultado["score_final"] = (
-        peso_iniciacao_cientifica * resultado["ic_score"]
-        +
-        peso_professor * resultado["professor_score"]
-        +
-        peso_disciplinas * resultado["disciplina_score"]
-    )
-
-    return resultado.sort_values(
-        "score_final",
-        ascending=False
-    )
-    
+    return df.sort_values("score_final", ascending=False).reset_index(drop=True)

@@ -1,27 +1,29 @@
 from FlagEmbedding import BGEM3FlagModel
 from recuperacao.sistema_de_busca.config import EMBEDDING_MODEL
-from recuperacao.sistema_de_busca.textos import producao_montar_texto_para_modelo
+
 def carregar_modelo():
     return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True)
 
-def rodar_modelo(modelo, texto):
-    embedding = {}
-    resultado = modelo.encode(
-        texto,
-        return_dense=True, 
-        return_sparse=True
+def gerar_embeddings(modelo, perfis: list[dict], batch_size: int = 16) -> dict[str, dict]:
+    """{id do perfil: {"dense": ndarray(1024), "sparse": {token_id: peso}}}"""
+    if not perfis:
+        return {}
+
+    saida = modelo.encode(
+        [p["texto"] for p in perfis],
+        batch_size=batch_size,
+        return_dense=True,
+        return_sparse=True,
     )
 
-    embedding = {
-        "dense": resultado["dense_vecs"],
-        "sparse": resultado["lexical_weights"]
+    return {
+        p["id"]: {
+            "dense": saida["dense_vecs"][i],
+            "sparse": saida["lexical_weights"][i],
+        }
+        for i, p in enumerate(perfis)
     }
-
-    return embedding
-
-def criar_representacao_densa_esparso(classe, modelo = carregar_modelo()) -> dict[str,str]:
-    objetos_valores_denso_esparso = {}
-    for objeto in classe:
-         texto_transformado = rodar_modelo(modelo,objeto.get("texto_embedding"))
-         objetos_valores_denso_esparso[objeto["id"]] = texto_transformado
-    return objetos_valores_denso_esparso
+    
+def embedar_consulta(modelo, texto: str) -> dict:
+    saida = modelo.encode([texto], return_dense=True, return_sparse=True)
+    return {"dense": saida["dense_vecs"][0], "sparse": saida["lexical_weights"][0]}

@@ -1,6 +1,11 @@
 from __future__ import annotations
 import json
 import hashlib
+import re
+
+def _limpar(texto) -> str:
+    texto = re.sub(r"\s+", " ", str(texto or "")).strip()
+    return re.sub(r"\.{2,}$", ".", texto)
 
 def gerar_hash(componentes):   
     json_normalizado = json.dumps(
@@ -15,16 +20,17 @@ def transformar_bytes(texto : str) -> bytes:
     t = texto
     return t.encode("utf-8")
 
-#rever para novo jeito que tá o dado
-
-def producao_montar_texto_para_modelo(producao):
+def ics_montar_texto_para_modelo(producao):
     partes = []
 
-    if producao.get("titulo"):
-        partes.append(f"Título: {producao['titulo']}")
-
-    if producao.get("resumo"):
-        partes.append(f"Resumo: {producao['resumo']}")
+    titulo = _limpar(producao.get("titulo"))
+    if titulo:
+        partes.append(f"Título: {titulo}")
+        
+    resumo = _limpar(producao.get("titulo"))
+    
+    if resumo:
+        partes.append(f"Resumo: {resumo}")
 
     if producao.get("palavrasChaves"):
         partes.append(
@@ -33,88 +39,72 @@ def producao_montar_texto_para_modelo(producao):
 
     return "\n".join(partes)
 
-def montar_texto_competencias(competencias):
-    partes = []
-
-    areas = competencias.get("areas")
-
-    if areas is not None and len(areas) > 0:
-        textos_areas = []
-
-        for area in areas:
-            campos = []
-
-            if area.get("grande_area"):
-                campos.append(f"Grande área: {area['grande_area']}")
-
-            if area.get("area"):
-                campos.append(f"Área: {area['area']}")
-
-            if area.get("subarea"):
-                campos.append(f"Subárea: {area['subarea']}")
-
-            if area.get("especialidade"):
-                campos.append(f"Especialidade: {area['especialidade']}")
-
-            if campos:
-                textos_areas.append(". ".join(campos))
-
-        if textos_areas:
-            partes.append(
-                "Áreas de conhecimento:\n" +
-                "\n".join(textos_areas)
-            )
-
-    linhas = competencias.get("linhas_pesquisa")
-
-    if linhas is not None and len(linhas) > 0:
-        partes.append(
-            "Linhas de pesquisa: " + ", ".join(linhas)
-        )
-
-    palavras_chave = competencias.get("palavras_chave")
-
-    if palavras_chave is not None and len(palavras_chave) > 0:
-        partes.append(
-            "Palavras-chave: " + ", ".join(palavras_chave)
-        )
-
-    return "\n\n".join(partes)
+#adicionar competencias e outros conteúdos
 
 def professor_montar_texto_para_modelo(perfil):
 
     partes = []
     
-    if perfil.get("resumo"):
-        partes.append(f"Resumo: {perfil['resumo']}")
+    resumo = _limpar(perfil.get("resumo"))
+    if resumo:
+        partes.append(f"Resumo: {resumo}")
     
-    if perfil.get("formacaoAcademicaProfissional"):
+    formacao_academica = _limpar(perfil.get("formacaoAcademicaProfissional"))
+    if formacao_academica:
         partes.append(
             f"Formação Profissional Acadêmica: "
-            f"{perfil['formacaoAcademicaProfissional']}"
+            f"{formacao_academica}"
         )
 
-    if perfil.get("areasInteresse").any():
+    areas_especializacao=_limpar(perfil.get("areasEspecializacao"))
+    if areas_especializacao:
         partes.append(
-            f"Áreas de Interesse: "
-            f"{', '.join(perfil['areasInteresse'])}"
+            f"Áreas de Especialização: "
+            f"{', '.join(areas_especializacao)}"
         )    
-    if perfil.get("competencias"):
-        competencias_texto = montar_texto_competencias(
-            perfil["competencias"]
-        )
-        if competencias_texto:
-            partes.append(competencias_texto)
+    topicos_interesse= _limpar(perfil.get("topicosInteresse"))
+    if topicos_interesse:
+        partes.append(
+            f"Tópicos de Interesse: "
+            f"{', '.join(topicos_interesse)}"
+        )  
     
     return "\n".join(partes)
 
 def disciplina_montar_texto_para_modelo(disciplina):
     partes = []
 
-    if disciplina.get("nome"):
-        partes.append(f"Nome: {disciplina['nome']}")
+    materia = _limpar(disciplina.get("nome"))
+    if materia:
+        partes.append(f"Nome: {materia}")
 
-    if disciplina.get("ementa"):
-        partes.append(f"Ementa: {disciplina['ementa']}")
+    ementa = _limpar(disciplina.get("ementa"))
+    if ementa:
+        partes.append(f"Ementa: {ementa}")
+
+    return "\n".join(partes)
+
+
+ROTULO_TIPO = {
+    "pesquisa": "Projeto de pesquisa",
+    "extensao": "Projeto de extensão",
+    "desenvolvimento": "Projeto de desenvolvimento",
+}
+
+
+def projeto_montar_texto_para_modelo(projeto: dict) -> str:
+    partes = []
+
+    nome = _limpar(projeto.get("nome"))
+    if nome:
+        partes.append(f"Título: {nome}")
+
+    tipo = projeto.get("tipo")
+    if tipo:
+        partes.append(f"Tipo: {ROTULO_TIPO.get(tipo, f'Projeto de {tipo}')}")
+
+    descricao = _limpar(projeto.get("descricao"))
+    if descricao:
+        partes.append(f"Descrição: {descricao}")
 
     return "\n".join(partes)

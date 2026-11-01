@@ -27,7 +27,7 @@ from storage.minio_storage import (
 logger = logging.getLogger(__name__)
 
 SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
-SCRIPTLATTES_PYTHON = SCRIPTLATTES_DIR / "venv" / "Scripts" / "python.exe"
+SCRIPTLATTES_PYTHON = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
 SCRIPTLATTES_EXECUTAVEL = SCRIPTLATTES_DIR / "scriptLattes.py"
 DEFAULT_ENTRADA_SILVER = "identidade_professores.parquet"
 DEFAULT_PREFIXO_SAIDA = "raw/lattes/json"

@@ -44,6 +44,7 @@ SILVER_BUCKET = os.getenv("MINIO_SILVER_BUCKET", "silver")
 GOLD_BUCKET = os.getenv("MINIO_GOLD_BUCKET", "gold")
 
 PREFIXO_RAW = "raw/"
+PREFIXO_RUNS = "runs/"
 _CHAVE_DATADA = re.compile(r"^raw/(\d{8})/(?:(.+)/)?([^/]+)_(\d{8})(\.[A-Za-z0-9]+)$")
 _ERROS_PERMISSAO = {"403", "AccessDenied"}
 
@@ -340,26 +341,6 @@ def salvar_parquet_silver(chave: str, registros: list[dict[str, Any]]) -> None:
 def ler_parquet_silver(chave: str) -> list[dict[str, Any]]:
     return SILVER.ler_parquet(chave)
 
-def ler_parquet_gold(chave: str) -> list[dict[str, Any]]:
-    """Lê um Parquet da camada Gold e devolve seus registros."""
-    try:
-        resposta = _cliente().get_object(Bucket=GOLD_BUCKET, Key=chave)
-    except ClientError as erro:
-        if str(erro.response.get("Error", {}).get("Code", "")) in {
-            "403",
-            "AccessDenied",
-        }:
-            raise PermissionError(
-                f"O MinIO recusou a leitura de '{GOLD_BUCKET}/{chave}'. "
-                "Conceda a permissão s3:GetObject ao usuário configurado."
-            ) from erro
-        raise
-
-    dataframe = pd.read_parquet(BytesIO(resposta["Body"].read()), engine="pyarrow")
-    registros = dataframe.to_dict(orient="records")
-    return [_normalizar_valores(registro) for registro in registros]
-
-
 def _normalizar_valores(valor: Any) -> Any:
     """Converte para tipos nativos do Python o que o pandas/pyarrow devolve.
 
@@ -377,3 +358,60 @@ def _normalizar_valores(valor: Any) -> Any:
     if isinstance(valor, float) and pd.isna(valor):
         return None
     return valor
+
+_RUN_GOLD = re.compile(r"\d{8}T\d{6}Z")
+
+
+def ultima_run_gold() -> str:
+    """Prefixo da run mais recente da Gold, ex.: 'runs/20261020T002154Z/'.
+
+    `GOLD_RUN` fixa uma run específica (reprocessar, testes).
+    """
+    fixa = os.getenv("GOLD_RUN")
+    if fixa:
+        return f"{PREFIXO_RUNS}{fixa}/"
+
+    runs = [
+        p for p in GOLD.listar_pastas(PREFIXO_RUNS)
+        if _RUN_GOLD.fullmatch(p.rstrip("/").rsplit("/", 1)[-1])
+    ]
+    if not runs:
+        raise FileNotFoundError(f"A Gold não tem nenhuma run em '{PREFIXO_RUNS}'.")
+    return max(runs)   # timestamp ISO: o maior é o mais novo
+
+
+def ler_jsons_gold(prefixo: str) -> list[dict[str, Any]]:
+    """Lê todos os .json sob `prefixo` na Gold e devolve a lista de dicts."""
+    if not prefixo.endswith("/"):
+        prefixo += "/"
+
+    registros: list[dict[str, Any]] = []
+    for chave in sorted(listar_chaves_gold(prefixo)):
+        if not chave.lower().endswith(".json"):
+            continue
+        try:
+            dado = GOLD.ler_json(chave)
+        except Exception as erro:
+            logger.warning("Ignorando %s: %s", chave, erro)
+            continue
+        if isinstance(dado, dict):
+            registros.append(dado)
+        else:
+            logger.warning("Ignorando %s: não é um objeto JSON", chave)
+    return registros
+
+def ler_jsons_soltos_gold(prefixo: str) -> dict[str, Any]:
+    """Lê os .json diretamente em `prefixo` (sem subpastas).
+
+    Devolve {nome do arquivo sem extensão: conteúdo}.
+    """
+    if not prefixo.endswith("/"):
+        prefixo += "/"
+
+    arquivos: dict[str, Any] = {}
+    for chave in sorted(GOLD.listar_arquivos(prefixo)):
+        if not chave.lower().endswith(".json"):
+            continue
+        nome = chave.rsplit("/", 1)[-1].removesuffix(".json")
+        arquivos[nome] = GOLD.ler_json(chave)
+    return arquivos
