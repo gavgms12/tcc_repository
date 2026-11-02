@@ -12,18 +12,11 @@ responsabilidade exclusiva da Gold.
 
 ## Fluxo esperado
 
-1. Lê da Bronze somente a pasta de data mais recente (`raw/AAAAMMDD/`); se uma fonte não estiver nela, a execução falha. `BRONZE_DATA` fixa outra data
-2. Faz o merge SIGAA + IESTI
-3. Executa o scriptLattes para os ids Lattes do roster (com cache local) e grava os JSONs na Bronze, na mesma pasta de data lida
-4. Limpa os perfis SIGAA e Lattes em Parquets separados e gera os catálogos
+1. Ler os arquivos crus da Bronze
+2. Fazer merge de identidade SIGAA + IESTI
+3. Gerar a lista de ids Lattes e baixar os currículos via scriptLattes
+4. Limpar o perfil SIGAA (remover contato/extensão, podar disciplinas/projetos/produção docente)
+5. Limpar o perfil Lattes (resumo, competências, produções/projetos/orientações)
+6. Limpar o catálogo de trabalhos de IC/periódicos (sem vincular a professor)
 
-A unificação dos dois perfis fica na Gold.
-
-## Limpeza dos resumos
-
-`integracao/resumo.py` reduz o resumo do Lattes e a descrição pessoal do SIGAA ao que descreve a atuação do docente, sem corte por tamanho. Saem traduções marcadas, frases repetidas e frases só de titulação ou de cargo. Uma frase que cite área, ênfase, temas ou pesquisa é mantida inteira.
-
-| Parquet | Campo | Conteúdo |
-|---------|-------|----------|
-| `perfis_lattes_limpos` | `resumo`, `resumoCompleto`, `formacaoResumo` | texto limpo, original e frases de titulação retiradas |
-| `perfis_sigaa_limpos` | `descricaoPessoal`, `descricaoPessoalCompleta`, `formacaoDescricao` | texto limpo, original e frases de titulação retiradas |
+> A unificação dos perfis SIGAA + Lattes por professor acontece só na Gold.

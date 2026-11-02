@@ -5,8 +5,7 @@ Lê `perfis_sigaa_limpos.parquet` e `perfis_lattes_limpos.parquet` da Silver e
 os funde num único documento por professor. O perfil referencia por ID as
 produções, projetos, disciplinas e trabalhos de IC, cujo conteúdo completo
 fica em arquivos separados no bucket Gold (`producoes.json`, `projetos.json`,
-`orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json`). As iniciações
-científicas do Lattes vão para `trabalhos_ic.json`, não para `orientacoes.json`.
+`orientacoes.json`, `trabalhos_ic.json`; as disciplinas continuam nos catálogos da Silver).
 Deduplica tópicos/áreas de interesse que aparecem nas duas fontes e evita
 repetir o mesmo resumo duas vezes. Cada perfil final é salvo como um JSON
 próprio no bucket Gold, sob o prefixo `perfil_professores/`.
@@ -20,12 +19,8 @@ descartados silenciosamente).
 from __future__ import annotations
 
 import argparse
-import difflib
-import hashlib
 import logging
-import re
 import sys
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
@@ -35,8 +30,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from common.log import configurar_logging
-from common.texto import chave_frase, dividir_frases, normalizar_texto
-from storage.minio_storage import GOLD, data_no_fuso_coleta, ler_parquet_silver
+from common.texto import normalizar_texto
+from storage.minio_storage import GOLD, ler_parquet_silver
 
 logger = logging.getLogger(__name__)
 
@@ -49,24 +44,16 @@ DEFAULT_PREFIXO_SAIDA = "perfil_professores"
 CHAVE_PRODUCOES = "producoes.json"
 CHAVE_PROJETOS = "projetos.json"
 CHAVE_ORIENTACOES = "orientacoes.json"
-CHAVE_DISCIPLINAS = "disciplinas.json"
 CHAVE_TRABALHOS_IC = "trabalhos_ic.json"
 CAMPOS_PROJETO = ("id", "nome", "tipo", "descricao", "ano_conclusao")
-CAMPOS_DISCIPLINA = ("idSigaa", "codigo", "nome", "cargaHoraria", "ementa")
 
 # Cada execução grava tudo sob runs/<run_id>/ e só então atualiza current.json,
 # que aponta para a execução válida; consumidores nunca veem estado parcial.
 PREFIXO_RUNS = "runs"
 CHAVE_PONTEIRO = "current.json"
-FORMATO_RUN_ID = "%Y%m%dT%H%M%SZ"
-DIAS_MANTIDOS = 3
+RUNS_MANTIDAS = 3
 # Fração máxima de referências sem catálogo tolerada antes de falhar a Gold.
 MAX_TAXA_REFERENCIAS_ORFAS = 0.02
-TIPO_INICIACAO_CIENTIFICA = "iniciacao_cientifica"
-# Acima deste valor os títulos são o mesmo trabalho com pequenas variações
-# ("arquitetura"/"microarquitetura"); abaixo de 0,82 já aparecem trabalhos
-# diferentes com início parecido.
-LIMIAR_TITULO_IC = 0.93
 
 
 class PerfilGold(TypedDict):
@@ -141,67 +128,6 @@ def registrar_itens(
     return ids_unicos(ids)
 
 
-def chave_titulo(titulo: str | None) -> str:
-    """Forma de comparação de um título: sem caixa, acentos e pontuação."""
-    texto = unicodedata.normalize("NFKD", normalizar_texto(titulo).lower())
-    texto = "".join(c for c in texto if not unicodedata.combining(c))
-    return " ".join(re.sub(r"[\W_]+", " ", texto).split())
-
-
-def indexar_trabalhos_por_titulo(catalogo_trabalhos: dict[str, dict]) -> dict[str, dict]:
-    """chave do título -> trabalho, preferindo o registro que tem resumo."""
-    indice: dict[str, dict] = {}
-    for trabalho in catalogo_trabalhos.values():
-        chave = chave_titulo(trabalho.get("titulo"))
-        if chave and (chave not in indice or (trabalho.get("resumo") and not indice[chave].get("resumo"))):
-            indice[chave] = trabalho
-    return indice
-
-
-def trabalho_da_iniciacao(orientacao: dict, indice_trabalhos: dict[str, dict]) -> dict:
-    """Trabalho coletado de mesmo título, ou um registro só com título e ano."""
-    chave = chave_titulo(orientacao.get("titulo"))
-    if chave in indice_trabalhos:
-        return indice_trabalhos[chave]
-    parecidos = difflib.get_close_matches(chave, indice_trabalhos, 1, LIMIAR_TITULO_IC)
-    if parecidos:
-        return indice_trabalhos[parecidos[0]]
-    # O ID vem só do título: renovações da mesma bolsa viram um único trabalho.
-    return {
-        "id": hashlib.sha1(f"{TIPO_INICIACAO_CIENTIFICA}|{chave}".encode()).hexdigest()[:12],
-        "titulo": orientacao.get("titulo"),
-        "autores": None,
-        "resumo": None,
-        "palavrasChaves": [],
-        "ano": orientacao.get("ano_inicio"),
-    }
-
-
-def registrar_trabalho(trabalho: dict, trabalhos_ic: dict[str, dict]) -> str:
-    """Guarda o trabalho no catálogo; entre renovações, fica o ano mais recente."""
-    existente = trabalhos_ic.setdefault(trabalho["id"], dict(trabalho))
-    if trabalho.get("ano") and (existente.get("ano") or 0) < trabalho["ano"]:
-        existente["ano"] = trabalho["ano"]
-    return trabalho["id"]
-
-
-def disciplinas_referenciadas(
-    perfis: list[PerfilGold], catalogo_componentes: dict[str, dict]
-) -> list[dict]:
-    """Registros das disciplinas citadas nos perfis, sem repetição.
-
-    Os componentes externos ao IESTI não têm ementa na Silver; nesses casos o
-    campo `ementa` sai como None, para todo registro ter o mesmo formato.
-    """
-    usadas: dict[str, dict] = {}
-    for perfil in perfis:
-        for id_disciplina in perfil["disciplinas"]:
-            componente = catalogo_componentes.get(id_disciplina)
-            if componente and id_disciplina not in usadas:
-                usadas[id_disciplina] = {c: componente.get(c) for c in CAMPOS_DISCIPLINA}
-    return list(usadas.values())
-
-
 def unificar_topicos(*listas: list[str] | None, excluir: set[str] = frozenset()) -> list[str]:
     """Junta listas de tópicos/áreas de interesse vindas de fontes diferentes,
     removendo duplicatas (comparação case-insensitive) sem perder a ordem.
@@ -231,15 +157,14 @@ def unificar_topicos(*listas: list[str] | None, excluir: set[str] = frozenset())
 
 
 def unificar_resumo(resumo_lattes: str | None, descricao_sigaa: str | None) -> str | None:
-    """Combina o resumo do Lattes com a descrição pessoal do SIGAA, sem repetir
-    as frases que as duas fontes têm em comum."""
+    """Combina o resumo do Lattes com a descrição pessoal do SIGAA sem
+    repetir o texto quando as duas fontes dizem a mesma coisa."""
     resumo_lattes = normalizar_texto(resumo_lattes)
-    frases_lattes = {chave_frase(f) for f in dividir_frases(resumo_lattes)}
-    descricao_sigaa = " ".join(
-        f for f in dividir_frases(descricao_sigaa) if chave_frase(f) not in frases_lattes
-    )
+    descricao_sigaa = normalizar_texto(descricao_sigaa)
 
     if resumo_lattes and descricao_sigaa:
+        if resumo_lattes.lower() == descricao_sigaa.lower():
+            return resumo_lattes
         return f"{resumo_lattes}\n\n{descricao_sigaa}"
     return resumo_lattes or descricao_sigaa or None
 
@@ -252,11 +177,8 @@ def montar_perfil_unificado(
     projetos: dict[str, dict],
     orientacoes: dict[str, dict],
     trabalhos_ic: dict[str, dict],
-    indice_trabalhos: dict[str, dict] | None = None,
 ) -> PerfilGold:
     lattes = lattes or {}
-    if indice_trabalhos is None:
-        indice_trabalhos = indexar_trabalhos_por_titulo(catalogo_trabalhos)
     competencias = lattes.get("competencias") or {}
     areas_lattes = competencias.get("areas") or []
     linhas_pesquisa = competencias.get("linhas_pesquisa") or []
@@ -277,43 +199,24 @@ def montar_perfil_unificado(
 
     logger.debug("Unificando: %s", sigaa.get("nome"))
     ids_ic = ids_unicos(sigaa.get("trabalhosIniciacaoCientifica"))
-    id_por_titulo: dict[str, str] = {}
     for id_trabalho in ids_ic:
         info = catalogo_trabalhos.get(id_trabalho)
         if info:
-            registrar_trabalho(info | {"id": id_trabalho}, trabalhos_ic)
-            id_por_titulo[chave_titulo(info.get("titulo"))] = id_trabalho
-
-    # Iniciações do Lattes: o mesmo trabalho pode já ter vindo do SIGAA.
-    demais_orientacoes: list[dict] = []
-    for orientacao in lattes.get("orientacoes") or []:
-        if orientacao.get("tipo") != TIPO_INICIACAO_CIENTIFICA:
-            demais_orientacoes.append(orientacao)
-            continue
-        trabalho = trabalho_da_iniciacao(orientacao, indice_trabalhos)
-        chave = chave_titulo(trabalho.get("titulo"))
-        if chave in id_por_titulo:
-            trabalho = trabalho | {"id": id_por_titulo[chave]}
-        else:
-            id_por_titulo[chave] = trabalho["id"]
-            ids_ic.append(trabalho["id"])
-        registrar_trabalho(trabalho, trabalhos_ic)
+            trabalhos_ic.setdefault(
+                id_trabalho, {"id": id_trabalho} | {k: v for k, v in info.items() if k != "id"}
+            )
 
     return {
         "nome": sigaa.get("nome"),
         "idLattes": sigaa.get("idLattes"),
         "siape": sigaa.get("siape"),
         "resumo": unificar_resumo(lattes.get("resumo"), sigaa.get("descricaoPessoal")),
-        # As frases de titulação saem do resumo na Silver; viram formação quando
-        # o SIGAA não a informa, para a informação não se perder.
-        "formacaoAcademicaProfissional": sigaa.get("formacaoAcademicaProfissional")
-        or lattes.get("formacaoResumo")
-        or sigaa.get("formacaoDescricao"),
+        "formacaoAcademicaProfissional": sigaa.get("formacaoAcademicaProfissional"),
         "areasEspecializacao": extrair_subareas(areas_lattes),
         "topicosInteresse": topicos_interesse,
         "producoes": registrar_itens(lattes.get("producoes"), producoes),
         "projetos": registrar_itens(lattes.get("projetos"), projetos, CAMPOS_PROJETO),
-        "orientacoes": registrar_itens(demais_orientacoes, orientacoes),
+        "orientacoes": registrar_itens(lattes.get("orientacoes"), orientacoes),
         "disciplinas": ids_unicos(sigaa.get("disciplinasSigaa")),
         "trabalhosIniciacaoCientifica": ids_ic,
     }
@@ -466,22 +369,12 @@ def publicar_execucao(
     )
 
 
-def dia_da_execucao(run_id: str) -> str:
-    """Dia de uma execução no fuso da coleta (o run_id está em UTC)."""
-    momento = datetime.strptime(run_id, FORMATO_RUN_ID).replace(tzinfo=timezone.utc)
-    return data_no_fuso_coleta(momento)
-
-
-def limpar_execucoes_antigas(manter_dias: int = DIAS_MANTIDOS) -> list[str]:
-    """Mantém só a última execução de cada dia, nos `manter_dias` dias mais
-    recentes; remove as demais e devolve os run_ids removidos."""
+def limpar_execucoes_antigas(manter: int = RUNS_MANTIDAS) -> list[str]:
+    """Remove execuções além das `manter` mais recentes; devolve os run_ids."""
     run_ids = sorted(
         {chave.split("/")[1] for chave in GOLD.listar(f"{PREFIXO_RUNS}/")}
     )
-    ultima_do_dia = {dia_da_execucao(run_id): run_id for run_id in run_ids}
-    dias_mantidos = sorted(ultima_do_dia)[-manter_dias:] if manter_dias > 0 else []
-    mantidas = {ultima_do_dia[dia] for dia in dias_mantidos}
-    antigos = [run_id for run_id in run_ids if run_id not in mantidas]
+    antigos = run_ids[:-manter] if manter > 0 else run_ids
     for run_id in antigos:
         GOLD.remover(GOLD.listar(f"{PREFIXO_RUNS}/{run_id}/"))
     return antigos
@@ -518,7 +411,6 @@ def executar_unificacao(
     projetos: dict[str, dict] = {}
     orientacoes: dict[str, dict] = {}
     trabalhos_ic_usados: dict[str, dict] = {}
-    indice_trabalhos = indexar_trabalhos_por_titulo(catalogo_trabalhos)
     catalogos_validacao = {
         "producoes": producoes,
         "projetos": projetos,
@@ -539,7 +431,6 @@ def executar_unificacao(
             projetos,
             orientacoes,
             trabalhos_ic_usados,
-            indice_trabalhos,
         )
         perfis.append(perfil)
 
@@ -562,9 +453,7 @@ def executar_unificacao(
             raise ValueError(mensagem)
         logger.warning(mensagem)
 
-    disciplinas = disciplinas_referenciadas(perfis, catalogo_componentes)
-
-    run_id = datetime.now(timezone.utc).strftime(FORMATO_RUN_ID)
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     publicar_execucao(
         run_id,
         prefixo_saida,
@@ -573,7 +462,6 @@ def executar_unificacao(
             CHAVE_PRODUCOES: list(producoes.values()),
             CHAVE_PROJETOS: list(projetos.values()),
             CHAVE_ORIENTACOES: list(orientacoes.values()),
-            CHAVE_DISCIPLINAS: disciplinas,
             CHAVE_TRABALHOS_IC: list(trabalhos_ic_usados.values()),
         },
     )
@@ -587,11 +475,10 @@ def executar_unificacao(
     )
     logger.info(
         "Catálogos: %d produção(ões), %d projeto(s), %d orientação(ões), "
-        "%d disciplina(s), %d trabalho(s) de IC.",
+        "%d trabalho(s) de IC.",
         len(producoes),
         len(projetos),
         len(orientacoes),
-        len(disciplinas),
         len(trabalhos_ic_usados),
     )
     if removidas:
