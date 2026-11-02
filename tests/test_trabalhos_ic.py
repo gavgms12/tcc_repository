@@ -14,3 +14,27 @@ def test_indexa_por_url_e_ignora_registros_sem_url_ou_nao_informados():
 
 def test_sem_coleta_anterior_indice_vazio():
     assert indexar_trabalhos_anteriores(None) == {}
+
+
+def test_orientacao_descarta_rotulo_e_nome_do_aluno_no_titulo():
+    from silver.integracao.limpar_perfis import transformar_orientacoes
+
+    orientacoes = {"concluidas": {"iniciacao_cientifica": [
+        {"titulo": "Tipo:", "orientando": "Ana. Outro texto", "ano_inicio": 2022},
+        {"titulo": "Ana Souza", "orientando": "Ana Souza", "ano_inicio": 2022},
+        {"titulo": "Tema válido", "orientando": "Ana Souza", "ano_inicio": 2022},
+    ]}}
+    assert [o["titulo"] for o in transformar_orientacoes(orientacoes)] == ["Tema válido"]
+
+
+def test_catalogo_mantem_trabalho_sem_orientador_no_roster(monkeypatch):
+    from silver.integracao import limpar_perfis as lp
+
+    monkeypatch.setattr(lp, "ler_json_bronze_recente", lambda _: [
+        {"titulo": "A", "autores": "Aluno, Maria Silva", "ano": 2024},
+        {"titulo": "B", "autores": "Aluno, Pessoa Externa", "ano": 2024},
+        {"titulo": "B", "autores": "Aluno, Pessoa Externa", "ano": 2024},
+    ])
+    por_siape, catalogo = lp.processar_trabalhos_ic("x", [{"nome": "Maria Silva", "siape": "1"}])
+    assert [t["titulo"] for t in catalogo] == ["A", "B"]
+    assert len(por_siape["1"]) == 1
