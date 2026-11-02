@@ -20,6 +20,14 @@ RUN git clone https://github.com/jpmenachalco/scriptLattes.git /opt/scriptLattes
 
 USER airflow
 
-COPY requirements.txt /tmp/requirements.txt
+COPY requirements.txt requirements-busca.txt /tmp/
 
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Dependências da busca (opcionais: INSTALL_BUSCA=false gera uma imagem menor).
+# torch só CPU: a versão padrão do PyPI traz CUDA e deixa a imagem vários GB maior
+ARG INSTALL_BUSCA=true
+RUN if [ "$INSTALL_BUSCA" = "true" ]; then \
+        pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+        && pip install --no-cache-dir -r /tmp/requirements-busca.txt; \
+    fi

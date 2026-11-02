@@ -6,14 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "sigaa-pipeline"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = [
-    "boto3",
-    "pandas",
-    "pyarrow",
-    "python-dotenv",
-    "qdrant-client",
-    "FlagEmbedding",
-]
+dynamic = ["dependencies"]
+
+# Dependências lidas dos requirements, para não manter duas listas
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt", "requirements-busca.txt"] }
 
 [tool.setuptools.packages.find]
 include = ["storage*", "recuperacao*"]

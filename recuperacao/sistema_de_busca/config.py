@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 from FlagEmbedding import BGEM3FlagModel
 
+#rodar windows senha docker -> docker logs tcc-airflow 2>&1 | Select-String "Password"
+
 load_dotenv()
 
 EMBEDDING_MODEL = 'BAAI/bge-m3'

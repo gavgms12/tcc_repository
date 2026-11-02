@@ -1,4 +1,3 @@
-#rodar windows senha docker -> docker logs tcc-airflow 2>&1 | Select-String "Password"
 
 # Pipeline de Dados — Docentes do IESTI/UNIFEI
 

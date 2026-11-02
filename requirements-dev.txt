@@ -1,2 +1,3 @@
 -r requirements.txt
+-r requirements-busca.txt
 pytest>=8,<9

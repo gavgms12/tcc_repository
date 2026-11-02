@@ -26,6 +26,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        INSTALL_BUSCA: ${INSTALL_BUSCA:-true}
 
     container_name: tcc-airflow
 
@@ -66,5 +68,8 @@ services:
       # scripts rodados no host): dentro da rede Docker o MinIO só é alcançável
       # pelo nome do serviço/container.
       MINIO_ENDPOINT: http://tcc-minio:9000
+      # Cache dos modelos do Hugging Face (BGE-M3 e reranker, ~2 GB cada) dentro
+      # do projeto montado, para não baixar de novo quando o container é recriado.
+      HF_HOME: /opt/project/data/huggingface
 
     command: standalone
