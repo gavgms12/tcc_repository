@@ -6,6 +6,10 @@
 /data/silver/
 !data/silver/.gitkeep
 
+# Volume de dados do MinIO (runtime do container, inclui arquivos com dono/
+# permissões do uid interno do container e não deve ser versionado)
+/data/minio/
+
 # Artefatos do Python
 __pycache__/
 *.py[cod]
@@ -13,3 +17,11 @@ __pycache__/
 # Ambientes virtuais e variáveis de ambiente
 .env
 venv/
+
+# Cache local do scriptLattes (currículos baixados, retomável entre execuções)
+/.cache/
+
+
+data/
+
+sigaa_pipeline.egg-info/

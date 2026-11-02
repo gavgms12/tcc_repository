@@ -1,176 +1,197 @@
 """Web scraping dos trabalhos de Iniciação Científica dos docentes do site do IESTI (camada Bronze)."""
+
 from __future__ import annotations
 
 import argparse
-import requests
-from bs4 import BeautifulSoup
+import logging
 import re
 import sys
-from datetime import datetime, timezone
-import json
-import unicodedata
 from pathlib import Path
-import urllib3
+
+from bs4 import BeautifulSoup
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-BRONZE_DIR = ROOT_DIR / "bronze"
-for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
-    if caminho not in sys.path:
-        sys.path.insert(0, caminho)
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
-ano_limite = datetime.now().year - 10
+from bronze.scraping.utils import buscar_html, criar_sessao, normalizar_texto
+from common.config import ANO_MINIMO
+from common.log import configurar_logging
+from storage.minio_storage import (
+    ler_json_bronze_ultima_versao_ou_none,
+    salvar_json_bronze_datado,
+)
 
-secoes_alvo = {
-    'Ciência da Computação e Engenharia da Computação',
-    'Engenharia Elétrica, Eletrônica, Controle e Automação',
+logger = logging.getLogger(__name__)
+
+SECOES_ALVO = {
+    "Ciência da Computação e Engenharia da Computação",
+    "Engenharia Elétrica, Eletrônica, Controle e Automação",
 }
 
 DEFAULT_URL = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
-RAW_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "periodicos" / "trabalhos_ic_periodicos.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "periodicos" / "trabalhos_ic.json"
-DEFAULT_OUTPUT = RAW_OUTPUT
-
-urls = []
-
-def salvar_json(dados: list[dict[str, str | None]], caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(dados, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
-        
-def normalizar_texto(texto: str) -> str:
-    return re.sub(r"\s+", " ", texto).strip()
+DEFAULT_OUTPUT = "raw/periodicos/trabalhos_ic_periodicos.json"
 
 
-def normalizar_nome(nome: str) -> str:
-    nome = normalizar_texto(nome)
-    nome = unicodedata.normalize("NFKD", nome)
-    nome = "".join(char for char in nome if not unicodedata.combining(char))
-    return nome.upper()
+def get_urls_edicoes_ics(session, *, verify_ssl: bool = False) -> list[dict]:
+    html = buscar_html(session, DEFAULT_URL, verify=verify_ssl)
+    soup = BeautifulSoup(html, "html.parser")
 
-def buscar_html(url: str, timeout: int = 30, *, verify_ssl: bool = False) -> str:
-    response = requests.get(
-        url,
-        timeout=timeout,
-        verify=verify_ssl,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (compatible; TCC-Bronze-Scraper/1.0; "
-                "+https://iesti.unifei.edu.br)"
-            )
-        },
-    )
-    response.raise_for_status()
-    response.encoding = response.apparent_encoding or "utf-8"
-    return response.text
-
-
-def get_urls_edicoes_ics(*, verify_ssl: bool = False) -> list[dict]:
     urls: list[dict] = []
-    url_arquivos = "https://periodicos.unifei.edu.br/index.php/rtic/issue/archive"
-    html = buscar_html(url_arquivos, verify_ssl=verify_ssl)
-    soup = BeautifulSoup(html, 'html.parser')
+    for edicao in soup.find_all("h2"):
+        nome_tag = edicao.find("a")
+        ano_tag = edicao.find("div", class_="series")
+        if not (nome_tag and ano_tag):
+            continue
 
-    edicoes_tags = soup.find_all('h2')
-    for edicoes in edicoes_tags:
-        nome_tag = edicoes.find('a')
-        ano_tag = edicoes.find('div', class_ ='series')
-        if nome_tag and ano_tag:
-            url_tag = str(nome_tag['href'])
-            ano = ano_tag.get_text().strip()
-            ano_numero = int(ano)
-        
-            if ano_numero < ano_limite:
-                break
-            else:
-                 urls.append({'url': url_tag, 'ano': ano_numero})   
+        ano_numero = int(ano_tag.get_text().strip())
+        # As edições vêm da mais recente para a mais antiga; parar aqui evita
+        # baixar centenas de páginas fora da janela de relevância.
+        if ano_numero < ANO_MINIMO:
+            break
+        urls.append({"url": str(nome_tag["href"]), "ano": ano_numero})
+
     return urls
 
 
-def extrair_trabalhos(urls: list[dict], *, verify_ssl: bool = False) -> list[dict]:
+def indexar_trabalhos_anteriores(anterior: list[dict] | None) -> dict[str, dict]:
+    """Indexa a coleta anterior pela URL do artigo.
+
+    Um artigo publicado não muda; reaproveitar resumo e palavras-chave evita
+    uma requisição por trabalho (a etapa mais lenta da Bronze). Registros de
+    coletas antigas, sem `url`, simplesmente não entram no índice.
+    """
+    return {
+        t["url"]: t
+        for t in anterior or []
+        if t.get("url") and t["url"] != "Não informado"
+    }
+
+
+def extrair_trabalhos(
+    session,
+    urls: list[dict],
+    *,
+    verify_ssl: bool = False,
+    anteriores: dict[str, dict] | None = None,
+) -> list[dict]:
+    anteriores = anteriores or {}
     trabalhos = []
+    reaproveitados = buscados = 0
 
     for url in urls:
-            html = buscar_html(url["url"], verify_ssl=verify_ssl)
-            soup = BeautifulSoup(html, "html.parser")
-                
-            # Obter informações de cada um dos trabalhos [titulo, autores e url] da página de IC
-            tag_secoes = soup.find_all('div', class_ = 'section')
-            for secao in tag_secoes:
-                h2 = secao.find('h2')
-                if h2 and (normalizar_texto(h2.get_text())) in secoes_alvo:
-                    trabalhos_tags = secao.find_all('div', class_ ='obj_article_summary')
-                    for tag in trabalhos_tags:
-                        trabalho_tag = tag.find('h3', class_ ='title')
-                        titulo_tag = tag.find('a')
-                        autores_tag = tag.find('div', class_ = 'authors')
-                        palavras_chaves = []
-                            
-                        if titulo_tag and autores_tag:
-                            # verificar se o autor tem algum professor que queremos consultar -> dar match em pelo menos três nomes? abreviação l.
-                            trabalho_autores = re.sub(r'[\s\x00-\x1F\x7F]+', ' ', autores_tag.get_text()).strip()
-                            trabalho_titulo = re.sub(r'[\s\x00-\x1F\x7F]+', ' ', titulo_tag.get_text()).strip()
-                            trabalho_url = str(titulo_tag['href'])
+        html = buscar_html(session, url["url"], verify=verify_ssl)
+        soup = BeautifulSoup(html, "html.parser")
 
-                        else:
-                            trabalho_titulo = "Não informado"
-                            trabalho_url = "Não informado"
-                            trabalho_autores = "Não informado"
-                            # Ir até a página do trabalho e obter as palavras-chaves associadas
-                            
-                        html_trabalho = buscar_html(trabalho_url, verify_ssl=verify_ssl)
-                        soup_trabalho = BeautifulSoup(html_trabalho, "html.parser")
-                        palavras_chaves_tag = soup_trabalho.find_all('meta',  attrs={"name": "citation_keywords"})
-                        for palavra_chave in palavras_chaves_tag:
-                            palavras_chaves.append(palavra_chave["content"])
-                        
-                        secao_resumo = soup_trabalho.find('section', class_='item abstract')
-                        resumo = None
-                        if secao_resumo:
-                            paragrafo = secao_resumo.find('p')
-                            if paragrafo:
-                                resumo = normalizar_texto(paragrafo.get_text(separator=' '))
-                        
-                        trabalhos.append(   
-                            {
-                                "titulo" : trabalho_titulo,
-                                "autores" : trabalho_autores,
-                                #"URL" : trabalho_url,
-                                "resumo" : resumo,
-                                "palavrasChaves" : palavras_chaves,
-                                "ano" : url["ano"]
-                            }
-                        )                
+        # Obter informações de cada um dos trabalhos [titulo, autores e url] da página de IC
+        for secao in soup.find_all("div", class_="section"):
+            h2 = secao.find("h2")
+            if not (h2 and normalizar_texto(h2.get_text()) in SECOES_ALVO):
+                continue
+
+            for tag in secao.find_all("div", class_="obj_article_summary"):
+                titulo_tag = tag.find("a")
+                autores_tag = tag.find("div", class_="authors")
+                palavras_chaves: list[str] = []
+
+                if titulo_tag and autores_tag:
+                    trabalho_autores = re.sub(
+                        r"[\s\x00-\x1F\x7F]+", " ", autores_tag.get_text()
+                    ).strip()
+                    trabalho_titulo = re.sub(
+                        r"[\s\x00-\x1F\x7F]+", " ", titulo_tag.get_text()
+                    ).strip()
+                    trabalho_url = str(titulo_tag["href"])
+                else:
+                    trabalho_titulo = "Não informado"
+                    trabalho_url = "Não informado"
+                    trabalho_autores = "Não informado"
+
+                anterior = anteriores.get(trabalho_url)
+                if anterior:
+                    resumo = anterior.get("resumo")
+                    palavras_chaves = list(anterior.get("palavrasChaves") or [])
+                    reaproveitados += 1
+                else:
+                    # Ir até a página do trabalho e obter as palavras-chaves associadas
+                    html_trabalho = buscar_html(session, trabalho_url, verify=verify_ssl)
+                    soup_trabalho = BeautifulSoup(html_trabalho, "html.parser")
+                    for palavra_chave in soup_trabalho.find_all(
+                        "meta", attrs={"name": "citation_keywords"}
+                    ):
+                        palavras_chaves.append(palavra_chave["content"])
+
+                    secao_resumo = soup_trabalho.find("section", class_="item abstract")
+                    resumo = None
+                    if secao_resumo:
+                        paragrafo = secao_resumo.find("p")
+                        if paragrafo:
+                            resumo = normalizar_texto(paragrafo.get_text(separator=" "))
+                    buscados += 1
+
+                trabalhos.append(
+                    {
+                        "titulo": trabalho_titulo,
+                        "url": trabalho_url,
+                        "autores": trabalho_autores,
+                        "resumo": resumo,
+                        "palavrasChaves": palavras_chaves,
+                        "ano": url["ano"],
+                    }
+                )
+
+    logger.info(
+        "%d trabalho(s) reaproveitado(s) da coleta anterior; %d buscado(s).",
+        reaproveitados,
+        buscados,
+    )
     return trabalhos
+
+
+def executar_coleta(
+    url: str = DEFAULT_URL,
+    output: str = DEFAULT_OUTPUT,
+    verify_ssl: bool = False,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
+    session = criar_sessao()
+    urls = get_urls_edicoes_ics(session, verify_ssl=verify_ssl)
+    anteriores = indexar_trabalhos_anteriores(ler_json_bronze_ultima_versao_ou_none(output))
+    trabalhos = extrair_trabalhos(
+        session, urls, verify_ssl=verify_ssl, anteriores=anteriores
+    )
+
+    if not trabalhos:
+        raise RuntimeError("Nenhum trabalho encontrado. Verifique a estrutura da página.")
+
+    chave = salvar_json_bronze_datado(output, trabalhos)
+
+    logger.info("Extraídos %d trabalhos de IC.", len(trabalhos))
+    logger.info("Objeto salvo em: bronze/%s", chave)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-            description="Extrai nome do titulo e palavras-chaves dos trabalhos de IC."
-        )
-    parser.add_argument("--url", default=DEFAULT_URL, help="URL da página dos eventos de IC.")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Arquivo JSON de saída.")
+        description="Extrai nome do titulo e palavras-chaves dos trabalhos de IC."
+    )
+    parser.add_argument(
+        "--url", default=DEFAULT_URL, help="URL da página dos eventos de IC."
+    )
+    parser.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help="Chave do objeto JSON no bucket Bronze.",
+    )
     parser.add_argument(
         "--verify-ssl",
         action="store_true",
         help="Valida o certificado SSL (desabilitado por padrão: certificado do site UNIFEI).",
     )
- 
     args = parser.parse_args()
-    verify_ssl = args.verify_ssl
+    configurar_logging()
 
-    if not verify_ssl: 
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
- 
-    urls = get_urls_edicoes_ics(verify_ssl=verify_ssl)
-    trabalhos = extrair_trabalhos(urls, verify_ssl=verify_ssl)
-    
-    if not trabalhos:
-        raise RuntimeError("Nenhum trabalho encontrado. Verifique a estrutura da página.")
-    
-    salvar_json(trabalhos, args.output)
-    
-    print(f"Arquivo salvo em: {args.output}")
-    print(f"Coletado em: {datetime.now(timezone.utc).isoformat()}")
-    
+    executar_coleta(url=args.url, output=args.output, verify_ssl=args.verify_ssl)
+
+
 if __name__ == "__main__":
     main()

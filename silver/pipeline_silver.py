@@ -1,83 +1,81 @@
 #!/usr/bin/env python3
-"""Orquestra a camada Silver."""
+"""Pipeline da camada Silver: Bronze (MinIO) para Parquet (MinIO).
+
+Chama as mesmas funções usadas pelas DAGs do Airflow, sem subprocess.
+"""
 
 from __future__ import annotations
 
 import argparse
-import subprocess
+import logging
 import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-BRONZE_DIR = ROOT_DIR / "bronze"
-SILVER_DIR = ROOT_DIR / "silver"
-SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
-SCRIPTLATTES_CONFIG = SCRIPTLATTES_DIR / "exemplo" / "teste-02.config"
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from common.log import configurar_logging
+
+logger = logging.getLogger(__name__)
 
 
-def executar_etapa(nome: str, comando: list[str], cwd: Path | None = None) -> None:
-    print(f"\n=== {nome} ===")
-    resultado = subprocess.run(comando, cwd=cwd or SILVER_DIR, check=False)
-    if resultado.returncode != 0:
-        raise RuntimeError(f"Etapa '{nome}' falhou com código {resultado.returncode}.")
+def executar(
+    skip_merge: bool = False,
+    skip_lattes: bool = False,
+    limite_lattes: int = 0,
+    skip_limpeza: bool = False,
+) -> None:
+    from silver.integracao.executar_scriptlattes import executar_lattes
+    from silver.integracao.limpar_perfis import executar_limpeza
+    from silver.merge.merge_professores import executar_merge
+
+    if not skip_merge:
+        logger.info("=== Unificar professores e gravar Parquet ===")
+        executar_merge()
+
+    if not skip_lattes:
+        logger.info("=== Extrair currículos Lattes ===")
+        executar_lattes(limite=limite_lattes)
+
+    if not skip_limpeza:
+        logger.info("=== Limpar perfis SIGAA e Lattes ===")
+        executar_limpeza()
+
+    logger.info("Pipeline Silver concluído.")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Executa o pipeline da camada Silver.")
-    parser.add_argument("--skip-merge", action="store_true", help="Pula o merge SIGAA + IESTI.")
-    parser.add_argument("--skip-lista", action="store_true", help="Pula a geração da lista para o scriptLattes.")
-    parser.add_argument("--skip-lattes", action="store_true", help="Pula a coleta de currículos pelo scriptLattes.")
-    parser.add_argument("--skip-integracao", action="store_true", help="Pula a etapa de integração com Lattes.")
+    parser = argparse.ArgumentParser(
+        description="Lê os dados Bronze do MinIO e gera Parquet na camada Silver."
+    )
+    parser.add_argument(
+        "--skip-merge", action="store_true", help="Pula o merge SIGAA + IESTI."
+    )
+    parser.add_argument(
+        "--skip-lattes",
+        action="store_true",
+        help="Pula a extração de currículos com o scriptLattes.",
+    )
+    parser.add_argument(
+        "--limite-lattes",
+        type=int,
+        default=0,
+        help="Limita currículos Lattes para teste (0 = todos).",
+    )
+    parser.add_argument(
+        "--skip-limpeza",
+        action="store_true",
+        help="Pula a limpeza dos perfis SIGAA e Lattes.",
+    )
     args = parser.parse_args()
-
-    python = sys.executable
-
-    if not args.skip_merge:
-        executar_etapa(
-            "Merge SIGAA + IESTI",
-            [python, "01_merge/merge_professores.py"],
-        )
-
-    if not args.skip_lista:
-        executar_etapa(
-            "Gerar lista para Lattes",
-            [python, "01_merge/gerar_lista_scriptlattes.py"],
-        )
-
-    if not args.skip_lattes:
-        venv_python = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
-        if not venv_python.exists():
-            raise FileNotFoundError(
-                f"venv do scriptLattes não encontrada em {venv_python}. "
-                "Execute 'make install' no repositório scriptLattes."
-            )
-        if not SCRIPTLATTES_CONFIG.is_file():
-            raise FileNotFoundError(f"Config não encontrado: {SCRIPTLATTES_CONFIG}")
-        executar_etapa(
-            "scriptLattes",
-            [str(venv_python), str(SCRIPTLATTES_DIR / "scriptLattes.py"), str(SCRIPTLATTES_CONFIG)],
-            cwd=SCRIPTLATTES_DIR,
-        )
-
-    if not args.skip_integracao:
-        executar_etapa(
-            "Vincular disciplinas",
-            [python, "02_integracao/vincular_disciplinas.py", "--buscar-ementa-vinculadas"],
-        )
-        executar_etapa(
-            "Vincular trabalhos IC",
-            [python, "02_integracao/vincular_ics.py", "--buscar-ics-vinculadas"],
-        )
-        executar_etapa(
-            "Transformar Lattes",
-            [python, "02_integracao/transformar_lattes.py"],
-        )
-        executar_etapa(
-            "Unir Lattes + SIGAA",
-            [python, "02_integracao/unir_lattes_sigaa.py"],
-        )
-
-    print("\nPipeline Silver concluído.")
+    configurar_logging()
+    executar(
+        skip_merge=args.skip_merge,
+        skip_lattes=args.skip_lattes,
+        limite_lattes=args.limite_lattes,
+        skip_limpeza=args.skip_limpeza,
+    )
 
 
 if __name__ == "__main__":

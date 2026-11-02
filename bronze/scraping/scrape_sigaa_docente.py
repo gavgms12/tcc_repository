@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import json
+import logging
 import re
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,7 +20,7 @@ for caminho in (str(ROOT_DIR), str(BRONZE_DIR)):
     if caminho not in sys.path:
         sys.path.insert(0, caminho)
 
-from bronze.sigaa_utils import (
+from bronze.scraping.utils import (
     BASE_URL,
     buscar_html,
     criar_sessao,
@@ -26,18 +28,24 @@ from bronze.sigaa_utils import (
     normalizar_texto,
     url_absoluta,
 )
+from common.log import configurar_logging
+from storage.minio_storage import ler_json_bronze_ultima_versao, salvar_json_bronze_datado
 
-DEFAULT_PROFESSORES = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "professores_sigaa.json"
-LEGACY_PROFESSORES = ROOT_DIR / "data" / "bronze" / "sigaa" / "professores.json"
-DEFAULT_OUTPUT = ROOT_DIR / "data" / "bronze" / "raw" / "sigaa" / "docentes_sigaa.json"
-LEGACY_OUTPUT = ROOT_DIR / "data" / "bronze" / "sigaa" / "docentes.json"
+logger = logging.getLogger(__name__)
+
+# Acima dessa fração de docentes com falha a coleta é considerada inválida e
+# nada é gravado; abaixo, o resultado parcial é salvo com as falhas listadas.
+MAX_TAXA_FALHA = 0.10
+MAX_WORKERS = 4
+
+DEFAULT_PROFESSORES = "raw/sigaa/professores_sigaa.json"
+DEFAULT_OUTPUT = "raw/sigaa/docentes_sigaa.json"
 ID_COMPONENTE_RE = re.compile(r"visualizarComponente/(\d+)")
 CATEGORIA_RE = re.compile(r"\s*\(\d+\)\s*$")
 
 
-def carregar_professores(caminho: Path) -> list[dict]:
-    with caminho.open(encoding="utf-8") as arquivo:
-        return json.load(arquivo)
+def carregar_professores(chave: str) -> list[dict]:
+    return ler_json_bronze_ultima_versao(chave)
 
 
 def extrair_portal(html: str) -> dict:
@@ -78,7 +86,9 @@ def extrair_disciplinas(html: str) -> list[dict[str, str | None]]:
                 "nome": normalizar_texto(celulas[1].get_text()),
                 "cargaHoraria": normalizar_texto(celulas[2].get_text()),
                 "horario": (
-                    normalizar_texto(celulas[3].get_text()) if len(celulas) > 3 else None
+                    normalizar_texto(celulas[3].get_text())
+                    if len(celulas) > 3
+                    else None
                 ),
                 "idSigaa": id_sigaa,
                 "urlComponente": (
@@ -139,7 +149,9 @@ def extrair_pesquisa(html: str) -> list[dict[str, str | None]]:
                 "codigo": codigo,
                 "titulo": normalizar_texto(celulas[1].get_text()),
                 "areaConhecimento": (
-                    normalizar_texto(celulas[2].get_text()) if len(celulas) > 2 else None
+                    normalizar_texto(celulas[2].get_text())
+                    if len(celulas) > 2
+                    else None
                 ),
             }
         )
@@ -176,11 +188,66 @@ def coletar_docente(session, siape: str, nome: str) -> dict:
     }
 
 
-def salvar_json(payload: dict, caminho: Path) -> None:
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    with caminho.open("w", encoding="utf-8") as arquivo:
-        json.dump(payload, arquivo, ensure_ascii=False, indent=2)
-        arquivo.write("\n")
+def executar_coleta(
+    professores: str = DEFAULT_PROFESSORES,
+    output: str = DEFAULT_OUTPUT,
+    limite: int = 0,
+    pausa: float = 0.3,
+) -> None:
+    """Função utilizada pelo Airflow e pela CLI."""
+    lista_professores = carregar_professores(professores)
+    com_siape = [prof for prof in lista_professores if prof.get("siape")]
+    if limite > 0:
+        com_siape = com_siape[:limite]
+
+    if not com_siape:
+        raise RuntimeError("Nenhum professor com siape encontrado.")
+
+    total = len(com_siape)
+
+    def tarefa(item: tuple[int, dict]) -> tuple[dict | None, dict | None]:
+        indice, professor = item
+        siape = professor["siape"]
+        nome = professor.get("nome", "")
+        if pausa > 0:
+            time.sleep(pausa)
+        logger.info("[%d/%d] Coletando %s (siape=%s)...", indice + 1, total, nome, siape)
+        try:
+            # Uma sessão por tarefa: requests.Session não é thread-safe.
+            return coletar_docente(criar_sessao(), siape, nome), None
+        except Exception as erro:  # um docente com falha não derruba a coleta
+            logger.error("Falha ao coletar %s (siape=%s): %s", nome, siape, erro)
+            return None, {"siape": siape, "nome": nome, "erro": str(erro)}
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        resultados = list(pool.map(tarefa, enumerate(com_siape)))
+
+    docentes = [ok for ok, _ in resultados if ok]
+    falhas = [erro for _, erro in resultados if erro]
+
+    if len(falhas) / total > MAX_TAXA_FALHA:
+        raise RuntimeError(
+            f"{len(falhas)} de {total} docentes falharam (limite "
+            f"{MAX_TAXA_FALHA:.0%}); nada foi gravado. Falhas: "
+            + ", ".join(f["siape"] for f in falhas)
+        )
+
+    payload = {
+        "coletadoEm": datetime.now(timezone.utc).isoformat(),
+        "total": len(docentes),
+        "falhas": falhas,
+        "docentes": docentes,
+    }
+    chave = salvar_json_bronze_datado(output, payload)
+
+    total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
+    logger.info(
+        "Coletados %d docentes (%d registros de disciplina, %d falha(s)).",
+        len(docentes),
+        total_disciplinas,
+        len(falhas),
+    )
+    logger.info("Objeto salvo em: bronze/%s", chave)
 
 
 def main() -> None:
@@ -189,15 +256,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--professores",
-        type=Path,
         default=DEFAULT_PROFESSORES,
-        help="JSON com lista de professores (saída do scrape_professores_sigaa).",
+        help="Chave do JSON de professores no bucket Bronze.",
     )
     parser.add_argument(
         "--output",
-        type=Path,
         default=DEFAULT_OUTPUT,
-        help="Arquivo JSON de saída.",
+        help="Chave do objeto JSON no bucket Bronze.",
     )
     parser.add_argument(
         "--limite",
@@ -212,43 +277,14 @@ def main() -> None:
         help="Pausa entre docentes (segundos).",
     )
     args = parser.parse_args()
+    configurar_logging()
 
-    professores_path = args.professores
-    if not professores_path.exists() and LEGACY_PROFESSORES.exists():
-        professores_path = LEGACY_PROFESSORES
-
-    professores = carregar_professores(professores_path)
-    com_siape = [prof for prof in professores if prof.get("siape")]
-    if args.limite > 0:
-        com_siape = com_siape[: args.limite]
-
-    if not com_siape:
-        raise RuntimeError("Nenhum professor com siape encontrado.")
-
-    session = criar_sessao()
-    docentes: list[dict] = []
-
-    for indice, professor in enumerate(com_siape):
-        if indice > 0 and args.pausa > 0:
-            import time
-
-            time.sleep(args.pausa)
-
-        siape = professor["siape"]
-        nome = professor.get("nome", "")
-        print(f"[{indice + 1}/{len(com_siape)}] Coletando {nome} (siape={siape})...")
-        docentes.append(coletar_docente(session, siape, nome))
-
-    payload = {
-        "coletadoEm": datetime.now(timezone.utc).isoformat(),
-        "total": len(docentes),
-        "docentes": docentes,
-    }
-    salvar_json(payload, args.output)
-
-    total_disciplinas = sum(len(doc["disciplinasMinistradas"]) for doc in docentes)
-    print(f"\nColetados {len(docentes)} docentes ({total_disciplinas} registros de disciplina).")
-    print(f"Arquivo salvo em: {args.output}")
+    executar_coleta(
+        professores=args.professores,
+        output=args.output,
+        limite=args.limite,
+        pausa=args.pausa,
+    )
 
 
 if __name__ == "__main__":

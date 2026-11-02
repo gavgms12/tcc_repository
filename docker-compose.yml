@@ -1,0 +1,70 @@
+services:
+  minio:
+    # O projeto usa o MinIO antigo (container tcc_minio, com o alias tcc-minio na
+    # rede). Este serviço só sobe com `docker compose --profile minio-local up -d`;
+    # subir os dois juntos faz o nome tcc-minio apontar para dois servidores.
+    profiles: ["minio-local"]
+    image: bitnamilegacy/minio:2025.4.8-debian-12-r3
+    container_name: tcc-minio
+
+    ports:
+    - "9010:9000"
+    - "9011:9001"
+
+    env_file:
+      - .env
+
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_CONSOLE_ADDRESS: ":9001"
+
+    volumes:
+      - ./data/minio:/bitnami/minio/data
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: tcc-airflow
+
+    # Roda com o UID do host (AIRFLOW_UID no .env) e GID 0 (grupo root), que é
+    # o grupo dono dos diretórios internos da imagem (/opt/airflow/*). Isso evita
+    # que arquivos criados em volumes montados (./dags, ./ como /opt/project)
+    # fiquem com dono incompatível entre execuções no host e no container.
+    user: "${AIRFLOW_UID:-50000}:0"
+
+    # Necessário para o sandbox do Chromium (scriptLattes/Selenium) inicializar;
+    # sem isso o Chrome cai com "session not created: Chrome instance exited".
+    cap_add:
+      - SYS_ADMIN
+
+    env_file:
+      - .env
+
+    ports:
+      - "8085:8080"
+
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./:/opt/project
+
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      # Bootstrap do dag-processor (carregar plugins/providers do Airflow) é
+      # mais lento que o default de 50s neste ambiente; sem isso o parse da
+      # DAG é morto por timeout antes de terminar.
+      AIRFLOW__DAG_PROCESSOR__DAG_FILE_PROCESSOR_TIMEOUT: "300"
+      # Default é 300s (5 min): o scheduler mata como "zumbi" qualquer task que
+      # fique tempo demais sem dar sinal de vida. scrape_componentes_sigaa com
+      # --com-ementa faz ~1250 requisições HTTP síncronas (uma por disciplina)
+      # e leva ~12 min só nessa chamada, sem nenhuma interação com o Airflow
+      # nesse meio tempo — por isso era morta antes de terminar.
+      AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT: "1800"
+      # Sobrescreve o MINIO_ENDPOINT do .env (que aponta para localhost, para
+      # scripts rodados no host): dentro da rede Docker o MinIO só é alcançável
+      # pelo nome do serviço/container.
+      MINIO_ENDPOINT: http://tcc-minio:9000
+
+    command: standalone
