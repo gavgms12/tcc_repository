@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 from recuperacao.sistema_de_busca.config import VECTOR_SIZE
 from recuperacao.sistema_de_busca import config
 import os
-from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.http.exceptions import UnexpectedResponse, ResponseHandlingException
+import time
 
 load_dotenv()
 
@@ -14,7 +15,19 @@ def qdrant_id(id):
 
 def conectar_Qdrant():
     return QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
-    
+
+def upsert_com_retry(client, nome: str, pontos: list, tentativas: int = 4) -> None:
+    for tentativa in range(1, tentativas + 1):
+        try:
+            client.upsert(collection_name=nome, points=pontos, wait=True)
+            return
+        except ResponseHandlingException as erro:      # conexão caiu ou expirou
+            if tentativa == tentativas:
+                raise
+            espera = 2 ** tentativa
+            print(f"  Falha de conexão ({erro}). Nova tentativa em {espera}s...")
+            time.sleep(espera)
+            
 def checar_conexao(client):
     collections = client.get_collections()
     print(f"Connected to Qdrant Cloud: {len(collections.collections)} collections")
@@ -37,15 +50,20 @@ def criacao_payload_filter(client, collection, field, tipo = models.PayloadSchem
         field_schema=tipo,
     )
     
-def garantir_colecao(client: QdrantClient, nome: str) -> None:
-    if client.collection_exists(nome):
-        return
-    client.create_collection(
-        collection_name=nome,
-        vectors_config={"dense": VectorParams(size=config.VECTOR_SIZE, distance=Distance.COSINE)},
-        sparse_vectors_config={"sparse": SparseVectorParams()},
-    )
-    
+def garantir_colecao(client, nome: str, campos_inteiros: tuple[str, ...] = ()) -> None:
+    if not client.collection_exists(nome):
+        client.create_collection(
+            collection_name=nome,
+            vectors_config={"dense": VectorParams(size=config.VECTOR_SIZE, distance=Distance.COSINE)},
+            sparse_vectors_config={"sparse": SparseVectorParams()},
+        )
+        for campo in campos_inteiros:
+            client.create_payload_index(
+                collection_name=nome,
+                field_name=campo,
+                field_schema=models.PayloadSchemaType.INTEGER,
+            )
+
 def upsert_perfis(client: QdrantClient, nome: str, perfis: list[dict],
                   embeddings: dict[str, dict], lote: int = 50) -> None:
     pontos = []
@@ -64,12 +82,7 @@ def upsert_perfis(client: QdrantClient, nome: str, perfis: list[dict],
         ))
 
     for i in range(0, len(pontos), lote):
-        try:
-            client.upsert(collection_name=nome, points=pontos[i:i + lote], wait=True)
-        except UnexpectedResponse as e:
-            print("Status:", e.status_code)
-            print("Motivo:", e.content.decode("utf-8", errors="replace"))
-            raise
+        upsert_com_retry(client, nome, pontos[i:i + lote])
     
 def deletar_collection(client, classe=''):
     client.delete_collection(classe)
@@ -97,7 +110,7 @@ from qdrant_client.models import Fusion, FusionQuery, Prefetch
 
 
 def busca_hibrida(client, nome: str, emb: dict, limit: int,
-                  campos=("id", "nome", "titulo", "professor_ids", "tipo")):
+                  campos=("id", "nome", "titulo", "professor_ids", "tipo"), filtro=None):
     """Busca densa + esparsa com fusão RRF. Não traz o texto (só os campos pedidos)."""
     if not client.collection_exists(nome):
         return []
@@ -109,8 +122,8 @@ def busca_hibrida(client, nome: str, emb: dict, limit: int,
     resultado = client.query_points(
         collection_name=nome,
         prefetch=[
-            Prefetch(query=emb["dense"].tolist(), using="dense", limit=limit),
-            Prefetch(query=sparse, using="sparse", limit=limit),
+            Prefetch(query=emb["dense"].tolist(), using="dense", limit=limit, filter=filtro),
+            Prefetch(query=sparse, using="sparse", limit=limit, filter=filtro),
         ],
         query=FusionQuery(fusion=Fusion.RRF),
         limit=limit,
@@ -127,7 +140,17 @@ def buscar_payloads(client, nome: str, ids) -> dict[str, dict]:
     registros = client.retrieve(
         collection_name=nome,
         ids=[qdrant_id(i) for i in ids],
-        with_payload=True,
+        with_payload=["id", "texto", "titulo", "nome", "tipo"],
         with_vectors=False,
     )
     return {str(r.payload["id"]): r.payload for r in registros}
+
+def filtro_ano(ano_min: int | None = None, ano_max: int | None = None) -> models.Filter | None:
+    if ano_min is None and ano_max is None:
+        return None
+    return models.Filter(must=[
+        models.FieldCondition(
+            key="ano",
+            range=models.Range(gte=ano_min, lte=ano_max),   # None means "no limit on that side"
+        )
+    ])

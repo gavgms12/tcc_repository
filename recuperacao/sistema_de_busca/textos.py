@@ -4,8 +4,11 @@ import hashlib
 import re
 
 def _limpar(texto) -> str:
-    texto = re.sub(r"\s+", " ", str(texto or "")).strip()
+    texto = re.sub(r"\s+", " ", str(texto or "")).strip().lower()
     return re.sub(r"\.{2,}$", ".", texto)
+
+def _juntar_lista(valores) -> str:
+    return ", ".join(_limpar(v).lower() for v in valores or [] if _limpar(v))
 
 def gerar_hash(componentes):   
     json_normalizado = json.dumps(
@@ -27,15 +30,14 @@ def ics_montar_texto_para_modelo(producao):
     if titulo:
         partes.append(f"Título: {titulo}")
         
-    resumo = _limpar(producao.get("titulo"))
+    resumo = _limpar(producao.get("resumo"))
     
     if resumo:
         partes.append(f"Resumo: {resumo}")
 
-    if producao.get("palavrasChaves"):
-        partes.append(
-            f"Palavras-chave: {', '.join(producao['palavrasChaves'])}"
-        )
+    palavras_chave = _juntar_lista(producao.get("palavrasChaves"))
+    if palavras_chave:
+        partes.append(f"Palavras-chave: {palavras_chave}")
 
     return "\n".join(partes)
 
@@ -49,25 +51,21 @@ def professor_montar_texto_para_modelo(perfil):
     if resumo:
         partes.append(f"Resumo: {resumo}")
     
-    formacao_academica = _limpar(perfil.get("formacaoAcademicaProfissional"))
-    if formacao_academica:
-        partes.append(
-            f"Formação Profissional Acadêmica: "
-            f"{formacao_academica}"
-        )
-
-    areas_especializacao=_limpar(perfil.get("areasEspecializacao"))
+    # formacao_academica = _limpar(perfil.get("formacaoAcademicaProfissional"))
+    # if formacao_academica:
+    #     partes.append(
+    #         f"Formação Profissional Acadêmica: "
+    #         f"{formacao_academica}"
+    #     )
+    
+    areas_especializacao = _juntar_lista(perfil.get("areasEspecializacao"))
     if areas_especializacao:
-        partes.append(
-            f"Áreas de Especialização: "
-            f"{', '.join(areas_especializacao)}"
-        )    
-    topicos_interesse= _limpar(perfil.get("topicosInteresse"))
+        partes.append(f"Áreas de Especialização: {areas_especializacao}")
+
+    topicos_interesse = _juntar_lista(perfil.get("topicosInteresse"))
     if topicos_interesse:
-        partes.append(
-            f"Tópicos de Interesse: "
-            f"{', '.join(topicos_interesse)}"
-        )  
+        partes.append(f"Tópicos de Interesse: {topicos_interesse}")
+
     
     return "\n".join(partes)
 
@@ -85,13 +83,6 @@ def disciplina_montar_texto_para_modelo(disciplina):
     return "\n".join(partes)
 
 
-ROTULO_TIPO = {
-    "pesquisa": "Projeto de pesquisa",
-    "extensao": "Projeto de extensão",
-    "desenvolvimento": "Projeto de desenvolvimento",
-}
-
-
 def projeto_montar_texto_para_modelo(projeto: dict) -> str:
     partes = []
 
@@ -99,12 +90,27 @@ def projeto_montar_texto_para_modelo(projeto: dict) -> str:
     if nome:
         partes.append(f"Título: {nome}")
 
-    tipo = projeto.get("tipo")
-    if tipo:
-        partes.append(f"Tipo: {ROTULO_TIPO.get(tipo, f'Projeto de {tipo}')}")
 
     descricao = _limpar(projeto.get("descricao"))
     if descricao:
         partes.append(f"Descrição: {descricao}")
+
+    return "\n".join(partes)
+
+def producao_montar_texto_para_modelo(producao: dict) -> str:
+    partes = []
+
+    titulo = _limpar(producao.get("titulo"))
+    if titulo:
+        partes.append(f"Título: {titulo}")
+
+    return "\n".join(partes)
+
+def orientacao_montar_texto_para_modelo(orientacao: dict) -> str:
+    partes = []
+
+    titulo = _limpar(orientacao.get("titulo"))
+    if titulo:
+        partes.append(f"Título: {titulo}")
 
     return "\n".join(partes)

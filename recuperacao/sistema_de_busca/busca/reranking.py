@@ -44,32 +44,43 @@ def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame
                 "professor_id": pid, "professor_nome": nomes.get(pid),
                 "tipo": tipo, "item_id": rel["objeto_id"], "texto": item["texto"],
                 "titulo": item.get("titulo") or item.get("nome"),
-                "peso_tipo": config.peso_do_item(item),
+                "subtipo": item.get("tipo"),                       # livro, artigo_periodico, pesquisa...
+                "peso_tipo": config.peso_interno(tipo, item),
             })
 
     return candidatos
 
 
+_cache_scores: dict[tuple[str, str], float] = {}
+
+
 def pontuar_candidatos(reranker, texto_aluno: str, candidatos: list[dict]) -> list[dict]:
     if not candidatos:
         return candidatos
-    pares = [(texto_aluno, str(c["texto"])) for c in candidatos]
-    scores = reranker.compute_score(pares, normalize=True)
-    if scores is None:
-        raise ValueError("O reranker não retornou scores")
-    scores = [float(s) for s in np.atleast_1d(scores)]
-    for c, s in zip(candidatos, scores, strict=True):
-        c["rerank_bruto"] = s
-        c["rerank_score"] = s * c.get("peso_tipo", 1.0)
+    textos = dict.fromkeys(str(c["texto"]) for c in candidatos)
+    faltando = [t for t in textos if (texto_aluno, t) not in _cache_scores]
+    if faltando:
+        pares = [(texto_aluno, t) for t in faltando]
+        scores = reranker.compute_score(pares, batch_size=16, max_length=512, normalize=True)
+        if scores is None:
+            raise ValueError("O reranker não retornou scores")
+        scores = [float(s) for s in np.atleast_1d(scores)]
+        _cache_scores.update(
+            ((texto_aluno, t), s) for t, s in zip(faltando, scores, strict=True)
+        )
+    for c in candidatos:
+        c["rerank_bruto"] = _cache_scores[(texto_aluno, str(c["texto"]))]
+        c["rerank_score"] = c["rerank_bruto"] * c.get("peso_tipo", 1.0)
     return candidatos
 
 
+
 def _score_ponderado(itens: list[dict], n: int):
-    """Média ponderada 3-2-1 dos n melhores (None se não houver itens)."""
+    """Média ponderada 3-2-1 dos n melhores; posições vazias contam como 0 (None se não houver itens)."""
     if not itens:
         return None
     melhores = sorted(itens, key=lambda x: x["rerank_score"], reverse=True)[:n]
-    pesos = range(len(melhores), 0, -1)
+    pesos = range(n, 0, -1)
     return sum(i["rerank_score"] * p for i, p in zip(melhores, pesos)) / sum(pesos)
 
 
@@ -93,12 +104,29 @@ def rankear_professores(candidatos: list[dict]) -> list[dict]:
     for d in por_prof.values():
         componentes = [(config.PESO_PROFESSOR, d["perfil"])]
         componentes += [
-            (cfg["peso"], _score_ponderado(d["itens"][tipo], cfg["n"]))
+            (cfg["peso_global"], _score_ponderado(d["itens"][tipo], cfg["n"]))
             for tipo, cfg in config.FONTES_ITENS.items()
         ]
-        validos = [(w, s) for w, s in componentes if s is not None]
         d["rerank_score"] = (
-            sum(w * s for w, s in validos) / sum(w for w, _ in validos) if validos else 0.0
+            sum(w * (s or 0.0) for w, s in componentes) / sum(w for w, _ in componentes)
         )
 
+
     return sorted(por_prof.values(), key=lambda x: x["rerank_score"], reverse=True)
+
+def unir_rerank(por_topico: dict[str, list[dict]]) -> list[dict]:
+    """Média do rerank de cada professor entre os tópicos, guardando o detalhe de cada um."""
+    unidos: dict[str, dict] = {}
+    for topico, ranking in por_topico.items():
+        for r in ranking:
+            d = unidos.setdefault(r["professor_id"], {
+                "professor_id": r["professor_id"],
+                "professor_nome": r["professor_nome"],
+                "scores_topicos": dict.fromkeys(por_topico, 0.0),
+                "topicos": {},
+            })
+            d["scores_topicos"][topico] = r["rerank_score"]
+            d["topicos"][topico] = r
+    for d in unidos.values():
+        d["rerank_score"] = sum(d["scores_topicos"].values()) / len(por_topico)
+    return sorted(unidos.values(), key=lambda x: x["rerank_score"], reverse=True)

@@ -3,10 +3,11 @@ from transformers import AutoTokenizer
 from storage.minio_storage import ler_json_gold
 from recuperacao.sistema_de_busca.indexacao.perfis import criar_perfis, _ano
 from recuperacao.sistema_de_busca.textos import (
-    disciplina_montar_texto_para_modelo,
+    producao_montar_texto_para_modelo,
     ics_montar_texto_para_modelo,
     professor_montar_texto_para_modelo,
-    projeto_montar_texto_para_modelo
+    projeto_montar_texto_para_modelo,
+    orientacao_montar_texto_para_modelo
 )
 from recuperacao.sistema_de_busca.indexacao.relacoes import construir_relacoes, professores_por_objeto
 from storage.minio_storage import ultima_run_gold, ler_jsons_gold, GOLD
@@ -29,13 +30,16 @@ def main() -> None:
 
     professores = ler_jsons_gold(f"{run}perfil_professores")
     ics = ler_json_gold(f"{run}trabalhos_ic.json")
-    #disciplinas = ler_json_gold(f"{run}...")   # a definir
+    producoes = ler_json_gold(f"{run}producoes.json")
     projetos = ler_json_gold(f"{run}projetos.json")
-
+    orientacoes = ler_json_gold(f"{run}orientacoes.json")
+    
     relacoes = construir_relacoes(professores)
     mapa_ic = professores_por_objeto(relacoes, "ic")
     mapa_projeto = professores_por_objeto(relacoes, "projeto")
-
+    mapa_producoes = professores_por_objeto(relacoes, "producao")
+    mapa_orientacoes = professores_por_objeto(relacoes, "orientacao")
+    
     #mapa_disciplina = professores_por_objeto(relacoes, "disciplina")
     perfis_ics = criar_perfis(
         ics, ics_montar_texto_para_modelo, "id",
@@ -54,11 +58,21 @@ def main() -> None:
         lambda p: {"nome": p["nome"]},
     )
 
-
+    perfis_producoes = criar_perfis(
+        producoes, producao_montar_texto_para_modelo, "id",
+        lambda p: {"titulo": p.get("titulo"),"ano": _ano(p.get("ano")), "tipo": p.get("tipo")}, mapa_producoes,
+    )
+        
+    perfis_orientacoes = criar_perfis(
+        orientacoes, orientacao_montar_texto_para_modelo, "id",
+        lambda p: {"titulo": p.get("titulo"),"ano": _ano(p.get("ano_inicio")), "tipo": p.get("tipo")}, mapa_orientacoes,
+    )
     resumo_tokens(tokenizer,"professores", perfis_professores)
     resumo_tokens(tokenizer, "ics", perfis_ics)
     resumo_tokens(tokenizer, "projetos", perfis_projetos)
-    
+    resumo_tokens(tokenizer, "orientacoes", perfis_orientacoes)
+    resumo_tokens(tokenizer, "producoes", perfis_producoes)
+
     # para o reranker conta para o uso de tokens a query e o documento
     consulta = "Quero desenvolver um projeto de programação embarcada usando microcontroladores"
     n_consulta = len(tokenizer(consulta)["input_ids"])

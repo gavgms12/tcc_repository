@@ -14,6 +14,7 @@ def gerar_embeddings(modelo, perfis: list[dict], batch_size: int = 16) -> dict[s
         batch_size=batch_size,
         return_dense=True,
         return_sparse=True,
+        
     )
 
     return {
