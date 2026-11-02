@@ -115,7 +115,69 @@ tcc_code/
 └── README.md
 ```
 
+<<<<<<< HEAD
 > A camada Bronze fica restrita ao web scraping e à coleta bruta. A camada Silver faz o merge de identidade e a limpeza de cada fonte (SIGAA e Lattes) separadamente. A Gold só lê Parquets da Silver e unifica os perfis por professor.
+=======
+Cada camada tem seu README (`silver/README.md`, `gold/README.md`) com mais detalhes.
+
+---
+
+## Camadas
+
+### Bronze — coleta bruta
+
+Só web scraping; nenhuma transformação.
+
+| Coletor | Saída (chave lógica) |
+|---------|----------------------|
+| `scrape_professores_sigaa.py` | `raw/sigaa/professores_sigaa.json` |
+| `scrape_sigaa_componentes.py` | `raw/sigaa/componentes_sigaa.json` |
+| `scrape_sigaa_docente.py` | `raw/sigaa/docentes_sigaa.json` |
+| `scrape_professores_iesti.py` | `raw/iesti_site/professores_iesti_site.json` |
+| `scrape_trabalhos_ic.py` | `raw/periodicos/trabalhos_ic_periodicos.json` |
+
+**Dados datados.** Cada coleta é gravada com a data (AAAAMMDD, fuso `America/Sao_Paulo`) na pasta e no nome do arquivo, e nada é sobrescrito entre dias:
+
+```
+raw/20261015/sigaa/professores_sigaa_20261015.json
+raw/20261015/lattes/json/2146410092995682_20261015.json
+```
+
+Rodar de novo no mesmo dia sobrescreve os arquivos daquela data.
+
+**Coletas incrementais.** Para não repetir trabalho:
+- *Ementas*: só os componentes ainda não consultados são buscados (a primeira coleta leva ~13 min; as seguintes, segundos).
+- *Trabalhos de IC*: artigos já coletados são reaproveitados pela URL.
+
+**Robustez.** A coleta de docentes usa 4 threads e uma falha individual não derruba a execução: ela fica registrada em `falhas` no JSON, e a coleta só é invalidada se mais de 10% dos docentes falharem. A verificação do certificado TLS fica ligada por padrão no SIGAA. O site do IESTI tem a cadeia de certificados incompleta e é coletado sem verificação; o coletor de trabalhos de IC também ainda roda sem verificação por padrão (ambos aceitam `--verify-ssl` para religá-la).
+
+### Silver — dados limpos e integrados
+
+Lê **somente a pasta de data mais recente** da Bronze (ver [Leitura da Bronze](#leitura-da-bronze)).
+
+1. `merge/merge_professores.py` — mescla SIGAA + IESTI (normalização e similaridade de nomes, limiar 0,92) em `professores_unificados.parquet`.
+2. `integracao/executar_scriptlattes.py` — roda o scriptLattes para os ids do roster e grava os currículos na Bronze, **na mesma pasta de data que a Silver está lendo**. Os currículos ficam em cache local (`.cache/scriptlattes/cvs`) e expiram após 30 dias.
+3. `integracao/limpar_perfis.py` — limpa os perfis e grava **dois Parquets separados** (SIGAA e Lattes), sem mesclá-los. Disciplinas, trabalhos de IC, produções, projetos e orientações passam a ser referenciados por ID (hash do conteúdo, estável entre execuções), com catálogos à parte. O catálogo de trabalhos de IC guarda todos os trabalhos coletados, mesmo os sem orientador reconhecido.
+
+### Gold — produto de dados
+
+`unificar_perfis.py` funde os perfis SIGAA e Lattes em um documento por docente (chave: **siape**). Áreas de especialização são reduzidas às subáreas, tópicos de interesse são unificados sem repetição, e produções, projetos, orientações, disciplinas e trabalhos de IC ficam **só como IDs** no perfil, com o conteúdo em catálogos. As iniciações científicas do Lattes saem das orientações e entram nos trabalhos de IC: usam o trabalho coletado de mesmo título, com resumo, ou um registro só com título e ano.
+
+A publicação é atômica: cada execução grava tudo em `runs/<AAAAMMDDTHHMMSSZ>/` e só ao final atualiza `current.json`. A Gold confere se todo ID citado existe no catálogo e falha se mais de 2% das referências estiverem órfãs. Também valida se cada perfil tem texto suficiente para gerar embedding e avisa sobre os que não têm. Fica só a última execução de cada dia, no fuso da coleta, nos 3 dias mais recentes.
+
+---
+
+## Leitura da Bronze
+
+A Silver considera apenas a pasta `raw/AAAAMMDD/` de data mais recente. Se uma fonte necessária não estiver nela, a execução **falha** com uma mensagem indicando qual coleta rodar — não há mistura silenciosa de coletas de dias diferentes.
+
+Consequências práticas:
+- Rodar a Bronze completa (script ou DAG) garante todas as fontes na mesma pasta.
+- Rodar **um único coletor** num dia novo cria uma pasta de data incompleta, e a Silver passa a exigir que o restante seja coletado nessa data.
+- Para reprocessar uma coleta antiga: `BRONZE_DATA=20261013 python silver/pipeline_silver.py`.
+
+Os próprios coletores da Bronze, ao reaproveitar dados já coletados (ementas, IC) ou depender de outra coleta (docentes dependem da lista de professores), usam a última versão de cada chave em qualquer data.
+>>>>>>> 3a374352c7d7ea4c352fb30ba1ec5f5e27e94a1e
 
 ---
 
@@ -183,9 +245,19 @@ python silver/pipeline_silver.py
 python gold/pipeline_gold.py
 ```
 
+<<<<<<< HEAD
 Isso executa, em ordem: coleta Bronze → JSONs no MinIO → merge de identidade →
 coleta Lattes (JSONs em `bronze/raw/lattes/json/`) → limpeza SIGAA/Lattes/IC
 (Parquets na Silver) → unificação dos perfis (Parquet na Gold).
+=======
+Esse comando sobe só o Airflow, que usa o MinIO antigo (container `tcc_minio`, portas 9000 e 9001, conectado à rede `tcc_repository_default` com o alias `tcc-minio`). Em uma instalação nova, sem esse container, suba o MinIO do projeto com `docker compose --profile minio-local up -d`, nas portas da tabela abaixo. Não mantenha os dois ligados, porque o nome `tcc-minio` passaria a apontar para dois servidores.
+
+| Serviço | URL | Acesso |
+|---------|-----|--------|
+| Console do MinIO | http://localhost:9011 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` do `.env` |
+| API S3 do MinIO | http://localhost:9010 | usada pelos scripts |
+| Airflow | http://localhost:8085 | usuário `admin`; a senha é gerada na primeira subida: `docker logs tcc-airflow 2>&1 \| grep Password` |
+>>>>>>> 3a374352c7d7ea4c352fb30ba1ec5f5e27e94a1e
 
 Para executar apenas a gravação Parquet a partir dos JSONs Bronze já existentes:
 
@@ -195,7 +267,56 @@ python bronze/pipeline_bronze.py --com-ementa
 python silver/pipeline_silver.py
 ```
 
+<<<<<<< HEAD
 ### Opção 2 — Etapas individuais
+=======
+Etapas individuais: `python bronze/scraping/scrape_trabalhos_ic.py`, `python silver/merge/merge_professores.py` etc. — cada script tem `--help`.
+
+### Flags
+
+| Flag | Script | Efeito |
+|------|--------|--------|
+| `--com-ementa` | `pipeline_bronze.py` | Busca ementas dos componentes ainda não consultados |
+| `--limite-docentes N` | `pipeline_bronze.py` | Testa com N docentes |
+| `--skip-merge` | `pipeline_silver.py` | Pula o merge SIGAA + IESTI |
+| `--skip-lattes` | `pipeline_silver.py` | Pula o scriptLattes |
+| `--limite-lattes N` | `pipeline_silver.py` | Baixa só N currículos |
+| `--skip-limpeza` | `pipeline_silver.py` | Pula a limpeza dos perfis |
+
+### Variáveis de ambiente
+
+| Variável | Padrão | Uso |
+|----------|--------|-----|
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_REGION` | — | Conexão com o MinIO |
+| `MINIO_BRONZE_BUCKET`, `MINIO_SILVER_BUCKET`, `MINIO_GOLD_BUCKET` | `bronze`, `silver`, `gold` | Nomes dos buckets |
+| `TZ_COLETA` | `America/Sao_Paulo` | Fuso da data das pastas da Bronze |
+| `DATA_COLETA` | hoje | Fixa a data de gravação da Bronze |
+| `BRONZE_DATA` | pasta mais recente | Fixa a pasta lida pela Silver |
+| `LATTES_CACHE_DIAS` | `30` | Validade do cache dos currículos (`0` = nunca expira) |
+| `ANO_MINIMO` | ano atual − 10 | Ano inicial das produções e trabalhos de IC |
+
+---
+
+## Saídas no MinIO
+
+| Bucket | Conteúdo |
+|--------|----------|
+| `bronze` | `raw/AAAAMMDD/<fonte>/<nome>_AAAAMMDD.json`; currículos em `raw/AAAAMMDD/lattes/json/<idLattes>_AAAAMMDD.json` |
+| `silver` | `professores_unificados.parquet` — roster (nome, idLattes, siape, urlPortalSigaa) |
+| | `perfis_sigaa_limpos.parquet`, `perfis_lattes_limpos.parquet` — perfis limpos por professor |
+| | `componentes_curriculares.parquet` — catálogo oficial do IESTI (nome, carga horária, ementa) |
+| | `componentes_curriculares_externos.parquet` — disciplinas ministradas fora do IESTI (sem ementa) |
+| | `trabalhos_ic_periodicos.parquet` — catálogo de todos os trabalhos de IC coletados, com ID |
+| `gold` | `current.json` — ponteiro para a execução válida |
+| | `runs/<execução>/perfil_professores/<siape>.json` — um perfil por docente |
+| | `runs/<execução>/producoes.json`, `projetos.json`, `orientacoes.json`, `disciplinas.json`, `trabalhos_ic.json` — catálogos referenciados pelos perfis |
+
+Números de referência (coleta de 15/10/2026): 43 professores no cadastro (42 com id Lattes), 1249 componentes (837 com ementa; os demais não têm ementa na fonte), 177 trabalhos de IC coletados (46 vinculados a docentes), 729 produções, 125 projetos e 768 orientações no catálogo da Gold.
+
+---
+
+## Testes
+>>>>>>> 3a374352c7d7ea4c352fb30ba1ec5f5e27e94a1e
 
 ```bash
 cd tcc_code

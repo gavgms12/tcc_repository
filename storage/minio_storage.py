@@ -70,6 +70,11 @@ def data_coleta() -> str:
     return os.getenv("DATA_COLETA") or datetime.now(_fuso_coleta()).strftime("%Y%m%d")
 
 
+def data_no_fuso_coleta(momento: datetime) -> str:
+    """Dia (AAAAMMDD) de um instante no fuso da coleta, o mesmo das pastas da Bronze."""
+    return momento.astimezone(_fuso_coleta()).strftime("%Y%m%d")
+
+
 def chave_datada(chave_logica: str, data: str | None = None) -> str:
     """raw/sigaa/x.json -> raw/20261015/sigaa/x_20261015.json"""
     if not chave_logica.startswith(PREFIXO_RAW):
