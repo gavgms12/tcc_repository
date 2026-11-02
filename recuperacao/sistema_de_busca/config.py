@@ -15,9 +15,9 @@ COLLECTION_PRODUCAO = "producao"
 COLLECTION_ORIENTADOR = "orientacoes"
 
 TOPICOS = {
-    "Compiladores": "Compiladores: autômato de estados finitos e expressões regulares, Análise léxica, sintática, top-down e bottom-up",
-    "Linguagens formais": "Linguagens formais: Autômatos. Autômatos finitos. Linguagens regulares.Finitos Determinísticos e Não-determiníticos. Linguagens Regulares. Linguagens Livres de Contexto. Linguagens Sensíveis ao Contexto. Máquinas de Turing.",
-    "Grafos": "Teoria dos grafos: algoritmos em grafos, caminhos, conectividade, coloração",
+    "Compiladores": "compiladores: autômato de estados finitos e expressões regulares, Análise léxica, sintática, top-down e bottom-up",
+    "Linguagens formais": "linguagens formais: autômatos. autômatos finitos. linguagens regulares. finitos determinísticos e não-determiníticos. linguagens Regulares. linguagens livres de contexto. linguagens sensíveis ao contexto. máquinas de Turing.",
+    "Grafos": "teoria dos grafos: algoritmos em grafos, caminhos, conectividade, coloração",
 }
 
 LIMIT_PROFESSORES = 50
