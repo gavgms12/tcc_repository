@@ -8,7 +8,27 @@ load_dotenv()
 EMBEDDING_MODEL = 'BAAI/bge-m3'
 RERANKER_MODEL  = 'BAAI/bge-reranker-v2-m3'
 VECTOR_SIZE     = 1024
-MIN_RERANK = 0.005
+
+# Corte do reranking (por tópico). Um item passa se:
+#   rerank_bruto >= MIN_RERANK_RELATIVO * (maior rerank_bruto de um item no tópico)
+#   OU for o melhor item daquele tipo para o professor (se MANTER_MELHOR_POR_TIPO)
+MIN_RERANK_RELATIVO = 0.10
+MANTER_MELHOR_POR_TIPO = False
+
+# Itens mantidos só pela regra "melhor do tipo" contam no score, mas são evidência fraca.
+# False -> não aparecem na lista do ranking final (só um aviso de quantos foram ocultados).
+MOSTRAR_EVIDENCIA_FRACA = False
+
+# Corte de professores no ranking final: só entra quem tiver
+#   rerank_score >= MIN_SCORE_PROFESSOR_RELATIVO * (rerank_score do 1º colocado)
+MIN_SCORE_PROFESSOR_RELATIVO = 0.20
+
+# Consulta usada no reranking (a busca continua usando o texto completo do tópico):
+#   "texto"  -> texto completo do tópico (comportamento antigo)
+#   "nome"   -> só o nome do tópico (ex.: "grafos")
+#   "partes" -> nome + cada parte da ementa separada; o item fica com o MAIOR score
+RERANK_CONSULTA = "texto"
+
 COLLECTION_DISCIPLINAS = "disciplina"
 COLLECTION_PROFESSORES = "perfil_professores"
 COLLECTION_ICS = "iniciacao_cientifica"
@@ -17,16 +37,29 @@ COLLECTION_PRODUCAO = "producao"
 COLLECTION_ORIENTADOR = "orientacoes"
 
 TOPICOS = {
-    "Compiladores": "compiladores: autômato de estados finitos e expressões regulares, Análise léxica, sintática, top-down e bottom-up",
-    "Linguagens formais": "linguagens formais: autômatos. autômatos finitos. linguagens regulares. finitos determinísticos e não-determiníticos. linguagens Regulares. linguagens livres de contexto. linguagens sensíveis ao contexto. máquinas de Turing.",
-    "Grafos": "teoria dos grafos: algoritmos em grafos, caminhos, conectividade, coloração",
+    "Compiladores": "compiladores: autômato de estados finitos e expressões regulares, análise léxica, sintática, top-down e bottom-up",
+    "Linguagens formais": "linguagens formais: autômatos. autômatos finitos. linguagens regulares. finitos determinísticos e não-determiníticos. linguagens regulares. linguagens livres de contexto. linguagens sensíveis ao contexto.",
+    "Grafos": "grafos: conexidade: grafos conexos e cortes. algoritmos de busca em largura, em profundidade e ordenação topológica. árvores geradoras e seus algoritmos. fluxos em redes. algoritmos para caminhos mínimos: dijkstra, bellman-ford, floyd-warshall. componentes fortemente conexas.",
+    "Matemática Discreta": "matemática discreta: noções de lógica matemática. conjuntos. operações entre conjuntos. relações. funções ou aplicações. técnicas de demonstração. análise combinatória. lógica de primeira ordem. ordens totais e parciais. álgebra booleana. sistemas algébricos."
 }
 
 LIMIT_PROFESSORES = 50
-FINAL_PROFESSOR_K = 10
+
+# Peso de cada posição na média dos n melhores itens de um professor (pré-ranking e reranking).
+#   "nenhum"      1, 1, 1, ...            (média simples)
+#   "linear"      n, n-1, ..., 1          (o antigo 3-2-1)
+#   "log"         1/log2(pos+1)           (como no nDCG)
+#   "harmonico"   1/pos
+#   "exponencial" 0.5^(pos-1)
+DECAIMENTO = "log"
+FINAL_PROFESSOR_K = 8
+
+# {fonte de onde remover: fonte que tem prioridade}
+# Ex.: a IC publicada depois como resumo/trabalho em congresso aparece nas duas coleções;
+REMOVER_REPETIDOS = {"producao": "trabalho"}
+
 # tipo -> de onde vem, quantos resultados buscar, quantos usar por professor, peso
 
-# O professor continua valendo 0.20
 PESO_PROFESSOR = 0.20  
 
 FONTES_ITENS = {

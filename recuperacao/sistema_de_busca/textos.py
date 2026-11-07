@@ -69,20 +69,6 @@ def professor_montar_texto_para_modelo(perfil):
     
     return "\n".join(partes)
 
-def disciplina_montar_texto_para_modelo(disciplina):
-    partes = []
-
-    materia = _limpar(disciplina.get("nome"))
-    if materia:
-        partes.append(f"Nome: {materia}")
-
-    ementa = _limpar(disciplina.get("ementa"))
-    if ementa:
-        partes.append(f"Ementa: {ementa}")
-
-    return "\n".join(partes)
-
-
 def projeto_montar_texto_para_modelo(projeto: dict) -> str:
     partes = []
 
@@ -104,6 +90,17 @@ def producao_montar_texto_para_modelo(producao: dict) -> str:
     if titulo:
         partes.append(f"Título: {titulo}")
 
+    return "\n".join(partes)
+
+def disciplina_montar_texto_para_modelo(disciplina: dict) -> str:
+    partes = []
+
+    nome = _limpar(disciplina.get("nome"))
+    if nome:
+        partes.append(f"Nome: {nome}")
+    ementa = _limpar(disciplina.get("ementa"))
+    if nome:
+        partes.append(f"Ementa: {ementa}")
     return "\n".join(partes)
 
 def orientacao_montar_texto_para_modelo(orientacao: dict) -> str:

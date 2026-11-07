@@ -21,7 +21,8 @@ venv/
 # Cache local do scriptLattes (currículos baixados, retomável entre execuções)
 /.cache/
 
-
-data/
+# Saída do sistema de recuperação
+recuperacao/output/
 
 sigaa_pipeline.egg-info/
+

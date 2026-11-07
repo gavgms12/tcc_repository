@@ -16,10 +16,10 @@ def qdrant_id(id):
 def conectar_Qdrant():
     return QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
 
-def upsert_com_retry(client, nome: str, pontos: list, tentativas: int = 4) -> None:
+def upsert_com_retry(client, collection_nome: str, pontos: list, tentativas: int = 4) -> None:
     for tentativa in range(1, tentativas + 1):
         try:
-            client.upsert(collection_name=nome, points=pontos, wait=True)
+            client.upsert(collection_name=collection_nome, points=pontos, wait=True)
             return
         except ResponseHandlingException as erro:      # conexão caiu ou expirou
             if tentativa == tentativas:
@@ -32,14 +32,19 @@ def checar_conexao(client):
     collections = client.get_collections()
     print(f"Connected to Qdrant Cloud: {len(collections.collections)} collections")
     
-def criar_collection_qdrant(client_qdrant, nome):
+def criar_collection_qdrant(client_qdrant, collection_nome):
     client_qdrant.create_collection(
-        collection_name= nome,
+        collection_name= collection_nome,
         vectors_config={
             "dense": VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)},
         sparse_vectors_config={
             "sparse": SparseVectorParams(),
         },
+        hnsw_config=models.HnswConfigDiff(
+                m=0,  # Bulk load fast: m=0 (build links after ingest).
+                ef_construct=100,  # Build quality: used after we set m>0
+                full_scan_threshold=10,  # force HNSW instead of full scan
+        ),
     )
 
 # aplica filtro do payload antes da busca (colocar antes de adicionar dados)
@@ -64,7 +69,7 @@ def garantir_colecao(client, nome: str, campos_inteiros: tuple[str, ...] = ()) -
                 field_schema=models.PayloadSchemaType.INTEGER,
             )
 
-def upsert_perfis(client: QdrantClient, nome: str, perfis: list[dict],
+def upsert_perfis(client: QdrantClient, collection_nome: str, perfis: list[dict],
                   embeddings: dict[str, dict], lote: int = 50) -> None:
     pontos = []
     for p in perfis:
@@ -82,18 +87,18 @@ def upsert_perfis(client: QdrantClient, nome: str, perfis: list[dict],
         ))
 
     for i in range(0, len(pontos), lote):
-        upsert_com_retry(client, nome, pontos[i:i + lote])
+        upsert_com_retry(client, collection_nome, pontos[i:i + lote])
     
 def deletar_collection(client, classe=''):
     client.delete_collection(classe)
 
-def filtrar_alterados(client: QdrantClient, nome: str, perfis: list[dict], lote: int = 200) -> list[dict]:
+def filtrar_alterados(client: QdrantClient, collection_nome: str, perfis: list[dict], lote: int = 200) -> list[dict]:
     """Devolve só os perfis novos ou cujo hash mudou."""
     alterados = []
     for i in range(0, len(perfis), lote):
         parte = perfis[i:i + lote]
         existentes = client.retrieve(
-            collection_name=nome,
+            collection_name=collection_nome,
             ids=[qdrant_id(p["id"]) for p in parte],
             with_payload=["hash"],
             with_vectors=False,
@@ -109,10 +114,10 @@ def filtrar_alterados(client: QdrantClient, nome: str, perfis: list[dict], lote:
 from qdrant_client.models import Fusion, FusionQuery, Prefetch
 
 
-def busca_hibrida(client, nome: str, emb: dict, limit: int,
+def busca_hibrida(client, collection_nome: str, emb: dict, limit: int,
                   campos=("id", "nome", "titulo", "professor_ids", "tipo"), filtro=None):
     """Busca densa + esparsa com fusão RRF. Não traz o texto (só os campos pedidos)."""
-    if not client.collection_exists(nome):
+    if not client.collection_exists(collection_nome):
         return []
 
     sparse = SparseVector(
@@ -120,7 +125,7 @@ def busca_hibrida(client, nome: str, emb: dict, limit: int,
         values=[float(v) for v in emb["sparse"].values()],
     )
     resultado = client.query_points(
-        collection_name=nome,
+        collection_name=collection_nome,
         prefetch=[
             Prefetch(query=emb["dense"].tolist(), using="dense", limit=limit, filter=filtro),
             Prefetch(query=sparse, using="sparse", limit=limit, filter=filtro),
@@ -154,3 +159,10 @@ def filtro_ano(ano_min: int | None = None, ano_max: int | None = None) -> models
             range=models.Range(gte=ano_min, lte=ano_max),   # None means "no limit on that side"
         )
     ])
+def atualizar_m(m, client, collection_name):
+    client.update_collection(
+        collection_name=collection_name,
+        hnsw_config=models.HnswConfigDiff(
+            m=m
+        ),
+    )

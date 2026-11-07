@@ -1,6 +1,7 @@
 import pandas as pd
 
 from recuperacao.sistema_de_busca import config
+from recuperacao.sistema_de_busca.busca.agregacao import decaimento_da_fonte
 from recuperacao.sistema_de_busca.busca.reranking import _score_ponderado
 
 
@@ -65,14 +66,15 @@ def explicar_reranking(ranking_final: list[dict], k: int = 5) -> None:
 
         for tipo, cfg in config.FONTES_ITENS.items():
             itens = sorted(d["itens"][tipo], key=lambda x: x["rerank_score"], reverse=True)
-            comp = _score_ponderado(itens, cfg["n"])
+            comp = _score_ponderado(itens, cfg["n"], decaimento_da_fonte(tipo))
             if comp is None:
                 print(f"  {tipo}: sem itens (fora da média)")
                 continue
-            print(f"  {tipo}: média 3-2-1 = {comp:.5f} (peso {cfg['peso_global']:.2f})")
+            print(f"  {tipo}: média ({decaimento_da_fonte(tipo)}, n={cfg['n']}) = {comp:.5f} (peso {cfg['peso_global']:.2f})")
             for i in itens[:cfg["n"]]:
                 print(f"      {str(i.get('titulo'))[:50]:<50} "
-                      f"bruto={i['rerank_bruto']:.4f} x {i['peso_tipo']:.2f} = {i['rerank_score']:.4f}")
+                      f"bruto={i['rerank_bruto']:.4f} x {i['peso_tipo']:.2f} = {i['rerank_score']:.4f}"
+                      f"  [consulta: {str(i.get('rerank_consulta'))[:40]}] [corte: {i.get('corte')}]")
             num += cfg["peso_global"] * comp
             den = config.PESO_PROFESSOR + sum(c["peso_global"] for c in config.FONTES_ITENS.values())
 
