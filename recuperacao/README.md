@@ -54,7 +54,7 @@ Depois, para todos os tópicos juntos:
 5. **Resultado** — os `top_k` professores, com o score de cada tópico e os itens mais relevantes de cada coleção
 
 ## Como rodar
-
+Link para o Qdrant Cloud: https://cloud.qdrant.io/
 Variáveis no `.env`: `QDRANT_URL`, `QDRANT_API_KEY` e as credenciais do MinIO.
 
 ```powershell
