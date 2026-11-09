@@ -42,7 +42,7 @@ def subtopicos_topico(nome: str) -> list[str] | None:
 # Referência: CORTE_POR_TIPO = True  -> melhor item do MESMO tipo (orientação x orientação...)
 #             CORTE_POR_TIPO = False -> melhor item do tópico, qualquer tipo (a disciplina costuma dominar)
 MIN_RERANK_RELATIVO = 0.10
-CORTE_POR_TIPO = False
+CORTE_POR_TIPO = True
 MIN_RERANK_ABSOLUTO = 0.0
 MANTER_MELHOR_POR_TIPO = False
 
@@ -52,7 +52,7 @@ MOSTRAR_EVIDENCIA_FRACA = False
 
 # Corte de professores no ranking final: só entra quem tiver
 #   rerank_score >= MIN_SCORE_PROFESSOR_RELATIVO * (rerank_score do 1º colocado)
-MIN_SCORE_PROFESSOR_RELATIVO = 0.20
+MIN_SCORE_PROFESSOR_RELATIVO = 0
 
 # Consulta usada no reranking (a busca continua usando o texto completo do tópico):
 #   "texto"  -> texto completo do tópico (comportamento antigo)
