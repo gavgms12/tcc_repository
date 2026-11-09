@@ -86,6 +86,34 @@ RERANK_MAX_LENGTH = 512
 estatisticas = {"pares_calculados": 0, "pares_do_disco": 0}   # modelo x lidos do cache em disco
 
 
+# Frases que dizem a intenção do aluno, não o tema ("quero pesquisar ...", "tenho interesse em ...").
+# Atrapalham o reranker: ele compara o item com a frase inteira.
+_INTENCAO = re.compile(
+    r"\b(?:eu\s+)?(?:quero|queria|gostaria\s+de|pretendo|desejo|tenho\s+interesse\s+(?:em|por)|"
+    r"me\s+interesso\s+(?:por|em)|meu\s+interesse\s+[ée])"
+    r"(?:\s+(?:pesquisar|estudar|trabalhar|aprender|fazer|desenvolver|atuar|seguir)"
+    r"(?:\s+(?:um|uma)\s+(?:tcc|trabalho|pesquisa|projeto|ic|inicia[çc][ãa]o\s+cient[íi]fica))?)?"
+    r"(?:\s+(?:sobre|com|em|na\s+[áa]rea\s+de|no|na|de))?\s*",
+    re.IGNORECASE,
+)
+
+
+def partes_texto_livre(texto: str) -> list[str]:
+    """Consultas do reranker para um texto livre: o texto sem as frases de intenção + cada ideia separada.
+
+    "quero pesquisar sistemas embarcados e internet das coisas" ->
+        ["sistemas embarcados e internet das coisas", "sistemas embarcados", "internet das coisas"]
+    O item fica com a MAIOR nota entre as consultas, então manter o texto inteiro nunca piora o resultado.
+    """
+    limpo = _INTENCAO.sub(" ", texto)
+    limpo = re.sub(r"\s+", " ", limpo).strip(" ,.;:")
+    if len(limpo) <= 2:
+        limpo = texto.strip()
+    partes = [p.strip(" ,.;:") for p in re.split(r"[;.,\n]|\s+e\s+|\s+ou\s+|\s+/\s+", limpo)]
+    partes = [p for p in partes if len(p) > 2]
+    return list(dict.fromkeys([limpo] + partes))
+
+
 def consultas_rerank(topico: str, texto: str, modo: str | None = None) -> list[str]:
     """Consultas que o reranker compara com cada item, conforme config.RERANK_CONSULTA."""
     modo = modo or config.RERANK_CONSULTA
@@ -96,7 +124,9 @@ def consultas_rerank(topico: str, texto: str, modo: str | None = None) -> list[s
         return [nome or texto]
     if modo == "partes":
         partes = config.subtopicos_topico(topico)          # tópico estruturado: subtópicos escritos à mão
-        if not partes:                                      # tópico só texto (ou texto livre): quebra o texto
+        if not partes and not nome:                         # texto livre do aluno
+            return partes_texto_livre(texto)
+        if not partes:                                      # tópico do catálogo só texto: quebra o texto
             partes = [p.strip(" ,:") for p in re.split(r"[;.]", texto)]
             partes = [p for p in partes if len(p) > 2]
             if nome:

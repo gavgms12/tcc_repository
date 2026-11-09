@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from recuperacao.sistema_de_busca import config
-from recuperacao.sistema_de_busca.busca.exibicao import _melhores_itens
+from recuperacao.sistema_de_busca.busca.exibicao import _melhores_itens, resumo_perfil
 
 NOME_TEXTO_LIVRE = "Texto livre"
 
@@ -89,6 +89,8 @@ def criar_app(rec) -> FastAPI:
                 {
                     "posicao": i,
                     **prof,
+                    # nota do texto de perfil do professor e quanto ela pesa no score (não aparece nos destaques)
+                    "perfil": resumo_perfil(prof),
                     # melhores itens de cada tipo entre todos os tópicos: o que mostrar ao usuário
                     "destaques": _melhores_itens(prof, pedido.n_itens,
                                                  incluir_fracos=config.MOSTRAR_EVIDENCIA_FRACA),

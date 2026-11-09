@@ -156,14 +156,14 @@ REMOVER_REPETIDOS = {"producao": "trabalho"}
 
 # tipo -> de onde vem, quantos resultados buscar, quantos usar por professor, peso
 
-PESO_PROFESSOR = 0.20  
+PESO_PROFESSOR = 0.15
 
 FONTES_ITENS = {
     "producao": {
         "collection":COLLECTION_PRODUCAO,
         "limit": 120,
         "n": 5,
-        "peso_global": 0.43,
+        "peso_global": 0.44,
         "pesos_internos": {
             "livro": 1.0,               # 125/125
             "artigo_periodico": 0.8,    # 100/125
@@ -178,7 +178,7 @@ FONTES_ITENS = {
         "collection": COLLECTION_PROJETOS, 
         "limit": 50, 
         "n": 3, 
-        "peso_global": 0.14,
+        "peso_global": 0.15,
         "pesos_internos": {
             "pesquisa": 1.0, 
             "desenvolvimento": 1.0, 
@@ -191,7 +191,7 @@ FONTES_ITENS = {
         "collection":COLLECTION_ORIENTADOR, 
         "limit": 120, 
         "n": 3, 
-        "peso_global": 0.12,
+        "peso_global": 0.13,
         "pesos_internos": {
             "padrao": 1.0
         },
@@ -201,7 +201,7 @@ FONTES_ITENS = {
         "collection": COLLECTION_ICS, 
         "limit": 50, 
         "n": 2, 
-        "peso_global": 0.10,
+        "peso_global": 0.11,
         "pesos_internos": {
             "padrao": 1.0 
         },
@@ -211,7 +211,7 @@ FONTES_ITENS = {
         "collection": COLLECTION_DISCIPLINAS, 
         "limit": 100, 
         "n": 3, 
-        "peso_global": 0.01,
+        "peso_global": 0.02,
         "pesos_internos": {
             "padrao": 1.0
         },

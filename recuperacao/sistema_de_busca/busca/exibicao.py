@@ -29,6 +29,24 @@ def _fmt(valor):
     return f"{valor:.6f}" if valor is not None else "N/A"
 
 
+def resumo_perfil(prof: dict) -> dict:
+    """Nota do perfil do professor (texto de apresentação) e quanto ela pesa no score final.
+
+    O score de cada tópico é sum(peso * nota) / sum(pesos), com PESO_PROFESSOR para o perfil;
+    o score final é a média entre os tópicos. "parcela_do_score" = fração do score que veio do perfil.
+    """
+    soma_pesos = config.PESO_PROFESSOR + sum(cfg["peso_global"] for cfg in config.FONTES_ITENS.values())
+    por_topico = {t: det.get("score_perfil") for t, det in prof["topicos"].items()}
+    notas = [s or 0.0 for s in por_topico.values()]
+    media = sum(notas) / len(notas) if notas else 0.0
+    contribuicao = config.PESO_PROFESSOR * media / soma_pesos
+    return {
+        "score": media,
+        "por_topico": por_topico,
+        "parcela_do_score": contribuicao / prof["score"] if prof.get("score") else None,
+    }
+
+
 def _melhores_itens(prof: dict, n: int, incluir_fracos: bool = True) -> dict[str, list[dict]]:
     """Os n itens de maior score de cada coleção, entre todos os tópicos; item repetido fica com o melhor score.
 
@@ -62,6 +80,9 @@ def imprimir_ranking(ranking: list[dict], aluno_texto: str, n_itens: int = 3) ->
         print(f"Rerank score: {_fmt(prof['score'])}")
         print(f"Score inicial: {_fmt(prof.get('score_inicial'))}")
         print("Cobertura: " + " · ".join(f"{t} {_fmt(s)}" for t, s in prof["scores_topicos"].items()))
+        perfil = resumo_perfil(prof)
+        parcela = f" ({perfil['parcela_do_score']:.0%} do score)" if perfil["parcela_do_score"] is not None else ""
+        print(f"Perfil: {_fmt(perfil['score'])}{parcela}")
 
         mostrar_fracos = config.MOSTRAR_EVIDENCIA_FRACA
         todos = _melhores_itens(prof, 10**6)
