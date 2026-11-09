@@ -23,6 +23,7 @@ venv/
 
 # Saída do sistema de recuperação
 recuperacao/output/
+recuperacao/sistema_de_busca/cache/
 
 sigaa_pipeline.egg-info/
 

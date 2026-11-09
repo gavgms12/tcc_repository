@@ -11,8 +11,8 @@ client = conectar_Qdrant()
 
 try:
     rec = Recomendador(client, modelo, reranker)
-    selecionados = ["Grafos", "Matemática Discreta"]
-    topicos = {t: config.TOPICOS[t].lower() for t in selecionados}
+    selecionados = ["Matemática Discreta", "Grafos"]
+    topicos = {t: config.texto_topico(t) for t in selecionados}
     # texto livre: topicos["Texto livre"] = "..."
     with salvar_em_txt("_".join(topicos)):   # gera recuperacao/output/<data-hora>_<tópicos>.txt
         pre = rec.pre_ranking(topicos, top_k=10)

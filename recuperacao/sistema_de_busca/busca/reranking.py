@@ -6,7 +6,8 @@ from FlagEmbedding import FlagReranker
 
 from recuperacao.sistema_de_busca import config
 from recuperacao.sistema_de_busca.busca.agregacao import decaimento_da_fonte, media_decaimento
-from recuperacao.sistema_de_busca.database_vetores import buscar_payloads
+from recuperacao.sistema_de_busca.database_vetores import buscar_payloads_varios
+from recuperacao.sistema_de_busca.busca.cache_rerank import cache_disco, chave
 
 
 def carregar_reranker() -> FlagReranker:
@@ -18,10 +19,36 @@ def _top_n(rel: pd.DataFrame, ids_prof: list[str], n: int) -> pd.DataFrame:
     return rel.sort_values("score", ascending=False).groupby("professor_id").head(n)
 
 
-def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame]) -> list[dict]:
-    """Lista plana: perfil + melhores itens de cada tipo, cada um com seu texto."""
+def _selecoes(ranking: pd.DataFrame, rels: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    """Os n melhores itens de cada tipo, por professor do ranking."""
     ids_prof = ranking["professor_id"].tolist()
-    perfis = buscar_payloads(client, config.COLLECTION_PROFESSORES, ids_prof)
+    return {tipo: _top_n(rels[tipo], ids_prof, cfg["n"]) for tipo, cfg in config.FONTES_ITENS.items()}
+
+
+def ids_candidatos(ranking: pd.DataFrame, rels_por_topico: dict[str, dict[str, pd.DataFrame]]) -> dict[str, list]:
+    """{coleção: ids} de tudo que criar_candidatos vai precisar, somando todos os tópicos
+    (para buscar os payloads uma vez só, em vez de uma vez por tópico)."""
+    pedidos = {config.COLLECTION_PROFESSORES: ranking["professor_id"].tolist()}
+    for rels in rels_por_topico.values():
+        for tipo, selecao in _selecoes(ranking, rels).items():
+            pedidos.setdefault(config.FONTES_ITENS[tipo]["collection"], []).extend(selecao["objeto_id"])
+    return pedidos
+
+
+def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame],
+                     payloads: dict[str, dict[str, dict]] | None = None) -> list[dict]:
+    """Lista plana: perfil + melhores itens de cada tipo, cada um com seu texto.
+
+    payloads: {coleção: {id: payload}} já buscados (ver ids_candidatos); None busca aqui.
+    """
+    ids_prof = ranking["professor_id"].tolist()
+    selecoes = _selecoes(ranking, rels)
+    if payloads is None:
+        payloads = buscar_payloads_varios(client, {
+            config.COLLECTION_PROFESSORES: ids_prof,
+            **{config.FONTES_ITENS[tipo]["collection"]: sel["objeto_id"].tolist() for tipo, sel in selecoes.items()},
+        })
+    perfis = payloads.get(config.COLLECTION_PROFESSORES, {})
     nomes = {pid: p.get("nome") for pid, p in perfis.items()}
 
     candidatos = []
@@ -35,11 +62,10 @@ def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame
             })
 
     for tipo, cfg in config.FONTES_ITENS.items():
-        selecao = _top_n(rels[tipo], ids_prof, cfg["n"])
-        payloads = buscar_payloads(client, cfg["collection"], selecao["objeto_id"])
+        da_colecao = payloads.get(cfg["collection"], {})
 
-        for _, rel in selecao.iterrows():
-            item = payloads.get(rel["objeto_id"])
+        for _, rel in selecoes[tipo].iterrows():
+            item = da_colecao.get(rel["objeto_id"])
             pid = rel["professor_id"]
             if pid not in perfis or not item or not item.get("texto"):
                 continue
@@ -48,6 +74,7 @@ def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame
                 "tipo": tipo, "item_id": rel["objeto_id"], "texto": item["texto"],
                 "titulo": item.get("titulo") or item.get("nome"),
                 "subtipo": item.get("tipo"),                       # livro, artigo_periodico, pesquisa...
+                "codigo": item.get("codigo"),                      # sigla da disciplina (ex.: DIM0110)
                 "peso_tipo": config.peso_interno(tipo, item),
             })
 
@@ -55,6 +82,8 @@ def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame
 
 
 _cache_scores: dict[tuple[str, str], float] = {}
+RERANK_MAX_LENGTH = 512
+estatisticas = {"pares_calculados": 0, "pares_do_disco": 0}   # modelo x lidos do cache em disco
 
 
 def consultas_rerank(topico: str, texto: str, modo: str | None = None) -> list[str]:
@@ -66,10 +95,49 @@ def consultas_rerank(topico: str, texto: str, modo: str | None = None) -> list[s
     if modo == "nome":
         return [nome or texto]
     if modo == "partes":
-        partes = [p.strip(" ,:") for p in re.split(r"[;.]", texto)]
-        partes = [p for p in partes if len(p) > 2]
+        partes = config.subtopicos_topico(topico)          # tópico estruturado: subtópicos escritos à mão
+        if not partes:                                      # tópico só texto (ou texto livre): quebra o texto
+            partes = [p.strip(" ,:") for p in re.split(r"[;.]", texto)]
+            partes = [p for p in partes if len(p) > 2]
+            if nome:
+                # partes automáticas podem ser curtas/ambíguas: "matching" -> "grafos: matching"
+                # (subtópicos escritos à mão já fazem sentido sozinhos e não recebem prefixo)
+                partes = [p if nome in p else f"{nome}: {p}" for p in partes]
         return list(dict.fromkeys(([nome] if nome else []) + (partes or [texto])))
     raise ValueError(f"RERANK_CONSULTA inválido: {modo!r}")
+
+
+def calcular_scores(reranker, pares: list[tuple[str, str]]) -> None:
+    """Garante a nota de cada par (consulta, texto) em _cache_scores.
+
+    Ordem: memória -> cache em disco (pré-calculado) -> modelo (e salva no disco).
+    """
+    faltando = list(dict.fromkeys(p for p in pares if p not in _cache_scores))
+    if not faltando:
+        return
+
+    disco = cache_disco()
+    if disco is not None:
+        chaves = {p: chave(p[0], p[1], RERANK_MAX_LENGTH) for p in faltando}
+        achados = disco.buscar(list(chaves.values()))
+        for p, k in chaves.items():
+            if k in achados:
+                _cache_scores[p] = achados[k]
+        estatisticas["pares_do_disco"] += sum(1 for p in faltando if p in _cache_scores)
+        faltando = [p for p in faltando if p not in _cache_scores]
+        if not faltando:
+            return
+
+    if reranker is None:
+        raise ValueError(f"{len(faltando)} par(es) sem nota no cache e nenhum reranker carregado")
+    scores = reranker.compute_score(faltando, batch_size=16, max_length=RERANK_MAX_LENGTH, normalize=True)
+    if scores is None:
+        raise ValueError("O reranker não retornou scores")
+    scores = [float(s) for s in np.atleast_1d(scores)]
+    _cache_scores.update(zip(faltando, scores, strict=True))
+    estatisticas["pares_calculados"] += len(faltando)
+    if disco is not None:
+        disco.salvar({chave(q, t, RERANK_MAX_LENGTH): s for (q, t), s in zip(faltando, scores)})
 
 
 def pontuar_candidatos(reranker, consultas: str | list[str], candidatos: list[dict]) -> list[dict]:
@@ -79,13 +147,7 @@ def pontuar_candidatos(reranker, consultas: str | list[str], candidatos: list[di
     if isinstance(consultas, str):
         consultas = [consultas]
     textos = dict.fromkeys(str(c["texto"]) for c in candidatos)
-    faltando = [(q, t) for q in consultas for t in textos if (q, t) not in _cache_scores]
-    if faltando:
-        scores = reranker.compute_score(faltando, batch_size=16, max_length=512, normalize=True)
-        if scores is None:
-            raise ValueError("O reranker não retornou scores")
-        scores = [float(s) for s in np.atleast_1d(scores)]
-        _cache_scores.update(zip(faltando, scores, strict=True))
+    calcular_scores(reranker, [(q, t) for q in consultas for t in textos])
     for c in candidatos:
         t = str(c["texto"])
         melhor = max(consultas, key=lambda q: _cache_scores[(q, t)])
@@ -97,19 +159,30 @@ def pontuar_candidatos(reranker, consultas: str | list[str], candidatos: list[di
 
 
 def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
-                  manter_melhor: bool | None = None) -> list[dict]:
-    """Corte relativo ao melhor item do tópico + garantia do melhor item por (professor, tipo).
+                  manter_melhor: bool | None = None, por_tipo: bool | None = None,
+                  absoluto: float | None = None) -> list[dict]:
+    """Corte relativo ao melhor item (do mesmo tipo ou do tópico) + piso absoluto opcional
+    + garantia opcional do melhor item por (professor, tipo).
 
     Marca em c["corte"] por que o item passou: "relativo" ou "melhor_do_tipo".
     O perfil do professor nunca é cortado.
     """
     relativo = config.MIN_RERANK_RELATIVO if relativo is None else relativo
     manter_melhor = config.MANTER_MELHOR_POR_TIPO if manter_melhor is None else manter_melhor
+    por_tipo = config.CORTE_POR_TIPO if por_tipo is None else por_tipo
+    absoluto = config.MIN_RERANK_ABSOLUTO if absoluto is None else absoluto
 
     itens = [c for c in candidatos if c["tipo"] != "professor"]
     if not itens:
         return candidatos
-    limite = relativo * max(c["rerank_bruto"] for c in itens)
+    if por_tipo:
+        maximo: dict[str, float] = {}
+        for c in itens:
+            maximo[c["tipo"]] = max(maximo.get(c["tipo"], 0.0), c["rerank_bruto"])
+        limites = {t: max(relativo * m, absoluto) for t, m in maximo.items()}
+    else:
+        geral = max(relativo * max(c["rerank_bruto"] for c in itens), absoluto)
+        limites = {c["tipo"]: geral for c in itens}
 
     melhores = set()
     if manter_melhor:
@@ -124,7 +197,7 @@ def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
     for c in candidatos:
         if c["tipo"] == "professor":
             resultado.append(c)
-        elif c["rerank_bruto"] >= limite:
+        elif c["rerank_bruto"] >= limites[c["tipo"]]:
             c["corte"] = "relativo"
             resultado.append(c)
         elif id(c) in melhores:

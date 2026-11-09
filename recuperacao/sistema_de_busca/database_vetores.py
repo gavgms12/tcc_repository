@@ -7,6 +7,7 @@ from recuperacao.sistema_de_busca import config
 import os
 from qdrant_client.http.exceptions import UnexpectedResponse, ResponseHandlingException
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 
@@ -113,11 +114,35 @@ def filtrar_alterados(client: QdrantClient, collection_nome: str, perfis: list[d
 
 from qdrant_client.models import Fusion, FusionQuery, Prefetch
 
+_colecoes_existentes: dict[int, set[str]] = {}
+
+
+def colecao_existe(client, nome: str) -> bool:
+    """Como client.collection_exists, mas lista as coleções uma vez só por client
+    (antes era uma ida ao servidor a cada busca). Só consulta de novo se o nome não estiver na lista."""
+    existentes = _colecoes_existentes.get(id(client))
+    if existentes is None or nome not in existentes:
+        existentes = {c.name for c in client.get_collections().collections}
+        _colecoes_existentes[id(client)] = existentes
+    return nome in existentes
+
+
+def em_paralelo(tarefas: dict, max_workers: int = 8) -> dict:
+    """{chave: função sem argumentos} -> {chave: resultado}, rodando as funções em threads.
+
+    Serve para chamadas de rede (Qdrant): o tempo passa esperando a resposta, não na CPU.
+    """
+    if not tarefas:
+        return {}
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(tarefas))) as pool:
+        futuros = {chave: pool.submit(funcao) for chave, funcao in tarefas.items()}
+        return {chave: f.result() for chave, f in futuros.items()}
+
 
 def busca_hibrida(client, collection_nome: str, emb: dict, limit: int,
                   campos=("id", "nome", "titulo", "professor_ids", "tipo"), filtro=None):
     """Busca densa + esparsa com fusão RRF. Não traz o texto (só os campos pedidos)."""
-    if not client.collection_exists(collection_nome):
+    if not colecao_existe(client, collection_nome):
         return []
 
     sparse = SparseVector(
@@ -140,15 +165,23 @@ def busca_hibrida(client, collection_nome: str, emb: dict, limit: int,
 def buscar_payloads(client, nome: str, ids) -> dict[str, dict]:
     """Payload completo (com `texto`) de ids específicos. Uma chamada em lote."""
     ids = list(dict.fromkeys(str(i) for i in ids))
-    if not ids or not client.collection_exists(nome):
+    if not ids or not colecao_existe(client, nome):
         return {}
     registros = client.retrieve(
         collection_name=nome,
         ids=[qdrant_id(i) for i in ids],
-        with_payload=["id", "texto", "titulo", "nome", "tipo"],
+        with_payload=["id", "texto", "titulo", "nome", "tipo", "codigo"],
         with_vectors=False,
     )
     return {str(r.payload["id"]): r.payload for r in registros}
+
+
+def buscar_payloads_varios(client, pedidos: dict[str, list]) -> dict[str, dict[str, dict]]:
+    """{coleção: ids} -> {coleção: {id: payload}}, uma chamada por coleção, todas em paralelo."""
+    return em_paralelo({
+        nome: (lambda nome=nome, ids=ids: buscar_payloads(client, nome, ids))
+        for nome, ids in pedidos.items()
+    })
 
 def filtro_ano(ano_min: int | None = None, ano_max: int | None = None) -> models.Filter | None:
     if ano_min is None and ano_max is None:

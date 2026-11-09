@@ -4,10 +4,11 @@ from contextlib import contextmanager
 import pandas as pd
 
 from recuperacao.sistema_de_busca import config
-from recuperacao.sistema_de_busca.modelo import embedar_consulta
-from recuperacao.sistema_de_busca.database_vetores import busca_hibrida, buscar_payloads, filtro_ano
+from recuperacao.sistema_de_busca.modelo import embedar_consultas
+from recuperacao.sistema_de_busca.database_vetores import busca_hibrida, buscar_payloads_varios, em_paralelo, filtro_ano
 from .agregacao import combinar_scores, decaimento_da_fonte, hits_para_df, remover_repetidos, score_top_n, scores_perfis, unir_topicos
-from .reranking import aplicar_corte, consultas_rerank, criar_candidatos, pontuar_candidatos, rankear_professores, unir_rerank
+from .reranking import (aplicar_corte, consultas_rerank, criar_candidatos, ids_candidatos, pontuar_candidatos,
+                        rankear_professores, unir_rerank)
 from .diagnostico import explicar_pre_ranking, explicar_reranking, verificar_pesos_internos
 
 
@@ -30,21 +31,34 @@ class Recomendador:
         finally:
             self.tempos[etapa] = self.tempos.get(etapa, 0.0) + time.perf_counter() - inicio
 
-    def _pre_rankear(self, texto: str, filtro, debug=False):
-        """Busca híbrida em cada coleção e pré-ranking dos professores para um tópico."""
+    def _buscar(self, topicos: dict[str, str], filtro) -> dict[tuple[str, str], list]:
+        """Embedding de todos os tópicos (um lote só) e busca híbrida de cada (tópico, coleção) em paralelo.
+
+        Retorna {(tópico, "professor" ou tipo): pontos}.
+        """
         with self._medir("embedding"):
-            emb = embedar_consulta(self.modelo, texto)
-        with self._medir("qdrant"):
-            pontos_prof = busca_hibrida(
-                self.client, config.COLLECTION_PROFESSORES, emb, config.LIMIT_PROFESSORES
+            embs = dict(zip(topicos, embedar_consultas(self.modelo, list(topicos.values()))))
+        tarefas = {}
+        for topico, emb in embs.items():
+            tarefas[(topico, "professor")] = (
+                lambda emb=emb: busca_hibrida(self.client, config.COLLECTION_PROFESSORES, emb, config.LIMIT_PROFESSORES)
             )
-        rels, scores_itens = {}, {}
-        for tipo, cfg in config.FONTES_ITENS.items():
-            with self._medir("qdrant"):
-                pontos = busca_hibrida(
-                    self.client, cfg["collection"], emb, cfg["limit"],
-                    filtro=filtro if cfg.get("filtra_ano") else None,
+            for tipo, cfg in config.FONTES_ITENS.items():
+                tarefas[(topico, tipo)] = (
+                    lambda emb=emb, cfg=cfg: busca_hibrida(
+                        self.client, cfg["collection"], emb, cfg["limit"],
+                        filtro=filtro if cfg.get("filtra_ano") else None,
+                    )
                 )
+        with self._medir("qdrant"):
+            return em_paralelo(tarefas)
+
+    def _pre_rankear(self, topico: str, resultados: dict[tuple[str, str], list], debug=False):
+        """Pré-ranking dos professores para um tópico, a partir dos resultados de _buscar."""
+        pontos_prof = resultados[(topico, "professor")]
+        rels, scores_itens = {}, {}
+        for tipo in config.FONTES_ITENS:
+            pontos = resultados[(topico, tipo)]
             if debug:
                 verificar_pesos_internos(pontos, tipo)
             rels[tipo] = hits_para_df(pontos, tipo)
@@ -69,8 +83,9 @@ class Recomendador:
         # 1ª etapa: pré-ranking separado para cada tópico
         rankings, rels = {}, {}
         with self._medir("busca"):
-            for topico, texto in topicos.items():
-                rankings[topico], rels[topico] = self._pre_rankear(texto, filtro, debug)
+            resultados = self._buscar(topicos, filtro)
+            for topico in topicos:
+                rankings[topico], rels[topico] = self._pre_rankear(topico, resultados, debug)
 
         # 2ª etapa: união dos tópicos e corte nos melhores professores
         com_itens = {
@@ -92,11 +107,9 @@ class Recomendador:
         ranking = ranking.head(top_k)
         ids = ranking["professor_id"].tolist()
 
-        perfis = buscar_payloads(self.client, config.COLLECTION_PROFESSORES, ids)
-
         # melhores itens de cada professor, por tópico e tipo, com o score da busca
-        selecoes, payloads = {}, {}
-        for tipo, cfg in config.FONTES_ITENS.items():
+        selecoes = {}
+        for tipo in config.FONTES_ITENS:
             for topico in topicos:
                 rel = rels[topico][tipo]
                 selecoes[(topico, tipo)] = (
@@ -104,8 +117,15 @@ class Recomendador:
                     .sort_values("score", ascending=False)
                     .groupby("professor_id").head(n_itens)
                 )
-            ids_itens = {i for t in topicos for i in selecoes[(t, tipo)]["objeto_id"]}
-            payloads[tipo] = buscar_payloads(self.client, cfg["collection"], list(ids_itens)) if ids_itens else {}
+
+        # payloads de todas as coleções de uma vez, em paralelo
+        pedidos = {"professor": (config.COLLECTION_PROFESSORES, ids)}
+        for tipo, cfg in config.FONTES_ITENS.items():
+            ids_itens = list({i for t in topicos for i in selecoes[(t, tipo)]["objeto_id"]})
+            pedidos[tipo] = (cfg["collection"], ids_itens)
+        por_colecao = buscar_payloads_varios(self.client, dict(pedidos.values()))
+        payloads = {tipo: por_colecao.get(colecao, {}) for tipo, (colecao, _) in pedidos.items()}
+        perfis = payloads.pop("professor")
 
         componentes = {
             topico: df.set_index("professor_id").to_dict("index") for topico, df in rankings.items()
@@ -129,6 +149,7 @@ class Recomendador:
                             "titulo": (payloads[tipo].get(r["objeto_id"]) or {}).get("titulo")
                                       or (payloads[tipo].get(r["objeto_id"]) or {}).get("nome"),
                             "subtipo": (payloads[tipo].get(r["objeto_id"]) or {}).get("tipo"),
+                            "codigo": (payloads[tipo].get(r["objeto_id"]) or {}).get("codigo"),
                             "score": float(r["score"]),
                         }
                         for _, r in sel[sel["professor_id"] == pid].iterrows()
@@ -161,9 +182,11 @@ class Recomendador:
         # 3ª etapa: cada item é comparado com o tópico que o encontrou
         por_topico = {}
         with self._medir("reranking"):
+            with self._medir("candidatos"):   # payloads de todos os tópicos de uma vez, em paralelo
+                payloads = buscar_payloads_varios(self.client, ids_candidatos(ranking, rels))
             for topico, texto in topicos.items():
                 with self._medir("candidatos"):
-                    candidatos = criar_candidatos(self.client, ranking, rels[topico])
+                    candidatos = criar_candidatos(self.client, ranking, rels[topico], payloads)
                 with self._medir("modelo_reranker"):
                     candidatos = pontuar_candidatos(self.reranker, consultas_rerank(topico, texto), candidatos)
                 candidatos = aplicar_corte(candidatos)
@@ -202,7 +225,9 @@ class Recomendador:
                         "score_perfil": det["perfil"],
                         "itens": {
                             tipo: [
-                                {"id": i["item_id"], "titulo": i.get("titulo"), "subtipo": i.get("subtipo"), "score": i["rerank_score"], "corte": i.get("corte")}
+                                {"id": i["item_id"], "titulo": i.get("titulo"), "subtipo": i.get("subtipo"), "codigo": i.get("codigo"),
+                                 "score": i["rerank_score"], "corte": i.get("corte"),
+                                 "consulta": i.get("rerank_consulta")}
                                 for i in sorted(lista, key=lambda x: x["rerank_score"], reverse=True)
                             ]
                             for tipo, lista in det["itens"].items()

@@ -109,7 +109,9 @@ def imprimir_pre_ranking(ranking: list[dict], aluno_texto: str, n_itens: int = 3
             for j, item in enumerate(itens, start=1):
                 subtipo = _rotulo_subtipo(item.get("subtipo"))
                 prefixo = f"[{subtipo}] " if subtipo else ""
-                print(f"\n  {j}. {prefixo}{item['titulo'] or '(sem título)'}")
+                codigo = item.get("codigo")
+                sigla = f"[{codigo}] " if codigo else ""
+                print(f"\n  {j}. {prefixo}{sigla}{item['titulo'] or '(sem título)'}")
                 print(f"     Score da busca: {_fmt(item['score'])} (tópico: {item['topico']})")
 
 

@@ -28,3 +28,14 @@ def gerar_embeddings(modelo, perfis: list[dict], batch_size: int = 16) -> dict[s
 def embedar_consulta(modelo, texto: str) -> dict:
     saida = modelo.encode([texto], return_dense=True, return_sparse=True)
     return {"dense": saida["dense_vecs"][0], "sparse": saida["lexical_weights"][0]}
+
+
+def embedar_consultas(modelo, textos: list[str]) -> list[dict]:
+    """Como embedar_consulta, mas várias consultas em uma chamada só ao modelo."""
+    if not textos:
+        return []
+    saida = modelo.encode(list(textos), return_dense=True, return_sparse=True)
+    return [
+        {"dense": saida["dense_vecs"][i], "sparse": saida["lexical_weights"][i]}
+        for i in range(len(textos))
+    ]
