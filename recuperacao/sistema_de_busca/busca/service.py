@@ -6,7 +6,7 @@ import pandas as pd
 from recuperacao.sistema_de_busca import config
 from recuperacao.sistema_de_busca.modelo import embedar_consultas
 from recuperacao.sistema_de_busca.database_vetores import busca_hibrida, buscar_payloads_varios, em_paralelo, filtro_ano
-from .agregacao import combinar_scores, decaimento_da_fonte, hits_para_df, remover_repetidos, score_top_n, scores_perfis, unir_topicos
+from .agregacao import combinar_scores, decaimento_da_fonte, hits_para_df, score_top_n, scores_perfis, unir_topicos
 from .reranking import (aplicar_corte, consultas_rerank, criar_candidatos, ids_candidatos, pontuar_candidatos,
                         rankear_professores, unir_rerank)
 from .diagnostico import explicar_pre_ranking, explicar_reranking, verificar_pesos_internos
@@ -62,11 +62,6 @@ class Recomendador:
             if debug:
                 verificar_pesos_internos(pontos, tipo)
             rels[tipo] = hits_para_df(pontos, tipo)
-
-        # o mesmo trabalho em duas coleções (ex.: IC publicada como resumo) conta uma vez só
-        removidos = remover_repetidos(rels, config.REMOVER_REPETIDOS)
-        if debug and any(removidos.values()):
-            print(f"\n[repetidos] removidos: {removidos}")
 
         for tipo, cfg in config.FONTES_ITENS.items():
             scores_itens[tipo] = score_top_n(rels[tipo], f"{tipo}_score", cfg["n"], decaimento_da_fonte(tipo))

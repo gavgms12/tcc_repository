@@ -150,10 +150,6 @@ LIMIT_PROFESSORES = 15
 DECAIMENTO = "log"
 FINAL_PROFESSOR_K = 15
 
-# {fonte de onde remover: fonte que tem prioridade}
-# Ex.: a IC publicada depois como resumo/trabalho em congresso aparece nas duas coleções;
-REMOVER_REPETIDOS = {"producao": "trabalho"}
-
 # tipo -> de onde vem, quantos resultados buscar, quantos usar por professor, peso
 
 PESO_PROFESSOR = 0.15

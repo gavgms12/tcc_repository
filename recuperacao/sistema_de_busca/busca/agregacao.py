@@ -1,6 +1,4 @@
 import math
-import re
-import unicodedata
 
 import pandas as pd
 from recuperacao.sistema_de_busca import config
@@ -12,37 +10,13 @@ def hits_para_df(pontos, fonte: str) -> pd.DataFrame:
             "professor_id": str(pid),
             "objeto_id": str(p.payload["id"]),
             "score": p.score * config.peso_interno(fonte, p.payload),
-            "titulo_norm": normalizar_titulo(p.payload.get("titulo") or p.payload.get("nome")),
         }
         for p in pontos
         for pid in p.payload.get("professor_ids", [])
     ]
-    df = pd.DataFrame(linhas, columns=["professor_id", "objeto_id", "score", "titulo_norm"])
+    df = pd.DataFrame(linhas, columns=["professor_id", "objeto_id", "score"])
     df["score"] = df["score"].astype("float64")
     return df
-
-def normalizar_titulo(titulo) -> str:
-    """Minúsculo, sem acentos e sem pontuação, para comparar títulos."""
-    texto = unicodedata.normalize("NFKD", str(titulo or "")).encode("ascii", "ignore").decode().lower()
-    return re.sub(r"[^a-z0-9]+", " ", texto).strip()
-
-
-def remover_repetidos(rels: dict[str, pd.DataFrame], regras: dict[str, str]) -> dict[str, int]:
-    """Remove de rels[origem] os itens cujo título repete um item de rels[prioridade] do mesmo professor.
-
-    Altera `rels` no lugar e devolve quantas linhas saíram de cada fonte.
-    """
-    removidos = {}
-    for origem, prioridade in regras.items():
-        if origem not in rels or prioridade not in rels:
-            continue
-        ref = rels[prioridade]
-        chaves = set(zip(ref["professor_id"], ref["titulo_norm"])) - {(p, "") for p in ref["professor_id"]}
-        df = rels[origem]
-        repetido = [(p, t) in chaves for p, t in zip(df["professor_id"], df["titulo_norm"])]
-        rels[origem] = df[[not r for r in repetido]].reset_index(drop=True)
-        removidos[origem] = sum(repetido)
-    return removidos
 
 
 def pesos_decaimento(n: int, decaimento: str | None = None) -> list[float]:
