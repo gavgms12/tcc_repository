@@ -92,8 +92,7 @@ def criar_app(rec) -> FastAPI:
                     # nota do texto de perfil do professor e quanto ela pesa no score (não aparece nos destaques)
                     "perfil": resumo_perfil(prof),
                     # melhores itens de cada tipo entre todos os tópicos: o que mostrar ao usuário
-                    "destaques": _melhores_itens(prof, pedido.n_itens,
-                                                 incluir_fracos=config.MOSTRAR_EVIDENCIA_FRACA),
+                    "destaques": _melhores_itens(prof, pedido.n_itens),
                 }
                 for i, prof in enumerate(ranking, start=1)
             ],

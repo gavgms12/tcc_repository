@@ -6,7 +6,7 @@ virar candidatos). --todos calcula todos os itens de todas as coleções.
 Rodar depois da indexação (ou quando mudar tópicos, RERANK_CONSULTA ou o modelo):
     python -m recuperacao.sistema_de_busca.indexacao.prerankear --estimar
     python -m recuperacao.sistema_de_busca.indexacao.prerankear
-    python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos Grafos "Matemática Discreta" --modo partes
+    python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos "Sistemas Embarcados" "Internet das Coisas" --modo partes
     python -m recuperacao.sistema_de_busca.indexacao.prerankear --todos --tipos professor
 
 É retomável: pares já salvos são pulados, então dá para interromper (Ctrl+C) e rodar de novo.

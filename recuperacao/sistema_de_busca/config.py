@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 from FlagEmbedding import BGEM3FlagModel
@@ -11,8 +12,8 @@ RERANKER_MODEL  = 'BAAI/bge-reranker-v2-m3'
 VECTOR_SIZE     = 1024
 
 # Cache em disco das notas do reranker (preenchido por indexacao/prerankear.py).
-# None desliga o cache em disco.
-RERANK_CACHE_PATH = str(Path(__file__).resolve().parent / "cache" / "rerank_scores.sqlite")
+# None desliga o cache em disco. A variável de ambiente RERANK_CACHE_PATH troca o caminho (usada no Colab).
+RERANK_CACHE_PATH = os.getenv("RERANK_CACHE_PATH") or str(Path(__file__).resolve().parent / "cache" / "rerank_scores.sqlite")
 # venv\Scripts\python.exe -m recuperacao.sistema_de_busca.comparar_modos
 # venv\Scripts\python.exe -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos "Matemática Discreta" --modo partes
 
@@ -46,10 +47,6 @@ CORTE_POR_TIPO = True
 MIN_RERANK_ABSOLUTO = 0.0
 MANTER_MELHOR_POR_TIPO = False
 
-# Itens mantidos só pela regra "melhor do tipo" contam no score, mas são evidência fraca.
-# False -> não aparecem na lista do ranking final (só um aviso de quantos foram ocultados).
-MOSTRAR_EVIDENCIA_FRACA = False
-
 # Corte de professores no ranking final: só entra quem tiver
 #   rerank_score >= MIN_SCORE_PROFESSOR_RELATIVO * (rerank_score do 1º colocado)
 MIN_SCORE_PROFESSOR_RELATIVO = 0
@@ -71,72 +68,372 @@ COLLECTION_ORIENTADOR = "orientacoes"
 #   - texto: usado na busca e (modo "partes") quebrado em ";" e "." para o reranker
 #   - dict:  "descricao" (busca) + "subtopicos" (reranker, modo "partes") + "ementa" (só referência)
 TOPICOS = {
-    "Compiladores": "compiladores: autômato de estados finitos e expressões regulares, análise léxica, sintática, top-down e bottom-up",
-    "Linguagens formais": "linguagens formais: autômatos. autômatos finitos. linguagens regulares. finitos determinísticos e não-determiníticos. linguagens regulares. linguagens livres de contexto. linguagens sensíveis ao contexto.",
-    "Grafos": {
-        # busca: 1-3 frases focadas
-        "descricao": "teoria dos grafos e algoritmos em grafos: modelagem de problemas com vértices e arestas, "
-                     "caminhos, conectividade, fluxos e aplicações em redes e bancos de dados orientados a grafos",
-        # reranker (modo "partes"): frases curtas que fazem sentido sozinhas
-        "subtopicos": [
-            "algoritmos de caminho mínimo em grafos (dijkstra, bellman-ford, floyd-warshall)",
-            "busca em largura e em profundidade em grafos e ordenação topológica",
-            "árvores geradoras mínimas",
-            "fluxo máximo e corte mínimo em grafos",
-            "conectividade, cortes e componentes fortemente conexas em grafos",
-            "bancos de dados orientados a grafos",
-            "grafos",
-            "graph theory and graph algorithms",
-        ],
-        # ementa original (só referência, não é usada)
-        "ementa": "grafos: conexidade: grafos conexos e cortes. algoritmos de busca em largura, em profundidade e ordenação topológica. árvores geradoras e seus algoritmos. fluxos em redes. algoritmos para caminhos mínimos: dijkstra, bellman-ford, floyd-warshall. componentes fortemente conexas.",
+    "Sistemas Embarcados": {
+      "categoria": "Eletrônica",
+      "descricao": "projeto de hardware e software para sistemas dedicados: microcontroladores, firmware, programação embarcada e sistemas de tempo real",
+      "subtopicos": [
+        "microcontroladores e microprocessadores",
+        "programação embarcada em C",
+        "firmware e drivers de periféricos",
+        "sistemas operacionais de tempo real (RTOS)",
+        "Arduino, ESP32, ARM e STM32",
+        "embedded systems, firmware, real-time systems"
+      ],
+      "disciplinas": [
+        "Microcontroladores e Microprocessadores",
+        "Laboratório de Microcontroladores e Microprocessadores",
+        "Laboratório de Programação Embarcada",
+        "Sistemas Operacionais"
+      ]
     },
-    "Matemática Discreta": {
-        "descricao": "fundamentos matemáticos da computação: lógica, conjuntos, combinatória, relações, "
-                     "álgebra booleana e técnicas de demonstração",
-        "subtopicos": [
-            "lógica proposicional e lógica de primeira ordem",
-            "técnicas de demonstração e indução matemática",
-            "teoria dos conjuntos e operações entre conjuntos",
-            "relações de equivalência e relações de ordem",
-            "análise combinatória, permutações e princípio da contagem",
-            "álgebra booleana",
-            "matemática discreta",
-            "teoria dos números e criptografia",
-            "discrete mathematics, logic and combinatorics",
-        ],
-        "ementa": "matemática discreta: noções de lógica matemática. conjuntos. operações entre conjuntos. relações. funções ou aplicações. técnicas de demonstração. análise combinatória. lógica de primeira ordem. ordens totais e parciais. álgebra booleana. sistemas algébricos.",
+    "Inteligência Artificial": {
+      "categoria": "Computação",
+      "descricao": "métodos que permitem a sistemas aprender com dados e tomar decisões: aprendizado de máquina, redes neurais, lógica fuzzy e visão computacional",
+      "subtopicos": [
+        "aprendizado de máquina e aprendizado profundo",
+        "redes neurais artificiais",
+        "lógica fuzzy e sistemas de inferência",
+        "visão computacional e processamento de imagens",
+        "modelos de linguagem (LLM)",
+        "TinyML e IA embarcada",
+        "machine learning, deep learning, neural networks, computer vision"
+      ],
+      "disciplinas": [
+        "Inteligência Artificial",
+        "TinyML - Aprendizado de Máquina Aplicado para Dispositivos IoT Embarcados"
+      ]
     },
-    "Engenharia de Dados": {
-        "descricao": "engenharia de dados: coleta, integração, armazenamento e processamento de grandes volumes de dados, "
-                     "pipelines de dados, data warehouse e data lake, processamento distribuído e em fluxo",
-        "subtopicos": [
-            "pipelines de dados e processos de extração, transformação e carga (etl)",
-            "data warehouse, data lake e modelagem dimensional",
-            "processamento distribuído de big data (hadoop, spark)",
-            "processamento de dados em fluxo e streaming em tempo real",
-            "integração de dados e qualidade de dados",
-            "bancos de dados relacionais e nosql para grandes volumes de dados",
-            "computação em nuvem para armazenamento e processamento de dados",
-            "engenharia de dados",
-            "data engineering, big data and data pipelines",
-        ],
+    "Internet das Coisas": {
+      "categoria": "Eletrônica",
+      "descricao": "dispositivos conectados que coletam e trocam dados: sensores, comunicação sem fio, plataformas IoT e computação de borda",
+      "subtopicos": [
+        "redes de sensores sem fio",
+        "protocolos IoT: MQTT, LoRa, Zigbee, BLE",
+        "computação de borda (edge computing)",
+        "monitoramento remoto e telemetria",
+        "Internet of Things, wireless sensor networks, edge computing"
+      ],
+      "disciplinas": [
+        "TinyML - Aprendizado de Máquina Aplicado para Dispositivos IoT Embarcados"
+      ]
     },
-    "Programação Embarcada": {
-        "descricao": "sistemas embarcados e programação de microcontroladores: software para hardware com recursos "
-                     "limitados, sensores e atuadores, sistemas de tempo real e internet das coisas",
-        "subtopicos": [
-            "programação de microcontroladores (arduino, esp32, arm, pic)",
-            "sistemas operacionais de tempo real (rtos) e sistemas de tempo real",
-            "interfaces com sensores e atuadores, periféricos e protocolos de comunicação (i2c, spi, uart)",
-            "internet das coisas (iot) e dispositivos conectados",
-            "programação em c para sistemas embarcados e firmware",
-            "arquitetura de hardware embarcado, fpga e sistemas digitais",
-            "eficiência energética e otimização em dispositivos embarcados",
-            "sistemas embarcados",
-            "embedded systems, microcontrollers and firmware programming",
-        ],
+    "Engenharia Biomédica": {
+      "categoria": "Eletrônica",
+      "descricao": "tecnologia aplicada à saúde: instrumentação biomédica, sinais fisiológicos, equipamentos médicos e engenharia clínica",
+      "subtopicos": [
+        "instrumentação biomédica",
+        "sinais fisiológicos: ECG, EEG e EMG",
+        "equipamentos eletromédicos e engenharia clínica",
+        "usabilidade de equipamentos médicos",
+        "circuitos integrados para aplicações biomédicas",
+        "biomedical engineering, medical devices, eHealth"
+      ],
+      "disciplinas": [
+        "Instrumentação Biomédica II",
+        "Tópicos Especiais em Engenharia Clínica",
+        "Gestão em Tecnologias Médicas I",
+        "Gestão em Tecnologias Médicas II"
+      ]
     },
+    "Sistemas de Controle": {
+      "categoria": "Controle e Energia",
+      "descricao": "modelagem e controle de sistemas dinâmicos: controle clássico e moderno, controle robusto, identificação de sistemas e controle multivariável",
+      "subtopicos": [
+        "modelagem e análise de sistemas dinâmicos",
+        "controle clássico: PID, lugar das raízes e resposta em frequência",
+        "controle robusto e controle H-infinito",
+        "controle multivariável e controle preditivo (MPC)",
+        "identificação de sistemas",
+        "sistemas não lineares",
+        "control systems, robust control, system identification"
+      ],
+      "disciplinas": [
+        "Sistemas de Controle",
+        "Laboratório de Sistemas de Controle",
+        "Modelagem e Análise de Sistemas Dinâmicos",
+        "Laboratório de Controle Clássico",
+        "Controle Multivariável"
+      ]
+    },
+    "Automação Industrial": {
+      "categoria": "Controle e Energia",
+      "descricao": "automação de processos e máquinas na indústria: CLPs, sistemas supervisórios, redes industriais e instrumentação industrial",
+      "subtopicos": [
+        "controladores lógicos programáveis (CLP)",
+        "sistemas supervisórios SCADA",
+        "redes industriais: Profibus, Modbus, Ethernet industrial",
+        "instrumentação industrial",
+        "Indústria 4.0 e manutenção preditiva",
+        "industrial automation, PLC, SCADA"
+      ],
+      "disciplinas": [
+        "Automação de Sistemas",
+        "Automação e Supervisão de Processos I",
+        "Redes Industriais",
+        "Laboratório de Instrumentação Industrial I",
+        "Banco de Dados para Automação"
+      ]
+    },
+    "Sistemas Distribuídos e Nuvem": {
+      "categoria": "Computação",
+      "descricao": "sistemas que rodam em várias máquinas: computação paralela, computação em nuvem, clusters e arquiteturas orientadas a serviços",
+      "subtopicos": [
+        "sistemas distribuídos e simulação distribuída",
+        "computação paralela e de alto desempenho",
+        "computação em nuvem (cloud computing)",
+        "contêineres e orquestração: Docker e Kubernetes",
+        "arquitetura orientada a serviços (SOA) e web services",
+        "distributed systems, parallel computing, cloud computing"
+      ],
+      "disciplinas": [
+        "Sistemas Distribuídos",
+        "Laboratório de Sistemas Distribuídos",
+        "Tópicos Especiais em Sistemas Distribuídos",
+        "Processamento Paralelo (Prática)"
+      ]
+    },
+    "Processamento de Sinais": {
+      "categoria": "Eletrônica",
+      "descricao": "análise e tratamento de sinais: filtragem digital, análise espectral, transformadas e condicionamento de sinais",
+      "subtopicos": [
+        "processamento digital de sinais (DSP)",
+        "filtros digitais",
+        "transformada de Fourier e transformada wavelet",
+        "condicionamento de sinais",
+        "processamento de sinais biomédicos",
+        "digital signal processing, filtering, wavelets"
+      ],
+      "disciplinas": [
+        "Processamento Digital de Sinais",
+        "Sinais e Sistemas",
+        "Introdução à Análise de Sinais",
+        "Condicionamento de Sinais"
+      ]
+    },
+    "Segurança da Informação": {
+      "categoria": "Computação",
+      "descricao": "proteção de sistemas e dados: criptografia, cibersegurança, análise de vulnerabilidades e privacidade",
+      "subtopicos": [
+        "criptografia",
+        "segurança de redes e cibersegurança",
+        "análise de vulnerabilidades",
+        "segurança em sistemas de automação industrial",
+        "privacidade e LGPD",
+        "information security, cybersecurity, cryptography"
+      ],
+      "disciplinas": [
+        "Criptografia e Segurança de Dados",
+        "Tópicos Especiais em Segurança da Informação",
+        "Introdução à Proteção e Segurança de Dados"
+      ]
+    },
+    "Eletrônica de Potência": {
+      "categoria": "Controle e Energia",
+      "descricao": "conversão e controle de energia elétrica com dispositivos eletrônicos: conversores, inversores, filtros ativos e acionamentos",
+      "subtopicos": [
+        "conversores CC-CC e CA-CC",
+        "inversores e conversores multiníveis",
+        "filtros ativos de potência e FACTS",
+        "acionamentos elétricos controlados",
+        "transferência de energia sem fio",
+        "power electronics, converters, inverters"
+      ],
+      "disciplinas": [
+        "Fundamentos de Eletrônica de Potência",
+        "Eletrônica de Potência e Acionamentos Controlados",
+        "Eletrônica de Potência Aplicada a Sistemas Elétricos",
+        "Laboratório de Conversores Eletrônicos de Potência"
+      ]
+    },
+    "Sistemas Digitais e FPGA": {
+      "categoria": "Eletrônica",
+      "descricao": "projeto de circuitos e sistemas digitais: FPGA, linguagens de descrição de hardware e arquitetura de computadores",
+      "subtopicos": [
+        "circuitos digitais e lógica sequencial",
+        "FPGA e síntese lógica",
+        "Verilog e VHDL",
+        "arquitetura de computadores e RISC-V",
+        "verificação de sistemas digitais",
+        "digital design, FPGA, hardware description languages"
+      ],
+      "disciplinas": [
+        "Circuitos Digitais I",
+        "Introdução ao Verilog",
+        "Arquitetura de Sistemas Digitais",
+        "Síntese Lógica",
+        "Verificação de Sistemas Digitais",
+        "Eletrônica Digital II"
+      ]
+    },
+    "Microeletrônica": {
+      "categoria": "Eletrônica",
+      "descricao": "projeto de circuitos integrados: tecnologia CMOS, circuitos integrados analógicos e digitais, layout e fabricação",
+      "subtopicos": [
+        "projeto de circuitos integrados CMOS",
+        "circuitos integrados analógicos",
+        "circuitos integrados digitais",
+        "processos de fabricação de circuitos integrados",
+        "circuitos neuromórficos e de baixo consumo",
+        "microelectronics, CMOS, integrated circuit design, VLSI"
+      ],
+      "disciplinas": [
+        "Introdução à Microeletrônica",
+        "Projeto de Circuitos Integrados Analógicos",
+        "Projeto de Circuitos Integrados Digitais",
+        "Referências CMOS de Tensão e Corrente"
+      ]
+    },
+    "Redes de Computadores": {
+      "categoria": "Computação",
+      "descricao": "comunicação entre computadores e dispositivos: protocolos, arquitetura de redes, redes móveis e redes industriais",
+      "subtopicos": [
+        "protocolos de comunicação e TCP/IP",
+        "redes móveis e 5G",
+        "redes definidas por software (SDN)",
+        "redes industriais",
+        "computer networks, network protocols"
+      ],
+      "disciplinas": [
+        "Redes de Computadores",
+        "Laboratório de Redes de Computadores",
+        "Redes de Comunicação para Processos",
+        "Redes Industriais"
+      ]
+    },
+    "Desenvolvimento Web e Mobile": {
+      "categoria": "Computação",
+      "descricao": "criação de aplicações para navegadores e dispositivos móveis: front-end, back-end, APIs e aplicativos",
+      "subtopicos": [
+        "desenvolvimento web front-end e back-end",
+        "aplicativos Android e iOS",
+        "APIs REST e web services",
+        "JavaScript e WebAssembly",
+        "web development, mobile apps"
+      ],
+      "disciplinas": []
+    },
+    "Eletrônica Analógica e Instrumentação": {
+      "categoria": "Eletrônica",
+      "descricao": "circuitos eletrônicos analógicos e medição: amplificadores, sensores, condicionamento e instrumentos de medida",
+      "subtopicos": [
+        "amplificadores operacionais",
+        "circuitos eletrônicos analógicos",
+        "sensores e transdutores",
+        "instrumentação eletrônica e medidas elétricas",
+        "analog electronics, instrumentation, sensors"
+      ],
+      "disciplinas": [
+        "Eletrônica Analógica I",
+        "Eletrônica Analógica II",
+        "Eletrônica Básica e Instrumentação",
+        "Laboratório de Eletrônica Analógica I"
+      ]
+    },
+    "Energia e Fontes Renováveis": {
+      "categoria": "Controle e Energia",
+      "descricao": "geração, qualidade e armazenamento de energia elétrica: fontes renováveis, sistemas elétricos de potência e redes inteligentes",
+      "subtopicos": [
+        "energia solar fotovoltaica",
+        "qualidade da energia elétrica",
+        "sistemas de armazenamento de energia e baterias",
+        "geração distribuída e microrredes",
+        "redes elétricas inteligentes (smart grids)",
+        "veículos elétricos e carregadores",
+        "renewable energy, power quality, energy storage"
+      ],
+      "disciplinas": [
+        "Condicionadores de Energia",
+        "Acionamento e Condicionamento de Energia",
+        "Automação de Sistemas Elétricos"
+      ]
+    },
+    "Algoritmos, Grafos e Otimização": {
+      "categoria": "Computação",
+      "descricao": "fundamentos da computação e resolução de problemas: estruturas de dados, análise de algoritmos, teoria dos grafos e otimização",
+      "subtopicos": [
+        "estruturas de dados",
+        "análise e complexidade de algoritmos",
+        "teoria dos grafos",
+        "otimização e metaheurísticas",
+        "matemática discreta",
+        "algorithms, graph theory, optimization"
+      ],
+      "disciplinas": [
+        "Estrutura de Dados",
+        "Análise de Algoritmos",
+        "Teoria dos Grafos",
+        "Matemática Discreta"
+      ]
+    },
+    "Engenharia de Software": {
+      "categoria": "Computação",
+      "descricao": "processos e práticas para construir software de qualidade: requisitos, arquitetura de software, testes e DevOps",
+      "subtopicos": [
+        "arquitetura de software e microsserviços",
+        "requisitos de software",
+        "testes de software",
+        "métodos ágeis",
+        "DevOps e integração contínua",
+        "software engineering, software architecture, DevOps"
+      ],
+      "disciplinas": [
+        "Engenharia de Software",
+        "Programação Orientada a Objetos",
+        "Laboratório de Programação Orientada a Objeto"
+      ]
+    },
+    "Robótica": {
+      "categoria": "Controle e Energia",
+      "descricao": "projeto e controle de robôs: manipuladores, robôs móveis, drones e manufatura automatizada",
+      "subtopicos": [
+        "manipuladores robóticos",
+        "robôs móveis e veículos autônomos",
+        "drones e VANTs",
+        "manufatura integrada por computador",
+        "robotics, mobile robots, UAV"
+      ],
+      "disciplinas": [
+        "Robótica",
+        "Introdução à Robótica",
+        "Laboratório de Robótica",
+        "Manufatura Integrada por Computador e Robótica"
+      ]
+    },
+    "Telecomunicações e Óptica": {
+      "categoria": "Eletrônica",
+      "descricao": "transmissão de informação por sinais elétricos, ondas e luz: antenas, radiofrequência, micro-ondas e comunicações ópticas",
+      "subtopicos": [
+        "antenas e propagação de ondas",
+        "radiofrequência e micro-ondas",
+        "comunicações ópticas e fotônica",
+        "modulação e sistemas de comunicação",
+        "redes 5G e rádio sobre fibra",
+        "telecommunications, antennas, RF, optical communications"
+      ],
+      "disciplinas": [
+        "Eletromagnetismo",
+        "Telecomunicações II",
+        "Laboratório de Telecomunicações II"
+      ]
+    },
+    "Dados": {
+      "categoria": "Computação",
+      "descricao": "armazenamento, processamento e análise de dados: bancos de dados, engenharia de dados e ciência de dados",
+      "subtopicos": [
+        "bancos de dados relacionais e NoSQL",
+        "engenharia de dados e pipelines de dados",
+        "big data e armazenamento orientado a colunas",
+        "ciência de dados e análise estatística",
+        "mineração de dados",
+        "databases, data engineering, data science"
+      ],
+      "disciplinas": [
+        "Banco de Dados",
+        "Laboratório de Banco de Dados",
+        "Banco de Dados para Automação",
+        "Metodologia Científica e Análise de Dados"
+      ]
+    }
 }
 
 LIMIT_PROFESSORES = 15

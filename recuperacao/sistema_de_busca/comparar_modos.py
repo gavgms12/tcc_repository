@@ -1,8 +1,8 @@
 """Compara o ranking final com RERANK_CONSULTA = "nome" e = "partes" para os mesmos tópicos.
 
 Antes, pré-calcule as notas (senão o reranker roda na hora e demora):
-    python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos Grafos "Matemática Discreta" --modo nome
-    python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos Grafos "Matemática Discreta" --modo partes
+    python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos "Sistemas Embarcados" "Internet das Coisas" --modo nome
+    python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos "Sistemas Embarcados" "Internet das Coisas" --modo partes
 Depois:
     python -m recuperacao.sistema_de_busca.comparar_modos
 A saída também vai para recuperacao/output/<data-hora>_comparacao_modos_....txt
@@ -14,7 +14,7 @@ from recuperacao.sistema_de_busca.busca.service import Recomendador
 from recuperacao.sistema_de_busca.database_vetores import conectar_Qdrant
 from recuperacao.sistema_de_busca.modelo import carregar_modelo
 
-SELECIONADOS = ["Matemática Discreta", "Grafos"]
+SELECIONADOS = ["Sistemas Embarcados", "Internet das Coisas"]
 MODOS = ["nome", "partes"]
 TOP_K = 8
 N_ITENS = 3
@@ -66,7 +66,7 @@ def main() -> None:
                         print(f"  [{m}] fora do ranking")
                         continue
                     print(f"  [{m}]")
-                    for tipo, itens in _melhores_itens(pos[m][pid][1], N_ITENS, incluir_fracos=False).items():
+                    for tipo, itens in _melhores_itens(pos[m][pid][1], N_ITENS).items():
                         for it in itens:
                             print(f"     {tipo:<10} {it['score']:.4f}  {str(it['titulo'])[:60]:<60}"
                                   f"  <- \"{str(it.get('consulta'))[:45]}\"")

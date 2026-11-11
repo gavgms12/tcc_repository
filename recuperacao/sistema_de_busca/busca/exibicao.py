@@ -47,18 +47,13 @@ def resumo_perfil(prof: dict) -> dict:
     }
 
 
-def _melhores_itens(prof: dict, n: int, incluir_fracos: bool = True) -> dict[str, list[dict]]:
-    """Os n itens de maior score de cada coleção, entre todos os tópicos; item repetido fica com o melhor score.
-
-    incluir_fracos=False ignora os itens mantidos só como "melhor do tipo" (abaixo do corte).
-    """
+def _melhores_itens(prof: dict, n: int) -> dict[str, list[dict]]:
+    """Os n itens de maior score de cada coleção, entre todos os tópicos; item repetido fica com o melhor score."""
     melhores: dict[str, dict] = {}
     for topico, detalhe in prof["topicos"].items():
         for tipo, itens in detalhe["itens"].items():
             da_colecao = melhores.setdefault(tipo, {})
             for item in itens:
-                if not incluir_fracos and item.get("corte") == "melhor_do_tipo":
-                    continue
                 if item["id"] not in da_colecao or item["score"] > da_colecao[item["id"]]["score"]:
                     da_colecao[item["id"]] = {**item, "topico": topico}
     return {
@@ -84,17 +79,11 @@ def imprimir_ranking(ranking: list[dict], aluno_texto: str, n_itens: int = 3) ->
         parcela = f" ({perfil['parcela_do_score']:.0%} do score)" if perfil["parcela_do_score"] is not None else ""
         print(f"Perfil: {_fmt(perfil['score'])}{parcela}")
 
-        mostrar_fracos = config.MOSTRAR_EVIDENCIA_FRACA
-        todos = _melhores_itens(prof, 10**6)
-        fortes = _melhores_itens(prof, 10**6, incluir_fracos=False)
-        for tipo, itens in _melhores_itens(prof, n_itens, incluir_fracos=mostrar_fracos).items():
+        for tipo, itens in _melhores_itens(prof, n_itens).items():
             titulo_secao, rotulo_score = ROTULOS.get(tipo, (tipo, "Score"))
             print(f"\n{titulo_secao}:")
-            ocultos = 0 if mostrar_fracos else len(todos.get(tipo, [])) - len(fortes.get(tipo, []))
             if not itens:
                 print("Nenhum item relevante encontrado.")
-            if ocultos:
-                print(f"  ({ocultos} item(ns) com evidência fraca oculto(s) — conta(m) no score)")
             for j, item in enumerate(itens, start=1):
                 subtipo = _rotulo_subtipo(item.get("subtipo"))
                 prefixo = f"[{subtipo}] " if subtipo else ""
