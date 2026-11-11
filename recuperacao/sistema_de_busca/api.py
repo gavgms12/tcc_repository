@@ -6,21 +6,25 @@ Rodar localmente (carrega os modelos e sobe em http://localhost:8000, docs em /d
 No Colab (GPU + link público): ver recuperacao/colab_api_busca.ipynb
 """
 import threading
+from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from recuperacao.sistema_de_busca import config
 from recuperacao.sistema_de_busca.busca.exibicao import _melhores_itens, resumo_perfil
 
 NOME_TEXTO_LIVRE = "Texto livre"
+PASTA_FRONTEND = Path(__file__).resolve().parents[1] / "frontend"   # recuperacao/frontend
 
 
 class PedidoBusca(BaseModel):
-    texto: str | None = Field(None, description="Texto livre do aluno (ex.: o tema que quer pesquisar)")
-    topicos: list[str] | None = Field(None, description="Nomes de tópicos do catálogo (GET /topicos)")
+    texto: str | None = Field(None, max_length=2000, description="Texto livre do aluno (ex.: o tema que quer pesquisar)")
+    topicos: list[str] | None = Field(None, max_length=5, description="Nomes de tópicos do catálogo (GET /topicos)")
     top_k: int = Field(5, ge=1, le=50, description="Quantos professores devolver")
     n_itens: int = Field(3, ge=1, le=20, description="Quantos itens (evidências) por tipo em 'destaques'")
     ano_min: int | None = None
@@ -68,7 +72,24 @@ def criar_app(rec) -> FastAPI:
 
     @app.get("/topicos")
     def topicos():
-        return {"topicos": list(config.TOPICOS)}
+        detalhes = [
+            {
+                "nome": nome,
+                "categoria": (dados.get("categoria") if isinstance(dados, dict) else None) or "Outros",
+                "descricao": dados.get("descricao") if isinstance(dados, dict) else dados,
+                "disciplinas": config.disciplinas_topico(nome),
+            }
+            for nome, dados in config.TOPICOS.items()
+        ]
+        return {"topicos": list(config.TOPICOS), "detalhes": detalhes}
+
+    # front-end do questionário (recuperacao/frontend) no mesmo endereço da API
+    if PASTA_FRONTEND.is_dir():
+        app.mount("/app", StaticFiles(directory=PASTA_FRONTEND, html=True), name="frontend")
+
+        @app.get("/", include_in_schema=False)
+        def inicio():
+            return RedirectResponse("/app/")
 
     @app.post("/recomendar")
     def recomendar(pedido: PedidoBusca):

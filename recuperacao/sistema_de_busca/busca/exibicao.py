@@ -78,6 +78,10 @@ def imprimir_ranking(ranking: list[dict], aluno_texto: str, n_itens: int = 3) ->
         perfil = resumo_perfil(prof)
         parcela = f" ({perfil['parcela_do_score']:.0%} do score)" if perfil["parcela_do_score"] is not None else ""
         print(f"Perfil: {_fmt(perfil['score'])}{parcela}")
+        for topico, det in prof["topicos"].items():
+            if det.get("disciplinas_tema"):
+                print(f"Disciplinas do tema ({topico}): {', '.join(det['disciplinas_tema'])} "
+                      f"-> bônus {_fmt(det.get('bonus_disciplinas'))}")
 
         for tipo, itens in _melhores_itens(prof, n_itens).items():
             titulo_secao, rotulo_score = ROTULOS.get(tipo, (tipo, "Score"))
@@ -90,7 +94,8 @@ def imprimir_ranking(ranking: list[dict], aluno_texto: str, n_itens: int = 3) ->
                 codigo = item.get("codigo")
                 sigla = f"[{codigo}] " if codigo else ""
                 print(f"\n  {j}. {prefixo}{sigla}{item['titulo'] or '(sem título)'}")
-                aviso = " [abaixo do corte, mantido como melhor do tipo]" if item.get("corte") == "melhor_do_tipo" else ""
+                aviso = {"melhor_do_tipo": " [abaixo do corte, mantido como melhor do tipo]",
+                         "disciplina_do_tema": " [disciplina do tema]"}.get(item.get("corte") or "", "")
                 print(f"     {rotulo_score}: {_fmt(item['score'])} (tópico: {item['topico']}){aviso}")
 
 

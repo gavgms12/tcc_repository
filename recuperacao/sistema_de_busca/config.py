@@ -28,6 +28,12 @@ def texto_topico(nome: str) -> str:
     return texto.lower()
 
 
+def disciplinas_topico(nome: str) -> list[str]:
+    """Nomes das disciplinas do tema (campo "disciplinas"); vazio se não houver ou se for texto livre."""
+    topico = TOPICOS.get(nome)
+    return list(topico.get("disciplinas") or []) if isinstance(topico, dict) else []
+
+
 def subtopicos_topico(nome: str) -> list[str] | None:
     """Subtópicos usados pelo RERANKER no modo "partes" (None se o tópico for só texto)."""
     topico = TOPICOS.get(nome)
@@ -50,6 +56,16 @@ MANTER_MELHOR_POR_TIPO = False
 # Corte de professores no ranking final: só entra quem tiver
 #   rerank_score >= MIN_SCORE_PROFESSOR_RELATIVO * (rerank_score do 1º colocado)
 MIN_SCORE_PROFESSOR_RELATIVO = 0
+
+# Disciplinas do tema (campo "disciplinas" em TOPICOS): quem leciona uma delas é evidência direta.
+#   - a disciplina sempre entra como candidata do professor e não é cortada;
+#   - bônus somado ao score do tópico: BONUS_DISCIPLINA_TEMA por disciplina (nome distinto), até o teto;
+#     0 -> só marca na resposta ("disciplina_do_tema"), sem mudar o score;
+#   - INCLUIR_PROFESSOR_DISCIPLINA_TEMA: professores que lecionam disciplina do tema entram no
+#     reranking mesmo fora dos FINAL_PROFESSOR_K melhores da busca.
+BONUS_DISCIPLINA_TEMA = 0.05
+BONUS_DISCIPLINA_TEMA_MAX = 0.10
+INCLUIR_PROFESSOR_DISCIPLINA_TEMA = True
 
 # Consulta usada no reranking (a busca continua usando o texto completo do tópico):
 #   "texto"  -> texto completo do tópico (comportamento antigo)

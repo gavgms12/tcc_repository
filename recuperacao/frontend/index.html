@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Encontre seu orientador</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="conteudo">
+      <p class="sobretitulo">IESTI · UNIFEI</p>
+      <h1>Encontre seu orientador</h1>
+      <p class="subtitulo">
+        Conte o que você quer pesquisar e veja quais professores têm mais afinidade com o tema,
+        com base nas produções, projetos, orientações e disciplinas de cada um.
+      </p>
+    </div>
+  </header>
+
+  <main class="conteudo">
+    <form id="questionario" class="cartao" novalidate>
+      <fieldset>
+        <legend>
+          <span class="passo">1</span> Quais áreas te interessam?
+          <span class="dica">Escolha até <span id="limite-temas">3</span> · opcional</span>
+        </legend>
+        <div id="temas" class="temas" aria-live="polite">
+          <p class="carregando-temas">Carregando temas…</p>
+        </div>
+        <p id="contador-temas" class="contador" aria-live="polite"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>
+          <span class="passo">2</span> Conte com suas palavras
+          <span class="dica">opcional</span>
+        </legend>
+        <label for="texto" class="sr-only">Descreva seu interesse de pesquisa</label>
+        <textarea id="texto" rows="4" maxlength="2000"
+          placeholder="Ex.: quero usar visão computacional e sensores para monitorar plantações"></textarea>
+        <p class="dica-campo">
+          Separe ideias diferentes com vírgula ou ponto e vírgula; cada uma é avaliada separadamente.
+        </p>
+      </fieldset>
+
+      <details class="avancado">
+        <summary>Opções da busca</summary>
+        <div class="linha-opcoes">
+          <label>
+            Professores no resultado
+            <select id="top-k">
+              <option value="3">3</option>
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+          <label>
+            Publicações, projetos e orientações a partir de
+            <input id="ano-min" type="number" inputmode="numeric" min="1980" max="2100" placeholder="qualquer ano">
+          </label>
+        </div>
+      </details>
+
+      <p id="erro-formulario" class="erro" role="alert" hidden></p>
+
+      <button id="buscar" type="submit" class="botao-principal">Buscar orientadores</button>
+    </form>
+
+    <section id="status" class="status" aria-live="polite" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <div>
+        <p class="status-titulo">Analisando os perfis dos professores…</p>
+        <p class="status-detalhe">A primeira busca de um tema pode levar alguns segundos. <span id="cronometro"></span></p>
+      </div>
+    </section>
+
+    <section id="resultado" class="resultado" aria-live="polite" hidden>
+      <div class="resultado-cabecalho">
+        <h2>Professores recomendados</h2>
+        <p id="resumo-busca" class="resumo-busca"></p>
+      </div>
+      <ol id="lista-professores" class="lista-professores"></ol>
+      <p class="nota-rodape">
+        A pontuação compara os professores entre si para esta busca; ela não é uma nota absoluta.
+        Converse com os professores para confirmar a disponibilidade de orientação.
+      </p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

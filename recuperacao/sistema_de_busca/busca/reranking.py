@@ -8,6 +8,7 @@ from recuperacao.sistema_de_busca import config
 from recuperacao.sistema_de_busca.busca.agregacao import decaimento_da_fonte, media_decaimento
 from recuperacao.sistema_de_busca.database_vetores import buscar_payloads_varios
 from recuperacao.sistema_de_busca.busca.cache_rerank import cache_disco, chave
+from recuperacao.sistema_de_busca.busca.disciplinas_tema import bonus as bonus_disciplinas, normalizar_nome
 
 
 def carregar_reranker() -> FlagReranker:
@@ -78,6 +79,33 @@ def criar_candidatos(client, ranking: pd.DataFrame, rels: dict[str, pd.DataFrame
                 "peso_tipo": config.peso_interno(tipo, item),
             })
 
+    return candidatos
+
+
+def adicionar_disciplinas_tema(candidatos: list[dict], disciplinas: list[dict]) -> list[dict]:
+    """Marca com "disciplina_do_tema" as disciplinas do tema já candidatas e insere as que faltam,
+    para cada professor do ranking que as leciona (a busca pode não ter trazido todas)."""
+    if not disciplinas:
+        return candidatos
+    profs = {c["professor_id"]: c.get("professor_nome") for c in candidatos if c["tipo"] == "professor"}
+    existentes = {(c["professor_id"], str(c["item_id"])): c for c in candidatos if c["tipo"] == "disciplina"}
+    for d in disciplinas:
+        for pid in map(str, d.get("professor_ids") or []):
+            if pid not in profs:
+                continue
+            c = existentes.get((pid, str(d["id"])))
+            if c is None:
+                if not d.get("texto"):
+                    continue
+                c = {
+                    "professor_id": pid, "professor_nome": profs[pid],
+                    "tipo": "disciplina", "item_id": str(d["id"]), "texto": d["texto"],
+                    "titulo": d.get("nome"), "subtipo": None, "codigo": d.get("codigo"),
+                    "peso_tipo": config.peso_interno("disciplina", d),
+                }
+                candidatos.append(c)
+                existentes[(pid, str(d["id"]))] = c
+            c["disciplina_do_tema"] = True
     return candidatos
 
 
@@ -194,8 +222,8 @@ def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
     """Corte relativo ao melhor item (do mesmo tipo ou do tópico) + piso absoluto opcional
     + garantia opcional do melhor item por (professor, tipo).
 
-    Marca em c["corte"] por que o item passou: "relativo" ou "melhor_do_tipo".
-    O perfil do professor nunca é cortado.
+    Marca em c["corte"] por que o item passou: "disciplina_do_tema", "relativo" ou "melhor_do_tipo".
+    O perfil do professor e as disciplinas do tema nunca são cortados.
     """
     relativo = config.MIN_RERANK_RELATIVO if relativo is None else relativo
     manter_melhor = config.MANTER_MELHOR_POR_TIPO if manter_melhor is None else manter_melhor
@@ -226,6 +254,9 @@ def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
     resultado = []
     for c in candidatos:
         if c["tipo"] == "professor":
+            resultado.append(c)
+        elif c.get("disciplina_do_tema"):
+            c["corte"] = "disciplina_do_tema"
             resultado.append(c)
         elif c["rerank_bruto"] >= limites[c["tipo"]]:
             c["corte"] = "relativo"
@@ -269,6 +300,14 @@ def rankear_professores(candidatos: list[dict]) -> list[dict]:
         d["rerank_score"] = (
             sum(w * (s or 0.0) for w, s in componentes) / sum(w for w, _ in componentes)
         )
+        # disciplinas do tema que o professor leciona (versões com códigos diferentes contam uma vez)
+        nomes_tema: dict[str, str] = {}
+        for c in d["itens"]["disciplina"]:
+            if c.get("disciplina_do_tema"):
+                nomes_tema.setdefault(normalizar_nome(c["titulo"]), c["titulo"])
+        d["disciplinas_tema"] = sorted(nomes_tema.values())
+        d["bonus_disciplinas"] = bonus_disciplinas(len(d["disciplinas_tema"]))
+        d["rerank_score"] += d["bonus_disciplinas"]
 
 
     return sorted(por_prof.values(), key=lambda x: x["rerank_score"], reverse=True)

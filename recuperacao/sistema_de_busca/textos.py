@@ -99,7 +99,7 @@ def disciplina_montar_texto_para_modelo(disciplina: dict) -> str:
     if nome:
         partes.append(f"Nome: {nome}")
     ementa = _limpar(disciplina.get("ementa"))
-    if nome:
+    if ementa:
         partes.append(f"Ementa: {ementa}")
     return "\n".join(partes)
 
