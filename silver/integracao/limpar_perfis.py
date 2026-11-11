@@ -375,10 +375,23 @@ def limpar_perfil_sigaa(docente_bruto: dict) -> dict:
     }
 
 
+def chave_periodo(periodo: str | None) -> tuple[int, int]:
+    """"2025.2" -> (2025, 2); "2025" -> (2025, 0); sem período vai para o fim."""
+    partes = [int(p) for p in re.findall(r"\d+", periodo or "")[:2]]
+    return (partes + [0, 0])[0], (partes + [0, 0])[1]
+
+
 def normalizar_disciplinas(disciplinas_ministradas: list[dict]) -> list[str]:
-    """Reduz disciplinas ministradas a uma lista de idSigaa (sem duplicatas)."""
-    ids = {d["idSigaa"] for d in disciplinas_ministradas if d.get("idSigaa")}
-    return sorted(ids)
+    """Reduz disciplinas ministradas a uma lista de idSigaa (sem duplicatas),
+    da ministrada mais recentemente para a mais antiga. A Gold usa essa ordem
+    para manter a versão mais atual quando a mesma matéria tem várias siglas."""
+    ultimo_periodo: dict[str, tuple[int, int]] = {}
+    for disciplina in disciplinas_ministradas:
+        id_sigaa = disciplina.get("idSigaa")
+        if id_sigaa:
+            periodo = chave_periodo(disciplina.get("periodo"))
+            ultimo_periodo[id_sigaa] = max(periodo, ultimo_periodo.get(id_sigaa, periodo))
+    return sorted(ultimo_periodo, key=lambda i: (ultimo_periodo[i], i), reverse=True)
 
 
 def construir_catalogos_disciplinas(

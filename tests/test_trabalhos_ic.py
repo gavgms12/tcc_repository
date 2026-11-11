@@ -38,3 +38,17 @@ def test_catalogo_mantem_trabalho_sem_orientador_no_roster(monkeypatch):
     por_siape, catalogo = lp.processar_trabalhos_ic("x", [{"nome": "Maria Silva", "siape": "1"}])
     assert [t["titulo"] for t in catalogo] == ["A", "B"]
     assert len(por_siape["1"]) == 1
+
+
+def test_normalizar_disciplinas_ordena_da_mais_recente():
+    from silver.integracao.limpar_perfis import normalizar_disciplinas
+
+    ministradas = [
+        {"idSigaa": "antiga", "periodo": "2019.2"},
+        {"idSigaa": "nova", "periodo": "2025.1"},
+        {"idSigaa": "antiga", "periodo": "2024.2"},
+        {"idSigaa": "nova", "periodo": "2025.1"},
+        {"idSigaa": "so_ano", "periodo": "2024"},
+        {"idSigaa": None, "periodo": "2026.1"},
+    ]
+    assert normalizar_disciplinas(ministradas) == ["nova", "antiga", "so_ano"]

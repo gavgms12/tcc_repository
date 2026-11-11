@@ -63,6 +63,30 @@ DIAS_MANTIDOS = 3
 # Fração máxima de referências sem catálogo tolerada antes de falhar a Gold.
 MAX_TAXA_REFERENCIAS_ORFAS = 0.02
 TIPO_INICIACAO_CIENTIFICA = "iniciacao_cientifica"
+CAMPOS_ANO = ("ano", "ano_inicio", "ano_conclusao")
+CAMPOS_TEXTO_LONGO = ("descricao", "resumo", "ementa")
+# Seções do perfil comparadas entre si, com o campo do título. Quando o mesmo
+# trabalho aparece em mais de uma, fica o da seção que vem antes: a ordem
+# segue a quantidade de texto que cada registro costuma ter.
+SECOES_PERFIL = (
+    ("trabalhosIniciacaoCientifica", "titulo"),
+    ("projetos", "nome"),
+    ("producoes", "titulo"),
+    ("orientacoes", "titulo"),
+    ("disciplinas", "nome"),
+)
+# Um título que é o começo de outro ("VOT2018 challenge" e "VOT2018 challenge
+# results, lecture notes") só conta como o mesmo trabalho a partir deste número
+# de palavras; abaixo disso, títulos genéricos uniriam trabalhos diferentes.
+MIN_PALAVRAS_SUBTITULO = 5
+# Disciplinas com ementas acima desta semelhança são versões da mesma matéria:
+# sigla antiga/nova ou teoria/prática.
+LIMIAR_EMENTA = 0.8
+# Ementas curtas costumam ser um modelo ("experiências de laboratório sobre
+# temas abordados na disciplina X") em que só o nome da matéria muda; nelas a
+# semelhança tem de ser quase total.
+TAMANHO_EMENTA_CURTA = 120
+LIMIAR_EMENTA_CURTA = 0.95
 # Acima deste valor os títulos são o mesmo trabalho com pequenas variações
 # ("arquitetura"/"microarquitetura"); abaixo de 0,82 já aparecem trabalhos
 # diferentes com início parecido.
@@ -183,6 +207,162 @@ def registrar_trabalho(trabalho: dict, trabalhos_ic: dict[str, dict]) -> str:
     if trabalho.get("ano") and (existente.get("ano") or 0) < trabalho["ano"]:
         existente["ano"] = trabalho["ano"]
     return trabalho["id"]
+
+
+def tamanho_texto(registro: dict) -> int:
+    return sum(len(registro.get(campo) or "") for campo in CAMPOS_TEXTO_LONGO)
+
+
+def remover_duplicatas(catalogo: dict[str, dict], campo_titulo: str = "titulo") -> dict[str, str]:
+    """Deixa um registro por título no catálogo e devolve {id removido: id mantido}.
+
+    Títulos são iguais quando coincidem sem caixa, acentos e pontuação. Não há
+    comparação aproximada porque ela uniria trabalhos distintos, como as edições
+    "VOT2016" e "VOT2017". Fica o registro com mais texto; empates vão para o ano
+    mais recente, e o registro mantido recebe o ano mais recente do grupo.
+    """
+    grupos: dict[str, list[dict]] = {}
+    for registro in catalogo.values():
+        chave = chave_titulo(registro.get(campo_titulo))
+        if chave:
+            grupos.setdefault(chave, []).append(registro)
+
+    def ano_registro(registro: dict) -> int:
+        return max((registro.get(campo) or 0 for campo in CAMPOS_ANO), default=0)
+
+    substitutos: dict[str, str] = {}
+    for registros in grupos.values():
+        if len(registros) == 1:
+            continue
+        mantido = max(registros, key=lambda r: (tamanho_texto(r), ano_registro(r), r["id"]))
+        for campo in CAMPOS_ANO:
+            anos = [r[campo] for r in registros if r.get(campo)]
+            if anos and campo in mantido:
+                mantido[campo] = max(anos)
+        for registro in registros:
+            if registro is not mantido:
+                substitutos[registro["id"]] = mantido["id"]
+                del catalogo[registro["id"]]
+    return substitutos
+
+
+def deduplicar_catalogos(
+    perfis: list[PerfilGold], catalogos: dict[str, tuple[dict[str, dict], str]]
+) -> dict[str, int]:
+    """Remove duplicatas de cada catálogo e atualiza as referências dos perfis.
+
+    `catalogos` é {campo do perfil: (catálogo, campo do título)}. Devolve quantos
+    registros saíram de cada catálogo.
+    """
+    removidos: dict[str, int] = {}
+    for campo, (catalogo, campo_titulo) in catalogos.items():
+        substitutos = remover_duplicatas(catalogo, campo_titulo)
+        removidos[campo] = len(substitutos)
+        for perfil in perfis:
+            perfil[campo] = ids_unicos([substitutos.get(i, i) for i in perfil.get(campo) or []])
+    return removidos
+
+
+def titulos_equivalentes(a: str, b: str) -> bool:
+    """Compara chaves de título: iguais, ou uma é a outra sem o subtítulo."""
+    if not a or not b:
+        return False
+    curto, longo = sorted((a, b), key=len)
+    return curto == longo or (
+        longo.startswith(curto + " ") and len(curto.split()) >= MIN_PALAVRAS_SUBTITULO
+    )
+
+
+def ementas_parecidas(a: str, b: str) -> bool:
+    limiar = LIMIAR_EMENTA_CURTA if min(len(a), len(b)) < TAMANHO_EMENTA_CURTA else LIMIAR_EMENTA
+    comparador = difflib.SequenceMatcher(None, a, b)
+    return (
+        comparador.real_quick_ratio() >= limiar
+        and comparador.quick_ratio() >= limiar
+        and comparador.ratio() >= limiar
+    )
+
+
+def deduplicar_perfil(perfil: PerfilGold, catalogos: dict[str, dict[str, dict]]) -> dict[str, int]:
+    """Remove do perfil itens que repetem outro, dentro da seção ou entre seções.
+
+    `deduplicar_catalogos` só une registros do mesmo catálogo. Aqui o mesmo
+    trabalho cadastrado como produção e como IC, um título com e sem subtítulo
+    e disciplinas de mesmo nome ou ementa parecida viram uma entrada só. Dentro
+    de cada seção fica o registro com mais texto; entre disciplinas, a versão
+    ministrada mais recentemente. Se essa versão não tem ementa, recebe no
+    catálogo a de uma versão antiga de mesmo nome. Fora isso os catálogos não
+    mudam: o registro removido de um perfil pode continuar citado por outro
+    professor. Devolve quantos IDs saíram de cada seção.
+    """
+    # Títulos já cobertos, inclusive os dos itens removidos: outra versão com o
+    # mesmo nome de um item removido também repete o que ficou no perfil.
+    titulos_vistos: list[str] = []
+    ementas_mantidas: list[str] = []
+    # Disciplinas mantidas ainda sem ementa, pelo título.
+    sem_ementa: dict[str, dict] = {}
+    removidos: dict[str, int] = {}
+    for campo, campo_titulo in SECOES_PERFIL:
+        catalogo = catalogos.get(campo, {})
+        ids = perfil.get(campo) or []
+        mantidos: set[str] = set()
+        # Disciplinas chegam da Silver da mais recente para a mais antiga e fica
+        # a versão mais atual; nas demais seções, o registro com mais texto.
+        ordem = ids if campo == "disciplinas" else sorted(
+            ids, key=lambda i: -tamanho_texto(catalogo.get(i, {}))
+        )
+        for id_item in ordem:
+            registro = catalogo.get(id_item)
+            if registro is None:
+                # Referência órfã: quem trata é validar_referencias.
+                mantidos.add(id_item)
+                continue
+            titulo = chave_titulo(registro.get(campo_titulo))
+            ementa = chave_titulo(registro.get("ementa"))
+            if any(titulos_equivalentes(titulo, t) for t in titulos_vistos) or (
+                ementa and any(ementas_parecidas(ementa, e) for e in ementas_mantidas)
+            ):
+                atual = next((r for t, r in sem_ementa.items() if titulos_equivalentes(titulo, t)), None)
+                if ementa and atual is not None:
+                    atual["ementa"] = registro["ementa"]
+                    sem_ementa = {t: r for t, r in sem_ementa.items() if r is not atual}
+                    ementas_mantidas.append(ementa)
+                if titulo:
+                    titulos_vistos.append(titulo)
+                continue
+            mantidos.add(id_item)
+            if titulo:
+                titulos_vistos.append(titulo)
+            if ementa:
+                ementas_mantidas.append(ementa)
+            elif campo == "disciplinas" and titulo:
+                sem_ementa[titulo] = registro
+        perfil[campo] = [i for i in ids if i in mantidos]
+        removidos[campo] = len(ids) - len(perfil[campo])
+    return removidos
+
+
+def titulos_repetidos(perfil: dict, catalogos: dict[str, dict]) -> list[str]:
+    """Títulos que ainda aparecem mais de uma vez no perfil, em qualquer seção."""
+    vistos: set[str] = set()
+    repetidos: list[str] = []
+    for campo, campo_titulo in SECOES_PERFIL:
+        catalogo = catalogos.get(campo, {})
+        for id_item in perfil.get(campo) or []:
+            titulo = chave_titulo((catalogo.get(id_item) or {}).get(campo_titulo))
+            if titulo in vistos:
+                repetidos.append(titulo)
+            elif titulo:
+                vistos.add(titulo)
+    return repetidos
+
+
+def remover_nao_referenciados(perfis: list[PerfilGold], catalogos: dict[str, dict[str, dict]]) -> None:
+    """Tira dos catálogos os registros que nenhum perfil cita mais."""
+    for campo, catalogo in catalogos.items():
+        citados = {i for perfil in perfis for i in perfil.get(campo) or []}
+        for id_item in [i for i in catalogo if i not in citados]:
+            del catalogo[id_item]
 
 
 def disciplinas_referenciadas(
@@ -384,17 +564,14 @@ def validar_para_embedding(perfil: dict, catalogos: dict[str, dict]) -> list[str
     # Duplicata em topicosInteresse: a única lista que construímos com
     # deduplicação garantida (unificar_topicos), então repetição aqui indica
     # uma regressão real no código, não uma característica normal do dado.
-    #
-    # Não checamos isso em disciplinas/producoes/orientacoes: o mesmo nome de
-    # disciplina pode se repetir legitimamente sob códigos/ementas diferentes
-    # (grade curricular mudou ao longo do tempo), e o mesmo título de
-    # produção/orientação pode se repetir entre anos (ex.: bolsa de IC
-    # renovada) ou entre as duas listas (o professor publicou sobre um
-    # trabalho que também orientou) — em nenhum desses casos é redundância a
-    # eliminar, é histórico acadêmico real.
     topicos_norm = [t.lower() for t in (perfil.get("topicosInteresse") or [])]
     if len(topicos_norm) != len(set(topicos_norm)):
         problemas.append("'topicosInteresse' tem item repetido (bug na deduplicação)")
+
+    # Mesma ideia para as seções: deduplicar_perfil já deveria ter deixado um
+    # título só por perfil.
+    for titulo in titulos_repetidos(perfil, catalogos):
+        problemas.append(f"título repetido no perfil (bug na deduplicação): '{titulo}'")
 
     # Texto residual que é só um número/código (sinal de que algum ID vazou
     # para um campo textual em vez de ser resolvido).
@@ -543,6 +720,36 @@ def executar_unificacao(
         )
         perfis.append(perfil)
 
+    removidos = deduplicar_catalogos(
+        perfis,
+        {
+            "producoes": (producoes, "titulo"),
+            "projetos": (projetos, "nome"),
+            "orientacoes": (orientacoes, "titulo"),
+            "trabalhosIniciacaoCientifica": (trabalhos_ic_usados, "titulo"),
+        },
+    )
+    logger.info("Duplicatas removidas dos catálogos: %s", removidos)
+
+    removidos_perfis: dict[str, int] = {}
+    for perfil in perfis:
+        for campo, quantidade in deduplicar_perfil(perfil, catalogos_validacao).items():
+            removidos_perfis[campo] = removidos_perfis.get(campo, 0) + quantidade
+    logger.info("Repetições removidas dentro dos perfis: %s", removidos_perfis)
+    # O catálogo de componentes é o do SIGAA inteiro; disciplinas_referenciadas
+    # já filtra o que é publicado.
+    remover_nao_referenciados(
+        perfis,
+        {
+            "producoes": producoes,
+            "projetos": projetos,
+            "orientacoes": orientacoes,
+            "trabalhosIniciacaoCientifica": trabalhos_ic_usados,
+        },
+    )
+
+    # Validação depois da deduplicação, para refletir o perfil publicado.
+    for perfil in perfis:
         problemas = validar_para_embedding(perfil, catalogos_validacao)
         if problemas:
             perfis_com_problema[f"{perfil['siape']} {perfil['nome']}"] = problemas
