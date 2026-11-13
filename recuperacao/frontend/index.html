@@ -3,14 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Descubra quais professores do IESTI/UNIFEI têm mais afinidade com o tema que você quer pesquisar.">
   <title>Encontre seu orientador</title>
+  <script>
+    // aplica o tema salvo antes de pintar a página (evita piscar)
+    try {
+      var t = localStorage.getItem("tema");
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="pular" href="#questionario">Pular para o questionário</a>
+
   <header class="topo">
-    <div class="conteudo">
-      <p class="sobretitulo">IESTI · UNIFEI</p>
-      <h1>Encontre seu orientador</h1>
+    <div class="topo-barra largura">
+      <span class="marca">IESTI <span aria-hidden="true">·</span> UNIFEI</span>
+      <button id="alternar-tema" class="botao-icone" type="button" aria-label="Tema: automático">
+        <svg class="icone icone-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg>
+        <svg class="icone icone-claro" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="icone icone-escuro" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <span class="botao-icone-rotulo" id="rotulo-tema">Automático</span>
+      </button>
+    </div>
+    <div class="heroi largura">
+      <p class="sobretitulo">Orientação acadêmica</p>
+      <h1>Encontre seu <em>orientador</em></h1>
       <p class="subtitulo">
         Conte o que você quer pesquisar e veja quais professores têm mais afinidade com o tema,
         com base nas produções, projetos, orientações e disciplinas de cada um.
@@ -18,75 +41,180 @@
     </div>
   </header>
 
-  <main class="conteudo">
-    <form id="questionario" class="cartao" novalidate>
-      <fieldset>
-        <legend>
-          <span class="passo">1</span> Quais áreas te interessam?
-          <span class="dica">Escolha até <span id="limite-temas">3</span> · opcional</span>
+  <main id="principal" class="layout largura">
+    <form id="questionario" class="painel" novalidate>
+      <div class="painel-cabecalho">
+        <h2 class="painel-titulo">Sua busca</h2>
+      </div>
+
+      <!-- 1. Temas -->
+      <fieldset class="etapa">
+        <legend class="etapa-titulo">
+          <span class="passo" aria-hidden="true">1</span>
+          <span>Quais áreas te interessam?</span>
         </legend>
-        <div id="temas" class="temas" aria-live="polite">
-          <p class="carregando-temas">Carregando temas…</p>
+        <p class="dica" id="dica-temas">Escolha até <span id="limite-temas">3</span> temas · opcional</p>
+
+        <div id="bandeja" class="bandeja" aria-describedby="dica-temas">
+          <ul id="selecionados" class="selecionados" aria-label="Temas escolhidos"></ul>
+          <span id="contador-temas" class="contador-temas" aria-hidden="true"></span>
         </div>
-        <p id="contador-temas" class="contador" aria-live="polite"></p>
+
+        <div class="filtro-temas">
+          <div class="campo-busca">
+            <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <label for="filtro" class="sr-only">Buscar tema, disciplina ou palavra-chave</label>
+            <input id="filtro" type="search" autocomplete="off" spellcheck="false"
+              placeholder="Buscar tema, disciplina ou palavra-chave">
+          </div>
+          <div id="categorias" class="categorias" role="group" aria-label="Filtrar por categoria"></div>
+        </div>
+
+        <div id="temas" class="temas">
+          <div class="chips chips-carregando" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <p class="sr-only">Carregando temas…</p>
+        </div>
+
+        <div id="previa-tema" class="previa-tema" aria-hidden="true">
+          <p class="previa-vazia">Passe o mouse ou foque um tema para ver a descrição e as disciplinas relacionadas.</p>
+        </div>
+        <p id="aviso-temas" class="aviso" role="status" aria-live="polite"></p>
       </fieldset>
 
-      <fieldset>
-        <legend>
-          <span class="passo">2</span> Conte com suas palavras
-          <span class="dica">opcional</span>
+      <!-- 2. Texto livre -->
+      <fieldset class="etapa">
+        <legend class="etapa-titulo">
+          <span class="passo" aria-hidden="true">2</span>
+          <span>Conte com suas palavras</span>
         </legend>
+        <p class="dica">opcional</p>
         <label for="texto" class="sr-only">Descreva seu interesse de pesquisa</label>
-        <textarea id="texto" rows="4" maxlength="2000"
-          placeholder="Ex.: quero usar visão computacional e sensores para monitorar plantações"></textarea>
-        <p class="dica-campo">
+        <div class="campo-texto">
+          <textarea id="texto" rows="3" maxlength="2000" aria-describedby="dica-texto contador-texto"
+            placeholder="Ex.: quero usar visão computacional e sensores para monitorar plantações"></textarea>
+          <span id="contador-texto" class="contador-texto" aria-live="polite"></span>
+        </div>
+        <p id="dica-texto" class="dica-campo">
           Separe ideias diferentes com vírgula ou ponto e vírgula; cada uma é avaliada separadamente.
         </p>
+        <div class="exemplos">
+          <span class="exemplos-rotulo" id="rotulo-exemplos">Experimente:</span>
+          <ul class="exemplos-lista" aria-labelledby="rotulo-exemplos">
+            <li><button type="button" class="exemplo">visão computacional na agricultura</button></li>
+            <li><button type="button" class="exemplo">detecção de intrusão em redes IoT</button></li>
+            <li><button type="button" class="exemplo">controle de robôs móveis</button></li>
+            <li><button type="button" class="exemplo">aplicativo móvel para saúde</button></li>
+          </ul>
+        </div>
       </fieldset>
 
+      <!-- 3. Opções -->
       <details class="avancado">
-        <summary>Opções da busca</summary>
+        <summary>
+          <span>Opções da busca</span>
+          <span id="resumo-opcoes" class="resumo-opcoes">5 professores · qualquer ano</span>
+        </summary>
         <div class="linha-opcoes">
-          <label>
-            Professores no resultado
-            <select id="top-k">
-              <option value="3">3</option>
-              <option value="5" selected>5</option>
-              <option value="10">10</option>
-            </select>
-          </label>
-          <label>
-            Publicações, projetos e orientações a partir de
-            <input id="ano-min" type="number" inputmode="numeric" min="1980" max="2100" placeholder="qualquer ano">
-          </label>
+          <fieldset class="segmentado">
+            <legend>Professores no resultado</legend>
+            <div class="segmentos">
+              <input type="radio" name="top-k" id="top-3" value="3"><label for="top-3">3</label>
+              <input type="radio" name="top-k" id="top-5" value="5" checked><label for="top-5">5</label>
+              <input type="radio" name="top-k" id="top-10" value="10"><label for="top-10">10</label>
+            </div>
+          </fieldset>
+          <div class="campo-ano">
+            <label for="ano-min">Considerar trabalhos a partir de</label>
+            <input id="ano-min" type="number" inputmode="numeric" min="1980" max="2100" placeholder="qualquer ano"
+              aria-describedby="dica-ano">
+            <p id="dica-ano" class="dica-campo">Vale para publicações, projetos, orientações e ICs.</p>
+          </div>
         </div>
       </details>
 
-      <p id="erro-formulario" class="erro" role="alert" hidden></p>
+      <p id="erro-formulario" class="erro" role="alert" tabindex="-1" hidden></p>
 
-      <button id="buscar" type="submit" class="botao-principal">Buscar orientadores</button>
+      <div class="acoes">
+        <p id="resumo-pedido" class="resumo-pedido" aria-live="polite">Escolha um tema ou descreva seu interesse.</p>
+        <button id="buscar" type="submit" class="botao-principal">
+          <span>Buscar orientadores</span>
+          <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
     </form>
 
-    <section id="status" class="status" aria-live="polite" hidden>
-      <span class="spinner" aria-hidden="true"></span>
-      <div>
-        <p class="status-titulo">Analisando os perfis dos professores…</p>
-        <p class="status-detalhe">A primeira busca de um tema pode levar alguns segundos. <span id="cronometro"></span></p>
-      </div>
-    </section>
+    <div class="coluna-resultado">
+      <section id="status" class="status" aria-live="polite" hidden>
+        <div class="status-cabecalho">
+          <div class="status-texto">
+            <p class="status-titulo" id="status-etapa">Interpretando sua busca…</p>
+            <p class="status-detalhe">A primeira busca de um tema pode levar alguns segundos. <span id="cronometro"></span></p>
+          </div>
+          <button id="cancelar" type="button" class="botao-secundario">Cancelar</button>
+        </div>
+        <div class="progresso" aria-hidden="true"><span></span></div>
+        <ol class="esqueletos" aria-hidden="true">
+          <li class="esqueleto"><span class="e-pos"></span><span class="e-linha l1"></span><span class="e-linha l2"></span><span class="e-linha l3"></span></li>
+          <li class="esqueleto"><span class="e-pos"></span><span class="e-linha l1"></span><span class="e-linha l2"></span><span class="e-linha l3"></span></li>
+          <li class="esqueleto"><span class="e-pos"></span><span class="e-linha l1"></span><span class="e-linha l2"></span><span class="e-linha l3"></span></li>
+        </ol>
+      </section>
 
-    <section id="resultado" class="resultado" aria-live="polite" hidden>
-      <div class="resultado-cabecalho">
-        <h2>Professores recomendados</h2>
-        <p id="resumo-busca" class="resumo-busca"></p>
-      </div>
-      <ol id="lista-professores" class="lista-professores"></ol>
-      <p class="nota-rodape">
-        A pontuação compara os professores entre si para esta busca; ela não é uma nota absoluta.
-        Converse com os professores para confirmar a disponibilidade de orientação.
-      </p>
-    </section>
+      <section id="resultado" class="resultado" aria-labelledby="titulo-resultado" hidden>
+        <header class="resultado-cabecalho">
+          <div class="resultado-titulos">
+            <h2 id="titulo-resultado" tabindex="-1">Professores recomendados</h2>
+            <p id="meta-resultado" class="meta-resultado"></p>
+          </div>
+          <div class="resultado-acoes">
+            <button id="alternar-todos" type="button" class="botao-texto">Abrir todos</button>
+            <button id="editar-busca" type="button" class="botao-texto">Editar busca</button>
+          </div>
+          <ul id="resumo-busca" class="resumo-busca" aria-label="Termos da busca"></ul>
+        </header>
+
+        <ol id="lista-professores" class="lista-professores"></ol>
+
+        <p id="nota-cortados" class="nota-rodape" hidden></p>
+        <p class="nota-rodape">
+          A afinidade compara os professores entre si nesta busca; não é uma nota absoluta.
+          Converse com os professores para confirmar a disponibilidade de orientação.
+        </p>
+
+        <div id="barra-comparar" class="barra-comparar" hidden>
+          <p id="barra-comparar-texto" class="barra-comparar-texto" aria-live="polite"></p>
+          <button id="limpar-comparacao" type="button" class="botao-texto">Limpar</button>
+          <button id="abrir-comparacao" type="button" class="botao-principal botao-compacto">Comparar</button>
+        </div>
+      </section>
+    </div>
   </main>
+
+  <dialog id="dialogo-comparar" class="dialogo" aria-labelledby="titulo-comparar">
+    <div class="dialogo-cabecalho">
+      <h2 id="titulo-comparar">Comparar professores</h2>
+      <button type="button" class="botao-icone" id="fechar-comparacao" aria-label="Fechar comparação">
+        <svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div id="tabela-comparar" class="tabela-rolagem" tabindex="0" role="region" aria-label="Tabela de comparação"></div>
+  </dialog>
+
+  <footer class="rodape largura">
+    <details class="como-funciona">
+      <summary>Como funciona a recomendação</summary>
+      <ol>
+        <li><strong>Busca.</strong> Cada tema e cada ideia do seu texto são procurados no perfil, nas produções, projetos, orientações, iniciações científicas e disciplinas dos professores, por significado e por palavras-chave.</li>
+        <li><strong>Pré-ranking.</strong> Cada professor recebe uma nota pelos seus melhores itens em cada fonte, somada à nota do seu perfil.</li>
+        <li><strong>Reordenação.</strong> Um modelo de reranking lê cada item ao lado do tema que o encontrou e descarta o que não tem relação de verdade.</li>
+        <li><strong>Resultado.</strong> Os professores com mais evidências relevantes aparecem primeiro, com os itens que justificam a recomendação.</li>
+      </ol>
+      <p>Professores que lecionam disciplinas ligadas ao tema recebem um pequeno bônus e são sempre considerados.</p>
+    </details>
+    <p class="rodape-credito">Trabalho de Conclusão de Curso · IESTI · Universidade Federal de Itajubá</p>
+  </footer>
 
   <script src="app.js"></script>
 </body>
