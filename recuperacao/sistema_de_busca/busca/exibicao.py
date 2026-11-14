@@ -94,8 +94,7 @@ def imprimir_ranking(ranking: list[dict], aluno_texto: str, n_itens: int = 3) ->
                 codigo = item.get("codigo")
                 sigla = f"[{codigo}] " if codigo else ""
                 print(f"\n  {j}. {prefixo}{sigla}{item['titulo'] or '(sem título)'}")
-                aviso = {"melhor_do_tipo": " [abaixo do corte, mantido como melhor do tipo]",
-                         "disciplina_do_tema": " [disciplina do tema]"}.get(item.get("corte") or "", "")
+                aviso = " [disciplina do tema]" if item.get("corte") == "disciplina_do_tema" else ""
                 print(f"     {rotulo_score}: {_fmt(item['score'])} (tópico: {item['topico']}){aviso}")
 
 

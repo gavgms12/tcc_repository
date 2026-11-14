@@ -813,9 +813,6 @@
     if (analise.varios && item.topico) {
       meta.push(el("li", { class: "tag-tema", "data-slot": analise.slot(item.topico), texto: nomeTopico(item.topico) }));
     }
-    if (item.corte === "melhor_do_tipo") {
-      meta.push(el("li", { class: "tag-fraca", title: "Ficou abaixo do corte de relevância, mas é o melhor item deste tipo", texto: "relação mais fraca" }));
-    }
     return el("li", { class: "item", "data-slot": analise.varios && item.topico ? analise.slot(item.topico) : undefined },
       el("p", { class: "item-titulo" },
         item.codigo ? el("span", { class: "codigo", texto: item.codigo }) : null,

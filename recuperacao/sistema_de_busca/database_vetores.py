@@ -141,25 +141,52 @@ def em_paralelo(tarefas: dict, max_workers: int = 8) -> dict:
 
 def busca_hibrida(client, collection_nome: str, emb: dict, limit: int,
                   campos=("id", "nome", "titulo", "professor_ids", "tipo"), filtro=None):
-    """Busca densa + esparsa com fusão RRF. Não traz o texto (só os campos pedidos)."""
+    """Busca conforme config.MODO_BUSCA ("hibrida", "densa" ou "esparsa"). Não traz o texto (só os campos pedidos)."""
     if not colecao_existe(client, collection_nome):
         return []
 
+    modo = config.MODO_BUSCA
+    dense = emb["dense"].tolist()
     sparse = SparseVector(
         indices=[int(k) for k in emb["sparse"]],
         values=[float(v) for v in emb["sparse"].values()],
     )
+    if modo == "hibrida":
+        resultado = client.query_points(
+            collection_name=collection_nome,
+            prefetch=[
+                Prefetch(query=dense, using="dense", limit=limit, filter=filtro),
+                Prefetch(query=sparse, using="sparse", limit=limit, filter=filtro),
+            ],
+            query=FusionQuery(fusion=Fusion.RRF),
+            limit=limit,
+            with_payload=list(campos),
+        )
+        return resultado.points
+    if modo not in ("densa", "esparsa"):
+        raise ValueError(f"MODO_BUSCA inválido: {modo!r} (use 'hibrida', 'densa' ou 'esparsa')")
+
     resultado = client.query_points(
         collection_name=collection_nome,
-        prefetch=[
-            Prefetch(query=emb["dense"].tolist(), using="dense", limit=limit, filter=filtro),
-            Prefetch(query=sparse, using="sparse", limit=limit, filter=filtro),
-        ],
-        query=FusionQuery(fusion=Fusion.RRF),
+        query=dense if modo == "densa" else sparse,
+        using="dense" if modo == "densa" else "sparse",
+        query_filter=filtro,
         limit=limit,
         with_payload=list(campos),
     )
-    return resultado.points
+    pontos = resultado.points
+    if config.NORMALIZAR_SCORES_BUSCA:
+        normalizar_scores(pontos)
+    return pontos
+
+
+def normalizar_scores(pontos) -> None:
+    """Divide os scores pelo maior do resultado: o melhor vale 1 e as proporções entre itens se mantêm."""
+    maior = max((p.score for p in pontos), default=0.0)
+    if maior <= 0:
+        return
+    for p in pontos:
+        p.score = p.score / maior
 
 
 def buscar_payloads(client, nome: str, ids) -> dict[str, dict]:
@@ -192,6 +219,20 @@ def filtro_ano(ano_min: int | None = None, ano_max: int | None = None) -> models
             range=models.Range(gte=ano_min, lte=ano_max),   # None means "no limit on that side"
         )
     ])
+
+
+def filtro_excluindo(filtro: models.Filter | None, ids) -> models.Filter | None:
+    """Acrescenta ao filtro a exclusão dos itens com esses ids de payload (usado na avaliação, para o
+    próprio TCC de teste não aparecer como evidência do orientador)."""
+    if not ids:
+        return filtro
+    condicao = models.HasIdCondition(has_id=[qdrant_id(i) for i in ids])
+    if filtro is None:
+        return models.Filter(must_not=[condicao])
+    return models.Filter(must=filtro.must, should=filtro.should,
+                         must_not=list(filtro.must_not or []) + [condicao])
+
+
 def atualizar_m(m, client, collection_name):
     client.update_collection(
         collection_name=collection_name,

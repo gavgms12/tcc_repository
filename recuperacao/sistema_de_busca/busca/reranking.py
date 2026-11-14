@@ -217,16 +217,13 @@ def pontuar_candidatos(reranker, consultas: str | list[str], candidatos: list[di
 
 
 def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
-                  manter_melhor: bool | None = None, por_tipo: bool | None = None,
-                  absoluto: float | None = None) -> list[dict]:
-    """Corte relativo ao melhor item (do mesmo tipo ou do tópico) + piso absoluto opcional
-    + garantia opcional do melhor item por (professor, tipo).
+                  por_tipo: bool | None = None, absoluto: float | None = None) -> list[dict]:
+    """Corte relativo ao melhor item (do mesmo tipo ou do tópico) + piso absoluto opcional.
 
-    Marca em c["corte"] por que o item passou: "disciplina_do_tema", "relativo" ou "melhor_do_tipo".
+    Marca em c["corte"] por que o item passou: "disciplina_do_tema" ou "relativo".
     O perfil do professor e as disciplinas do tema nunca são cortados.
     """
     relativo = config.MIN_RERANK_RELATIVO if relativo is None else relativo
-    manter_melhor = config.MANTER_MELHOR_POR_TIPO if manter_melhor is None else manter_melhor
     por_tipo = config.CORTE_POR_TIPO if por_tipo is None else por_tipo
     absoluto = config.MIN_RERANK_ABSOLUTO if absoluto is None else absoluto
 
@@ -242,15 +239,6 @@ def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
         geral = max(relativo * max(c["rerank_bruto"] for c in itens), absoluto)
         limites = {c["tipo"]: geral for c in itens}
 
-    melhores = set()
-    if manter_melhor:
-        melhor_por_grupo: dict[tuple[str, str], dict] = {}
-        for c in itens:
-            chave = (c["professor_id"], c["tipo"])
-            if chave not in melhor_por_grupo or c["rerank_bruto"] > melhor_por_grupo[chave]["rerank_bruto"]:
-                melhor_por_grupo[chave] = c
-        melhores = {id(c) for c in melhor_por_grupo.values()}
-
     resultado = []
     for c in candidatos:
         if c["tipo"] == "professor":
@@ -260,9 +248,6 @@ def aplicar_corte(candidatos: list[dict], relativo: float | None = None,
             resultado.append(c)
         elif c["rerank_bruto"] >= limites[c["tipo"]]:
             c["corte"] = "relativo"
-            resultado.append(c)
-        elif id(c) in melhores:
-            c["corte"] = "melhor_do_tipo"
             resultado.append(c)
     return resultado
 

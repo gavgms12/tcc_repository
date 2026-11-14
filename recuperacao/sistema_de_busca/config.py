@@ -1,9 +1,6 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from FlagEmbedding import BGEM3FlagModel
-
-#rodar windows senha docker -> docker logs tcc-airflow 2>&1 | Select-String "Password"
 
 load_dotenv()
 
@@ -45,13 +42,11 @@ def subtopicos_topico(nome: str) -> list[str] | None:
 # Corte do reranking (por tópico). Um item passa se:
 #   rerank_bruto >= MIN_RERANK_RELATIVO * (maior rerank_bruto da referência)
 #   E rerank_bruto >= MIN_RERANK_ABSOLUTO
-#   OU for o melhor item daquele tipo para o professor (se MANTER_MELHOR_POR_TIPO)
 # Referência: CORTE_POR_TIPO = True  -> melhor item do MESMO tipo (orientação x orientação...)
 #             CORTE_POR_TIPO = False -> melhor item do tópico, qualquer tipo (a disciplina costuma dominar)
 MIN_RERANK_RELATIVO = 0.10
 CORTE_POR_TIPO = True
 MIN_RERANK_ABSOLUTO = 0.0
-MANTER_MELHOR_POR_TIPO = False
 
 # Corte de professores no ranking final: só entra quem tiver
 #   rerank_score >= MIN_SCORE_PROFESSOR_RELATIVO * (rerank_score do 1º colocado)
@@ -454,6 +449,15 @@ TOPICOS = {
 }
 
 LIMIT_PROFESSORES = 15
+
+# Busca em cada coleção:
+#   "hibrida" -> densa + esparsa unidas por RRF (score depende só da posição)
+#   "densa"   -> só o embedding denso (score = cosseno)
+#   "esparsa" -> só os pesos lexicais do BGE-M3 (score = produto dos pesos, sem teto)
+MODO_BUSCA = "hibrida"
+# Nos modos "densa" e "esparsa", divide os scores de cada busca pelo maior do resultado (o melhor vale 1),
+# para ficarem na mesma escala entre coleções e comparáveis com os pesos ajustados para o RRF.
+NORMALIZAR_SCORES_BUSCA = True
 
 
 # Peso de cada posição na média dos n melhores itens de um professor (pré-ranking e reranking).

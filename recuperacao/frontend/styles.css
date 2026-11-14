@@ -682,7 +682,6 @@ textarea { min-height: 180px; max-height: 480px; font-size: 16px; padding: 16px 
 .item-meta li { border: 1px solid var(--linha); border-radius: 6px; padding: 1px 8px; background: var(--superficie); }
 .item-meta .tag-tema { border-color: transparent; background: var(--cor-suave); color: var(--cor); font-weight: 500; }
 .item-meta .tag-disciplina { border-color: color-mix(in oklch, var(--verde) 40%, transparent); color: var(--verde); }
-.item-meta .tag-fraca { border-style: dashed; }
 .codigo { font: 500 13px/1 var(--fonte-mono); color: var(--primaria); margin-right: 8px; }
 .sem-evidencias { margin: 0; font-size: 14px; color: var(--tinta-suave); }
 

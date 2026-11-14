@@ -5,7 +5,8 @@ import pandas as pd
 
 from recuperacao.sistema_de_busca import config
 from recuperacao.sistema_de_busca.modelo import embedar_consultas
-from recuperacao.sistema_de_busca.database_vetores import busca_hibrida, buscar_payloads_varios, em_paralelo, filtro_ano
+from recuperacao.sistema_de_busca.database_vetores import (busca_hibrida, buscar_payloads_varios, em_paralelo, filtro_ano,
+                                                           filtro_excluindo)
 from .agregacao import combinar_scores, decaimento_da_fonte, hits_para_df, score_top_n, scores_perfis, unir_topicos
 from .disciplinas_tema import disciplinas_do_topico, professores_do_topico
 from .reranking import (adicionar_disciplinas_tema, aplicar_corte, consultas_rerank, criar_candidatos, ids_candidatos,
@@ -22,6 +23,8 @@ class Recomendador:
         self.reranker = reranker
         self.tempos: dict[str, float] = {}   # segundos da última chamada de recomendar()/pre_ranking()
         self.professores_cortados: list[tuple[str, float]] = []   # (nome, score) cortados na última recomendar()
+        # {tipo: ids de payload} que a busca ignora; vazio no uso normal (a avaliação usa para evitar vazamento)
+        self.excluir: dict[str, set[str]] = {}
 
     @contextmanager
     def _medir(self, etapa: str):
@@ -45,10 +48,10 @@ class Recomendador:
                 lambda emb=emb: busca_hibrida(self.client, config.COLLECTION_PROFESSORES, emb, config.LIMIT_PROFESSORES)
             )
             for tipo, cfg in config.FONTES_ITENS.items():
+                filtro_tipo = filtro_excluindo(filtro if cfg.get("filtra_ano") else None, self.excluir.get(tipo))
                 tarefas[(topico, tipo)] = (
-                    lambda emb=emb, cfg=cfg: busca_hibrida(
-                        self.client, cfg["collection"], emb, cfg["limit"],
-                        filtro=filtro if cfg.get("filtra_ano") else None,
+                    lambda emb=emb, cfg=cfg, f=filtro_tipo: busca_hibrida(
+                        self.client, cfg["collection"], emb, cfg["limit"], filtro=f,
                     )
                 )
         with self._medir("qdrant"):
@@ -145,6 +148,8 @@ class Recomendador:
         resultado = []
         for _, linha in ranking.iterrows():
             pid = linha["professor_id"]
+            if not (perfis.get(pid) or {}).get("nome"):
+                continue   # sem perfil indexado não há nome: fica fora, como no reranking
             detalhe_topicos = {}
             for topico in topicos:
                 comp = componentes[topico].get(pid, {})
