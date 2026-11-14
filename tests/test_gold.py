@@ -199,3 +199,144 @@ def test_mesma_iniciacao_em_dois_professores_gera_um_registro():
     b, _, _ = _perfil_com_iniciacoes([_ic("Tema C")], {}, trabalhos=trabalhos)
     assert a["trabalhosIniciacaoCientifica"] == b["trabalhosIniciacaoCientifica"]
     assert len(trabalhos) == 1
+
+
+def test_remover_duplicatas_ignora_caixa_acento_e_pontuacao():
+    catalogo = {
+        "a": {"id": "a", "titulo": "Análise de FPGA.", "tipo": "tcc", "ano_inicio": 2021},
+        "b": {"id": "b", "titulo": "ANALISE DE FPGA", "tipo": "tcc", "ano_inicio": 2022},
+    }
+    assert g.remover_duplicatas(catalogo) == {"a": "b"}
+    assert list(catalogo) == ["b"]
+
+
+def test_remover_duplicatas_mantem_mais_texto_e_ano_mais_recente():
+    catalogo = {
+        "a": {"id": "a", "nome": "Projeto X", "descricao": "Descrição longa", "ano_conclusao": 2023},
+        "b": {"id": "b", "nome": "Projeto X", "descricao": None, "ano_conclusao": 2026},
+    }
+    assert g.remover_duplicatas(catalogo, "nome") == {"b": "a"}
+    assert catalogo["a"]["ano_conclusao"] == 2026
+
+
+def test_remover_duplicatas_nao_une_titulos_parecidos_nem_vazios():
+    catalogo = {
+        "a": {"id": "a", "titulo": "VOT2016 challenge results"},
+        "b": {"id": "b", "titulo": "VOT2017 challenge results"},
+        "c": {"id": "c", "titulo": ""},
+        "d": {"id": "d", "titulo": ""},
+    }
+    assert g.remover_duplicatas(catalogo) == {}
+    assert len(catalogo) == 4
+
+
+def test_deduplicar_catalogos_atualiza_referencias_sem_repetir_id():
+    catalogo = {
+        "a": {"id": "a", "titulo": "Tema", "ano": 2020},
+        "b": {"id": "b", "titulo": "tema", "ano": 2021},
+    }
+    perfis = [{"producoes": ["a", "b"]}, {"producoes": ["a"]}]
+    assert g.deduplicar_catalogos(perfis, {"producoes": (catalogo, "titulo")}) == {"producoes": 1}
+    assert perfis == [{"producoes": ["b"]}, {"producoes": ["b"]}]
+
+
+def test_titulos_equivalentes_aceita_subtitulo_so_em_titulo_longo():
+    assert g.titulos_equivalentes("sixth visual object tracking challenge", "sixth visual object tracking challenge results")
+    assert not g.titulos_equivalentes("robotica", "robotica movel")
+    assert not g.titulos_equivalentes("", "")
+
+
+def test_deduplicar_perfil_remove_repeticao_entre_secoes():
+    catalogos = {
+        "trabalhosIniciacaoCientifica": {"ic": {"titulo": "Balança IoT com LoRa", "resumo": "R"}},
+        "producoes": {
+            "p1": {"titulo": "BALANÇA IOT COM LORA"},
+            "p2": {"titulo": "Programação de Sistemas Embarcados Desenvolvendo Software"},
+            "p3": {"titulo": "Programação de Sistemas Embarcados"},
+        },
+        "orientacoes": {"o1": {"titulo": "Programação de Sistemas Embarcados: Desenvolvendo Software para C"}},
+    }
+    perfil = {"trabalhosIniciacaoCientifica": ["ic"], "producoes": ["p1", "p2", "p3"], "orientacoes": ["o1"]}
+    removidos = g.deduplicar_perfil(perfil, catalogos)
+    assert perfil["trabalhosIniciacaoCientifica"] == ["ic"]
+    # p3 tem só 4 palavras: curto demais para ser tratado como p2 sem subtítulo.
+    assert perfil["producoes"] == ["p2", "p3"]
+    assert perfil["orientacoes"] == []
+    assert removidos["producoes"] == 1 and removidos["orientacoes"] == 1
+    assert g.titulos_repetidos(perfil, catalogos) == []
+
+
+def test_deduplicar_perfil_une_disciplinas_por_nome_e_por_ementa():
+    ementa = "Arquitetura de microcontroladores, periféricos, interrupções e programação em C."
+    catalogos = {
+        "disciplinas": {
+            "1": {"nome": "Antenas e Propagação", "ementa": None},
+            "2": {"nome": "ANTENAS E PROPAGAÇÃO", "ementa": "Parâmetros de antenas."},
+            "3": {"nome": "Microcontroladores", "ementa": ementa},
+            "4": {"nome": "Microcontroladores (Prática)", "ementa": ementa.lower()},
+            "5": {"nome": "Robótica", "ementa": "Cinemática de manipuladores."},
+        }
+    }
+    perfil = {"disciplinas": ["1", "2", "3", "4", "5"]}
+    g.deduplicar_perfil(perfil, catalogos)
+    # A lista vem da mais recente para a mais antiga: fica a primeira de cada grupo.
+    assert perfil["disciplinas"] == ["1", "3", "5"]
+
+
+def test_deduplicar_perfil_mantem_referencia_orfa():
+    perfil = {"producoes": ["sem_catalogo"]}
+    g.deduplicar_perfil(perfil, {"producoes": {}})
+    assert perfil["producoes"] == ["sem_catalogo"]
+
+
+def test_remover_nao_referenciados():
+    catalogo = {"a": {}, "b": {}}
+    g.remover_nao_referenciados([{"producoes": ["a"]}], {"producoes": catalogo})
+    assert list(catalogo) == ["a"]
+
+
+def test_ementas_curtas_de_modelo_nao_unem_materias_diferentes():
+    modelo = "experiencias de laboratorio sobre temas abordados na disciplina "
+    assert not g.ementas_parecidas(modelo + "instrumentacao industrial i", modelo + "redes industriais de comunicacao")
+    assert g.ementas_parecidas(modelo + "instrumentacao industrial i", modelo + "instrumentacao industrial i")
+
+
+def test_deduplicar_perfil_mantem_disciplina_mais_recente_mesmo_com_menos_texto():
+    catalogos = {
+        "disciplinas": {
+            "nova": {"nome": "Robótica", "ementa": None},
+            "antiga": {"nome": "ROBÓTICA", "ementa": "Cinemática de manipuladores."},
+        }
+    }
+    perfil = {"disciplinas": ["nova", "antiga"]}
+    g.deduplicar_perfil(perfil, catalogos)
+    assert perfil["disciplinas"] == ["nova"]
+
+
+def test_disciplina_mais_recente_sem_ementa_recebe_a_da_versao_antiga():
+    catalogos = {
+        "disciplinas": {
+            "nova": {"nome": "Robótica", "ementa": "."},
+            "antiga": {"nome": "ROBÓTICA", "ementa": "Cinemática de manipuladores."},
+            "outra": {"nome": "Redes", "ementa": None},
+        }
+    }
+    perfil = {"disciplinas": ["nova", "outra", "antiga"]}
+    g.deduplicar_perfil(perfil, catalogos)
+    assert perfil["disciplinas"] == ["nova", "outra"]
+    assert catalogos["disciplinas"]["nova"]["ementa"] == "Cinemática de manipuladores."
+    assert catalogos["disciplinas"]["outra"]["ementa"] is None
+
+
+def test_versao_de_mesmo_nome_de_disciplina_removida_tambem_sai():
+    ementa = "Programação orientada a objetos: classes, herança, polimorfismo e interfaces."
+    catalogos = {
+        "disciplinas": {
+            "teoria": {"nome": "POO", "ementa": ementa},
+            "pratica_nova": {"nome": "POO (Prática)", "ementa": ementa},
+            "pratica_antiga": {"nome": "POO (PRÁTICA)", "ementa": None},
+        }
+    }
+    perfil = {"disciplinas": ["teoria", "pratica_nova", "pratica_antiga"]}
+    g.deduplicar_perfil(perfil, catalogos)
+    assert perfil["disciplinas"] == ["teoria"]

@@ -1,6 +1,0 @@
-boto3
-pandas
-pyarrow
-python-dotenv
-qdrant-client
-FlagEmbedding

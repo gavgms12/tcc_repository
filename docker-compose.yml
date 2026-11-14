@@ -1,75 +1,199 @@
+# Stack local: MinIO (data lake) + Airflow (orquestração) + Postgres (metadados do Airflow).
+#
+#   cp .env.example .env    # preencha os valores (instruções no arquivo)
+#   mkdir -p data/cache
+#   docker compose up -d --build
+#
+# Airflow: http://localhost:8085 (usuário admin, senha AIRFLOW_ADMIN_PASSWORD)
+# MinIO:   console http://localhost:9011 · API S3 http://localhost:9010
+# As portas só ficam acessíveis nesta máquina (127.0.0.1).
+
+name: tcc
+
+# --------------------------------------------------------------------------- #
+# Configuração comum aos serviços do Airflow
+# --------------------------------------------------------------------------- #
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: infra/airflow/Dockerfile
+  image: tcc-airflow:3.0.6
+  # UID do host (AIRFLOW_UID) e GID 0, grupo dono de /opt/airflow na imagem:
+  # arquivos criados nos volumes montados ficam com o dono do usuário do host.
+  user: "${AIRFLOW_UID:-50000}:0"
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    # Silver e Gold são disparadas por assets; pausadas, a cadeia para na Bronze.
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?defina AIRFLOW_FERNET_KEY no .env}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-airflow}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-airflow}
+    # Componentes em containers separados precisam do mesmo segredo para
+    # assinar/validar os tokens da Execution API (tasks <-> api-server).
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?defina AIRFLOW_JWT_SECRET no .env}
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:?defina AIRFLOW_API_SECRET_KEY no .env}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    # Login simples (usuário admin); a senha vem do .env, ver airflow-apiserver.
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/passwords.json
+    # O bootstrap do dag-processor neste ambiente passa do padrão de 50s.
+    AIRFLOW__DAG_PROCESSOR__DAG_FILE_PROCESSOR_TIMEOUT: "300"
+    # scrape_componentes_sigaa com ementas fica ~12 min sem sinal de vida;
+    # o padrão (5 min) o mataria como task "zumbi".
+    AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT: "1800"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    # Data lake: dentro da rede do compose o MinIO é alcançado pelo nome do serviço.
+    MINIO_ENDPOINT: http://minio:9000
+    MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?defina MINIO_ACCESS_KEY no .env}
+    MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?defina MINIO_SECRET_KEY no .env}
+    MINIO_REGION: ${MINIO_REGION:-us-east-1}
+    MINIO_BRONZE_BUCKET: ${MINIO_BRONZE_BUCKET:-bronze}
+    MINIO_SILVER_BUCKET: ${MINIO_SILVER_BUCKET:-silver}
+    MINIO_GOLD_BUCKET: ${MINIO_GOLD_BUCKET:-gold}
+    # Parâmetros opcionais do pipeline (vazio = padrão do código).
+    TZ_COLETA: ${TZ_COLETA:-America/Sao_Paulo}
+    LATTES_CACHE_DIAS: ${LATTES_CACHE_DIAS:-}
+    ANO_MINIMO: ${ANO_MINIMO:-}
+  volumes:
+    - ./dags:/opt/airflow/dags:ro
+    - ./src:/opt/project/src:ro
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
 services:
+  # ------------------------------------------------------------------------- #
+  # Data lake
+  # ------------------------------------------------------------------------- #
   minio:
-    # O projeto usa o MinIO antigo (container tcc_minio, com o alias tcc-minio na
-    # rede). Este serviço só sobe com `docker compose --profile minio-local up -d`;
-    # subir os dois juntos faz o nome tcc-minio apontar para dois servidores.
-    profiles: ["minio-local"]
-    image: bitnamilegacy/minio:2025.4.8-debian-12-r3
-    container_name: tcc-minio
-
-    ports:
-    - "9010:9000"
-    - "9011:9001"
-
-    env_file:
-      - .env
-
+    # As imagens oficiais minio/minio deixaram de ser distribuídas publicamente
+    # (2025). A bitnamilegacy é baixável e tem versão fixa, mas não recebe
+    # atualizações: ver "Imagem do MinIO" em docs/arquitetura.md.
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-      MINIO_CONSOLE_ADDRESS: ":9001"
-
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?defina MINIO_ROOT_USER no .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?defina MINIO_ROOT_PASSWORD no .env}
+      MINIO_CONSOLE_PORT_NUMBER: "9001"
+    ports:
+      - "127.0.0.1:9010:9000"
+      - "127.0.0.1:9011:9001"
     volumes:
-      - ./data/minio:/bitnami/minio/data
+      - minio_data:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
-  airflow:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        INSTALL_BUSCA: ${INSTALL_BUSCA:-true}
+  minio-init:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    entrypoint: ["/bin/bash", "/init.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BRONZE_BUCKET: ${MINIO_BRONZE_BUCKET:-bronze}
+      MINIO_SILVER_BUCKET: ${MINIO_SILVER_BUCKET:-silver}
+      MINIO_GOLD_BUCKET: ${MINIO_GOLD_BUCKET:-gold}
+      # O mc grava a config em $HOME; o usuário da imagem não tem home gravável.
+      HOME: /tmp
+    volumes:
+      - ./infra/minio/init.sh:/init.sh:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
 
-    container_name: tcc-airflow
+  # ------------------------------------------------------------------------- #
+  # Metadados do Airflow (histórico de execuções, estado dos assets)
+  # ------------------------------------------------------------------------- #
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
-    # Roda com o UID do host (AIRFLOW_UID no .env) e GID 0 (grupo root), que é
-    # o grupo dono dos diretórios internos da imagem (/opt/airflow/*). Isso evita
-    # que arquivos criados em volumes montados (./dags, ./ como /opt/project)
-    # fiquem com dono incompatível entre execuções no host e no container.
-    user: "${AIRFLOW_UID:-50000}:0"
+  # ------------------------------------------------------------------------- #
+  # Airflow
+  # ------------------------------------------------------------------------- #
+  airflow-init:
+    <<: *airflow-common
+    # Migra o banco de metadados e termina.
+    command: db migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: "no"
 
-    # Necessário para o sandbox do Chromium (scriptLattes/Selenium) inicializar;
-    # sem isso o Chrome cai com "session not created: Chrome instance exited".
+  airflow-apiserver:
+    <<: *airflow-common
+    # Grava a senha do admin (do .env) antes de subir. O entrypoint da imagem
+    # é mantido: é ele que registra o AIRFLOW_UID como usuário do sistema.
+    command:
+      - bash
+      - -c
+      - |
+        printf '{"admin": "%s"}' "$${AIRFLOW_ADMIN_PASSWORD}" > /opt/airflow/passwords.json
+        exec airflow api-server
+    environment:
+      <<: *airflow-env
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:?defina AIRFLOW_ADMIN_PASSWORD no .env}
+    ports:
+      - "127.0.0.1:8085:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/v2/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    # Com LocalExecutor as tasks rodam neste container, por isso só ele
+    # recebe o cache do scriptLattes e a capability do sandbox do Chromium
+    # (sem ela: "session not created: Chrome instance exited").
     cap_add:
       - SYS_ADMIN
-
-    env_file:
-      - .env
-
-    ports:
-      - "8085:8080"
-
     volumes:
-      - ./dags:/opt/airflow/dags
-      - ./:/opt/project
+      - ./dags:/opt/airflow/dags:ro
+      - ./src:/opt/project/src:ro
+      - ./data/cache:/opt/project/data/cache
+      - airflow_logs:/opt/airflow/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
-    environment:
-      AIRFLOW_HOME: /opt/airflow
-      # Bootstrap do dag-processor (carregar plugins/providers do Airflow) é
-      # mais lento que o default de 50s neste ambiente; sem isso o parse da
-      # DAG é morto por timeout antes de terminar.
-      AIRFLOW__DAG_PROCESSOR__DAG_FILE_PROCESSOR_TIMEOUT: "300"
-      # Default é 300s (5 min): o scheduler mata como "zumbi" qualquer task que
-      # fique tempo demais sem dar sinal de vida. scrape_componentes_sigaa com
-      # --com-ementa faz ~1250 requisições HTTP síncronas (uma por disciplina)
-      # e leva ~12 min só nessa chamada, sem nenhuma interação com o Airflow
-      # nesse meio tempo — por isso era morta antes de terminar.
-      AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT: "1800"
-      # Sobrescreve o MINIO_ENDPOINT do .env (que aponta para localhost, para
-      # scripts rodados no host): dentro da rede Docker o MinIO só é alcançável
-      # pelo nome do serviço/container.
-      MINIO_ENDPOINT: http://tcc-minio:9000
-      # Cache dos modelos do Hugging Face (BGE-M3 e reranker, ~2 GB cada) dentro
-      # do projeto montado, para não baixar de novo quando o container é recriado.
-      HF_HOME: /opt/project/data/huggingface
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type DagProcessorJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
 
-    command: standalone
+volumes:
+  minio_data:
+  postgres_data:
+  airflow_logs:

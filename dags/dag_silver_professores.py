@@ -5,11 +5,6 @@ terminar, publica SILVER_PRONTA, que aciona a Gold.
 """
 
 from datetime import datetime, timedelta
-import sys
-
-PROJECT_ROOT = "/opt/project"
-sys.path.append(PROJECT_ROOT)
-sys.path.append(f"{PROJECT_ROOT}/dags")
 
 from airflow.sdk import DAG, task
 
