@@ -1,6 +1,6 @@
 # Camada Gold
 
-A Gold consome os Parquets já limpos da Silver e produz o perfil final por professor, pronto para gerar embeddings (BGE-M3) e indexar no Qdrant.
+A Gold consome os Parquets já limpos da Silver e produz o perfil final por professor, pronto para ser consumido por aplicações (por exemplo, busca textual).
 
 ## Organização
 

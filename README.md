@@ -2,7 +2,7 @@
 
 Projeto de TCC com arquitetura **medalhão** (Bronze → Silver → Gold) para coletar, integrar e estruturar dados dos professores do Instituto de Engenharia de Sistemas e Tecnologia da Informação (IESTI/UNIFEI).
 
-O objetivo é construir uma base de conhecimento sobre os docentes — competências, produções, projetos, orientações e disciplinas — para apoiar a busca de especialistas por embeddings (BGE-M3) indexados no Qdrant.
+O objetivo é construir uma base de conhecimento sobre os docentes — competências, produções, projetos, orientações e disciplinas — pronta para ser consumida por aplicações a partir da camada Gold.
 
 ---
 
@@ -24,11 +24,9 @@ SIGAA · site do IESTI · periódicos de IC                 scriptLattes (CNPq)
   ┌───────────┐   JSON: um perfil por docente (siape) + catálogos
   │   GOLD    │   de produções, projetos, orientações e IC,
   └───────────┘   publicados em runs/<execução>/ e apontados por current.json
-        │
-        ▼  (próxima etapa) texto do perfil → embeddings → Qdrant
 ```
 
-Armazenamento: **MinIO** (compatível com S3), um bucket por camada (`bronze`, `silver`, `gold`). Orquestração: **Apache Airflow**, com uma DAG por camada encadeadas por *assets* (a conclusão de uma aciona a seguinte). Tudo roda em Docker Compose.
+Armazenamento: **MinIO** (compatível com S3), um bucket por camada (`bronze`, `silver`, `gold`). Orquestração: **Apache Airflow**, com uma DAG por camada encadeadas por *assets* (a conclusão de uma aciona a seguinte), e metadados em **PostgreSQL**. Tudo roda em Docker Compose — detalhes da infraestrutura em [docs/arquitetura.md](docs/arquitetura.md).
 
 ---
 
@@ -48,29 +46,33 @@ Armazenamento: **MinIO** (compatível com S3), um bucket por camada (`bronze`, `
 ## Estrutura do repositório
 
 ```
-tcc_code/
-├── bronze/
-│   ├── scraping/            # um coletor por fonte (+ utils.py)
-│   └── pipeline_bronze.py   # executa todos os coletores
-├── silver/
-│   ├── merge/               # merge SIGAA + IESTI → roster de identidade
-│   ├── integracao/          # scriptLattes e limpeza dos perfis
-│   ├── pipeline_silver.py
-│   ├── exportar_json.py     # exporta Parquets da Silver para JSON (conferência)
-│   └── inspecionar_parquet.py
-├── gold/
-│   ├── unificar_perfis.py   # perfil unificado por docente + catálogos
-│   └── pipeline_gold.py
-├── common/                  # texto, id Lattes, config e logging compartilhados
-├── storage/minio_storage.py # acesso ao MinIO (classe Camada, chaves datadas da Bronze)
-├── dags/                    # DAGs do Airflow (+ assets.py)
-├── tests/                   # pytest
-├── docker-compose.yml · Dockerfile
-├── requirements.txt · requirements-dev.txt · .env.example
-└── README.md
+tcc_repository/
+├── src/                         # código do pipeline (pacotes Python)
+│   ├── bronze/
+│   │   ├── scraping/            # um coletor por fonte (+ utils.py)
+│   │   └── pipeline_bronze.py   # executa todos os coletores
+│   ├── silver/
+│   │   ├── merge/               # merge SIGAA + IESTI → roster de identidade
+│   │   ├── integracao/          # scriptLattes e limpeza dos perfis
+│   │   └── pipeline_silver.py
+│   ├── gold/
+│   │   ├── unificar_perfis.py   # perfil unificado por docente + catálogos
+│   │   └── pipeline_gold.py
+│   ├── common/                  # texto, id Lattes, config e logging compartilhados
+│   └── storage/minio_storage.py # acesso ao MinIO (classe Camada, chaves datadas da Bronze)
+├── dags/                        # DAGs do Airflow (+ assets.py)
+├── scripts/                     # utilitários de conferência (inspecionar/exportar Parquets da Silver)
+├── infra/
+│   ├── airflow/Dockerfile       # imagem do Airflow com o código e o scriptLattes
+│   └── minio/init.sh            # cria buckets e o usuário de serviço do pipeline
+├── tests/                       # pytest
+├── docs/                        # arquitetura e operação da infraestrutura
+├── data/                        # runtime local, fora do git (cache do scriptLattes)
+├── docker-compose.yml · .env.example · pyproject.toml
+└── requirements.txt · requirements-dev.txt
 ```
 
-Cada camada tem seu README (`silver/README.md`, `gold/README.md`) com mais detalhes.
+Os pacotes ficam em `src/`, mas os imports não carregam esse prefixo (`from bronze.scraping ...`): a imagem define `PYTHONPATH=/opt/project/src` e, localmente, `pip install -e .` faz o mesmo. Cada camada tem seu README (`src/silver/README.md`, `src/gold/README.md`) com mais detalhes.
 
 ---
 
@@ -108,7 +110,7 @@ Rodar de novo no mesmo dia sobrescreve os arquivos daquela data.
 Lê **somente a pasta de data mais recente** da Bronze (ver [Leitura da Bronze](#leitura-da-bronze)).
 
 1. `merge/merge_professores.py` — mescla SIGAA + IESTI (normalização e similaridade de nomes, limiar 0,92) em `professores_unificados.parquet`.
-2. `integracao/executar_scriptlattes.py` — roda o scriptLattes para os ids do roster e grava os currículos na Bronze, **na mesma pasta de data que a Silver está lendo**. Os currículos ficam em cache local (`.cache/scriptlattes/cvs`) e expiram após 30 dias.
+2. `integracao/executar_scriptlattes.py` — roda o scriptLattes para os ids do roster e grava os currículos na Bronze, **na mesma pasta de data que a Silver está lendo**. Os currículos ficam em cache local (`data/cache/scriptlattes/cvs`) e expiram após 30 dias.
 3. `integracao/limpar_perfis.py` — limpa os perfis e grava **dois Parquets separados** (SIGAA e Lattes), sem mesclá-los. Disciplinas, trabalhos de IC, produções, projetos e orientações passam a ser referenciados por ID (hash do conteúdo, estável entre execuções), com catálogos à parte. O catálogo de trabalhos de IC guarda todos os trabalhos coletados, mesmo os sem orientador reconhecido.
 
 ### Gold — produto de dados
@@ -126,7 +128,7 @@ A Silver considera apenas a pasta `raw/AAAAMMDD/` de data mais recente. Se uma f
 Consequências práticas:
 - Rodar a Bronze completa (script ou DAG) garante todas as fontes na mesma pasta.
 - Rodar **um único coletor** num dia novo cria uma pasta de data incompleta, e a Silver passa a exigir que o restante seja coletado nessa data.
-- Para reprocessar uma coleta antiga: `BRONZE_DATA=20261013 python silver/pipeline_silver.py`.
+- Para reprocessar uma coleta antiga: `BRONZE_DATA=20261013 python -m silver.pipeline_silver`.
 
 Os próprios coletores da Bronze, ao reaproveitar dados já coletados (ementas, IC) ou depender de outra coleta (docentes dependem da lista de professores), usam a última versão de cada chave em qualquer data.
 
@@ -134,41 +136,39 @@ Os próprios coletores da Bronze, ao reaproveitar dados já coletados (ementas, 
 
 ## Pré-requisitos
 
-- Python **3.11+**, Docker e Docker Compose.
-- Repositório irmão do scriptLattes (para rodar fora do Docker):
-
-```
-TCC/
-├── tcc_code/        ← este repositório
-└── scriptLattes/    ← clonar e instalar separadamente (make install)
-```
+- Docker e Docker Compose (v2.20+).
+- Para rodar fora do Docker: Python **3.11+** e, para a etapa do Lattes, o scriptLattes clonado ao lado deste repositório (ou em `SCRIPTLATTES_DIR`). Dentro do Docker ele já vem na imagem do Airflow.
 
 ```bash
-cd tcc_code
-python -m venv venv && source venv/bin/activate
-pip install -r requirements-dev.txt        # runtime + pytest
-cp .env.example .env                       # e ajuste usuário/senha do MinIO
-```
+cp .env.example .env      # troque todos os valores "troque-..." (instruções no arquivo)
+mkdir -p data/cache       # cache do scriptLattes, montado no Airflow
 
-> Use a venv de `tcc_code/venv` para os scripts deste repositório; a venv do scriptLattes é separada. Dentro do Docker, o scriptLattes já vem na imagem do Airflow.
+# só para rodar scripts/testes fora do Docker:
+python -m venv venv && source venv/bin/activate
+pip install -r requirements-dev.txt && pip install -e .
+```
 
 ---
 
 ## Como rodar
 
-### Serviços (MinIO + Airflow)
+### Serviços (MinIO + Airflow + Postgres)
 
 ```bash
-docker compose up -d
+docker compose up -d --build     # primeira vez (constrói a imagem do Airflow)
+docker compose up -d             # demais vezes
+docker compose ps                # todos devem ficar "healthy"
 ```
 
-Esse comando sobe só o Airflow, que usa o MinIO antigo (container `tcc_minio`, portas 9000 e 9001, conectado à rede `tcc_repository_default` com o alias `tcc-minio`). Em uma instalação nova, sem esse container, suba o MinIO do projeto com `docker compose --profile minio-local up -d`, nas portas da tabela abaixo. Não mantenha os dois ligados, porque o nome `tcc-minio` passaria a apontar para dois servidores.
+Os serviços reiniciam sozinhos com o Docker (`restart: unless-stopped`). `docker compose down` para tudo sem apagar dados (MinIO, histórico do Airflow e logs ficam em volumes).
 
 | Serviço | URL | Acesso |
 |---------|-----|--------|
-| Console do MinIO | http://localhost:9011 | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` do `.env` |
-| API S3 do MinIO | http://localhost:9010 | usada pelos scripts |
-| Airflow | http://localhost:8085 | usuário `admin`; a senha é gerada na primeira subida: `docker logs tcc-airflow 2>&1 \| grep Password` |
+| Airflow | http://localhost:8085 | usuário `admin`, senha `AIRFLOW_ADMIN_PASSWORD` do `.env` |
+| Console do MinIO | http://localhost:9011 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` do `.env` |
+| API S3 do MinIO | http://localhost:9010 | scripts rodados no host (usuário de serviço `MINIO_ACCESS_KEY`) |
+
+As portas só aceitam conexões desta máquina.
 
 ### Pelo Airflow
 
@@ -176,14 +176,16 @@ Dispare a DAG **`bronze_scrape_professores_sigaa`**. Ao terminar, ela aciona `si
 
 ### Pela linha de comando
 
+Com a stack no ar (os scripts usam o MinIO em `localhost:9010`):
+
 ```bash
 source venv/bin/activate
-python bronze/pipeline_bronze.py --com-ementa
-python silver/pipeline_silver.py
-python gold/pipeline_gold.py
+python -m bronze.pipeline_bronze --com-ementa
+python -m silver.pipeline_silver
+python -m gold.pipeline_gold
 ```
 
-Etapas individuais: `python bronze/scraping/scrape_trabalhos_ic.py`, `python silver/merge/merge_professores.py` etc. — cada script tem `--help`.
+Etapas individuais: `python -m bronze.scraping.scrape_trabalhos_ic`, `python -m silver.merge.merge_professores` etc. — cada script tem `--help`. Conferência da Silver: `python scripts/inspecionar_parquet.py <arquivo.parquet>` e `python scripts/exportar_json.py`.
 
 ### Flags
 
@@ -207,6 +209,10 @@ Etapas individuais: `python bronze/scraping/scrape_trabalhos_ic.py`, `python sil
 | `BRONZE_DATA` | pasta mais recente | Fixa a pasta lida pela Silver |
 | `LATTES_CACHE_DIAS` | `30` | Validade do cache dos currículos (`0` = nunca expira) |
 | `ANO_MINIMO` | ano atual − 10 | Ano inicial das produções e trabalhos de IC |
+| `SCRIPTLATTES_DIR` | `../scriptLattes` (imagem: `/opt/scriptLattes`) | Instalação do scriptLattes |
+| `SCRIPTLATTES_CACHE_DIR` | `data/cache/scriptlattes` | Cache dos currículos baixados |
+
+As variáveis da infraestrutura (credenciais do MinIO, Postgres e segredos do Airflow) estão descritas no `.env.example`.
 
 ---
 
@@ -231,7 +237,7 @@ Números de referência (coleta de 15/10/2026): 43 professores no cadastro (42 c
 ## Testes
 
 ```bash
-python -m pytest
+python -m pytest     # não precisa da stack no ar
 ```
 
 Cobrem as chaves datadas e a leitura da Bronze, os caches (ementas, IC, Lattes), a unificação e publicação da Gold e utilitários comuns, usando um S3 em memória no lugar do MinIO.
@@ -241,10 +247,9 @@ Cobrem as chaves datadas e a leitura da Bronze, os caches (ementas, IC, Lattes),
 ## Observações
 
 - O SIGAA pode limitar requisições em massa; os coletores usam pausa entre chamadas e retry automático.
-- O scriptLattes pode falhar por rate limit do CNPq (`ERR_CONNECTION_RESET`). O cache preserva o que já foi baixado, e a task do Airflow tenta novamente. A saída verbosa do scriptLattes vai para `.cache/scriptlattes/scriptlattes.log`.
-- Os dados do MinIO ficam em `./data/minio` (ignorado pelo git).
+- O scriptLattes pode falhar por rate limit do CNPq (`ERR_CONNECTION_RESET`). O cache preserva o que já foi baixado, e a task do Airflow tenta novamente. A saída verbosa do scriptLattes vai para `data/cache/scriptlattes/scriptlattes.log`.
+- Os dados do MinIO ficam no volume Docker `tcc_minio_data`, não numa pasta do repositório.
 
 ## Próximos passos
 
 - Limitar as disciplinas a 2022 em diante, para que disciplinas antigas não influenciem o perfil.
-- Gerar os documentos textuais e embeddings (BGE-M3) a partir da Gold e indexá-los no Qdrant.
