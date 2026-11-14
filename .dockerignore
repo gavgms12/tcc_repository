@@ -1,0 +1,18 @@
+# Só o necessário para a imagem entra no contexto de build.
+.git
+.gitignore
+.dockerignore
+.env
+.env.*
+venv/
+.venv/
+data/
+.cache/
+gold_perfil_professor/
+**/__pycache__
+**/*.py[cod]
+*.egg-info/
+.pytest_cache/
+tests/
+docs/
+*.md

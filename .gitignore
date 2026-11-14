@@ -1,25 +1,22 @@
-# Camada Bronze (dados locais, preservamos apenas estrutura vazia)
-/data/bronze/
-!data/bronze/.gitkeep
-
-# Camada Silver
-/data/silver/
-!data/silver/.gitkeep
-
-# Volume de dados do MinIO (runtime do container, inclui arquivos com dono/
-# permissões do uid interno do container e não deve ser versionado)
-/data/minio/
-
 # Artefatos do Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
 
-# Ambientes virtuais e variáveis de ambiente
-.env
+# Ambientes virtuais e segredos
 venv/
+.venv/
+.env
 
-# Cache local do scriptLattes (currículos baixados, retomável entre execuções)
+# Dados de runtime: volume do MinIO, cache do scriptLattes e afins.
+# Os dados oficiais ficam no MinIO, nunca no git.
+/data/
+
+# Local antigo do cache do scriptLattes (hoje em data/cache/scriptlattes)
 /.cache/
 
-
-data/
+# Saídas baixadas da Gold para conferência manual
+/gold_perfil_professor/
