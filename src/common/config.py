@@ -8,4 +8,4 @@ from datetime import date
 # Janela de relevância das produções/projetos/trabalhos de IC. Definida num só
 # lugar (antes estava duplicada na Bronze e na Silver). Pode ser fixada por
 # variável de ambiente para tornar a execução determinística.
-ANO_MINIMO = int(os.getenv("ANO_MINIMO", date.today().year - 10))
+ANO_MINIMO = int(os.getenv("ANO_MINIMO") or date.today().year - 10)

@@ -49,7 +49,7 @@ CACHE_DIR = Path(
 
 # Validade dos currículos em cache. Sem prazo, o pipeline reutilizaria para
 # sempre a cópia antiga de um currículo que o docente já atualizou. 0 desativa.
-CACHE_VALIDADE_DIAS = int(os.getenv("LATTES_CACHE_DIAS", "30"))
+CACHE_VALIDADE_DIAS = int(os.getenv("LATTES_CACHE_DIAS") or "30")
 
 
 def expirar_cache(
