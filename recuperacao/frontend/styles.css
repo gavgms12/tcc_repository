@@ -250,6 +250,7 @@ body.com-resultado .coluna-resultado { max-width: 900px; }
   border: 1.5px solid var(--primaria); color: var(--primaria);
   font: 500 14px/1 var(--fonte-texto);
 }
+.opcional { font: 400 14px/1 var(--fonte-texto); color: var(--tinta-suave); margin-left: 4px; }
 .dica { margin: 4px 0 16px 40px; font-size: 14px; color: var(--tinta-suave); }
 .dica-campo { margin: 8px 0 0; font-size: 14px; color: var(--tinta-suave); }
 
@@ -349,7 +350,7 @@ body.com-resultado .coluna-resultado { max-width: 900px; }
 .chips-carregando span:nth-child(3n) { width: 90px; }
 
 .previa-tema {
-  margin-top: 16px; padding: 12px 16px; min-height: 76px;
+  margin: 0 0 16px; padding: 12px 16px; min-height: 76px;
   border-left: 3px solid var(--acento); border-radius: 0 var(--raio-sm) var(--raio-sm) 0;
   background: var(--acento-suave); font-size: 14px;
 }
@@ -370,6 +371,7 @@ body.com-resultado .coluna-resultado { max-width: 900px; }
 
 /* texto livre */
 .campo-texto { position: relative; }
+.etapa-titulo + label + .campo-texto { margin-top: 16px; }
 textarea, .campo-ano input {
   width: 100%;
   border: 1px solid var(--linha); border-radius: var(--raio-sm);

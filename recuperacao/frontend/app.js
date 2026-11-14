@@ -474,8 +474,8 @@
     const partes = [];
     if (n) partes.push(el("strong", { texto: plural(n, ["tema", "temas"]) }));
     if (temTexto) partes.push(el("strong", { texto: "seu texto" }));
-    if (!partes.length) {
-      resumoPedido.replaceChildren("Escolha um tema ou descreva seu interesse.");
+    if (!n) {
+      resumoPedido.replaceChildren("Escolha pelo menos um tema.");
       botao.classList.add("pendente");
     } else {
       resumoPedido.replaceChildren("Buscar por ", ...partes.flatMap((p, i) => (i ? [" e ", p] : [p])));
@@ -541,8 +541,8 @@
     if (ocupado) return;
     esconderErro();
     const texto = campoTexto.value.trim();
-    if (!selecionados.size && !texto) {
-      mostrarErro("Escolha pelo menos um tema ou descreva seu interesse no campo de texto.");
+    if (!selecionados.size) {
+      mostrarErro("Escolha pelo menos um tema para buscar orientadores.");
       return;
     }
     const pedido = { top_k: topK(), n_itens: N_ITENS };
