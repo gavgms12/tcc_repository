@@ -13,8 +13,8 @@ dynamic = ["dependencies"]
 dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["bronze*", "silver*", "gold*", "common*", "storage*"]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

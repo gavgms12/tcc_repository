@@ -8,10 +8,10 @@ pegar de olho se algum campo saiu sistematicamente vazio por um bug de
 scraping/limpeza.
 
 Exemplos:
-    python silver/inspecionar_parquet.py perfis_sigaa_limpos.parquet
-    python silver/inspecionar_parquet.py perfis_lattes_limpos.parquet --amostra 3
-    python silver/inspecionar_parquet.py perfis_lattes_limpos.parquet --idlattes 3709633136002980
-    python silver/inspecionar_parquet.py componentes_curriculares.parquet --exportar saida.json
+    python scripts/inspecionar_parquet.py perfis_sigaa_limpos.parquet
+    python scripts/inspecionar_parquet.py perfis_lattes_limpos.parquet --amostra 3
+    python scripts/inspecionar_parquet.py perfis_lattes_limpos.parquet --idlattes 3709633136002980
+    python scripts/inspecionar_parquet.py componentes_curriculares.parquet --exportar saida.json
 """
 
 from __future__ import annotations
@@ -23,8 +23,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+SRC_DIR = ROOT_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from storage.minio_storage import ler_parquet_silver
 

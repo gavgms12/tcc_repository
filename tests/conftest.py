@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from botocore.exceptions import ClientError
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from storage import minio_storage
 

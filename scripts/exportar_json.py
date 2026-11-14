@@ -7,13 +7,13 @@ de texto comum, sem precisar abrir o Parquet num notebook.
 
 Exemplos:
     # exporta todos os arquivos conhecidos da Silver para data/silver/json/
-    python silver/exportar_json.py
+    python scripts/exportar_json.py
 
     # exporta só um arquivo específico
-    python silver/exportar_json.py perfis_lattes_limpos.parquet
+    python scripts/exportar_json.py perfis_lattes_limpos.parquet
 
     # exporta pra outra pasta
-    python silver/exportar_json.py --saida-dir /tmp/conferencia
+    python scripts/exportar_json.py --saida-dir /tmp/conferencia
 """
 
 from __future__ import annotations
@@ -24,8 +24,9 @@ import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+SRC_DIR = ROOT_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from botocore.exceptions import ClientError
 

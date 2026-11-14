@@ -26,7 +26,13 @@ from storage.minio_storage import (
 
 logger = logging.getLogger(__name__)
 
-SCRIPTLATTES_DIR = ROOT_DIR.parent / "scriptLattes"
+# Raiz do repositório (este arquivo fica em src/silver/integracao/).
+PROJECT_ROOT = ROOT_DIR.parent
+
+# Caminhos configuráveis por ambiente; os padrões valem para execução local
+# (scriptLattes clonado ao lado do repositório). Na imagem do Airflow,
+# SCRIPTLATTES_DIR=/opt/scriptLattes vem do Dockerfile.
+SCRIPTLATTES_DIR = Path(os.getenv("SCRIPTLATTES_DIR") or PROJECT_ROOT.parent / "scriptLattes")
 SCRIPTLATTES_PYTHON = SCRIPTLATTES_DIR / "venv" / "bin" / "python"
 SCRIPTLATTES_EXECUTAVEL = SCRIPTLATTES_DIR / "scriptLattes.py"
 DEFAULT_ENTRADA_SILVER = "professores_unificados.parquet"
@@ -37,7 +43,9 @@ ID_LATTES_RE = re.compile(r"(\d{16})(?:\.json)?$")
 # (ERR_CONNECTION_RESET) e o scriptLattes usa esse diretório de cache para não
 # baixar de novo um CV já obtido. Um diretório temporário seria apagado a cada
 # falha, perdendo o progresso e forçando reiniciar do zero.
-CACHE_DIR = ROOT_DIR / ".cache" / "scriptlattes"
+CACHE_DIR = Path(
+    os.getenv("SCRIPTLATTES_CACHE_DIR") or PROJECT_ROOT / "data" / "cache" / "scriptlattes"
+)
 
 # Validade dos currículos em cache. Sem prazo, o pipeline reutilizaria para
 # sempre a cópia antiga de um currículo que o docente já atualizou. 0 desativa.
