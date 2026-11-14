@@ -395,7 +395,8 @@ TOPICOS = {
       "disciplinas": [
         "Engenharia de Software",
         "Programação Orientada a Objetos",
-        "Laboratório de Programação Orientada a Objeto"
+        "Laboratório de Programação Orientada a Objeto",
+        "Engenharia de Software I"
       ]
     },
     "Robótica": {
@@ -453,6 +454,7 @@ TOPICOS = {
 }
 
 LIMIT_PROFESSORES = 15
+
 
 # Peso de cada posição na média dos n melhores itens de um professor (pré-ranking e reranking).
 #   "nenhum"      1, 1, 1, ...            (média simples)

@@ -596,8 +596,10 @@
   });
 
   $("editar-busca").addEventListener("click", () => {
-    if (!telaLarga.matches) form.scrollIntoView({ behavior: reduzirMovimento.matches ? "auto" : "smooth", block: "start" });
-    campoFiltro.focus({ preventScroll: !telaLarga.matches });
+    transicao(() => document.body.classList.remove("com-resultado")).then(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      campoFiltro.focus({ preventScroll: true });
+    });
   });
 
   // ================================================================ resultado

@@ -213,31 +213,17 @@ h1 em { font-style: normal; font-weight: 500; color: var(--primaria); }
 
 /* ------------------------------------------------------------------ layout */
 .layout { display: grid; gap: 24px; padding-bottom: 32px; }
-.painel { max-width: 780px; width: 100%; margin-inline: auto; }
+.painel { --pad-x: clamp(16px, 5vw, 48px); max-width: 1040px; width: 100%; margin-inline: auto; }
 .coluna-resultado { min-width: 0; max-width: 780px; width: 100%; margin-inline: auto; }
 .coluna-resultado:not(:has(> :not([hidden]))) { display: none; }
 
-@media (min-width: 1080px) {
-  body.com-resultado .heroi { padding-block: 8px 24px; }
-  body.com-resultado .heroi h1 { font-size: 40px; }
-  body.com-resultado .heroi .subtitulo { display: none; }
-  body.com-resultado .layout {
-    grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
-    align-items: start; gap: 32px;
-  }
-  body.com-resultado .painel {
-    position: sticky; top: 16px;
-    max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain;
-    margin: 0; padding: 20px 20px 0;
-    scrollbar-width: thin;
-  }
-  body.com-resultado .painel-cabecalho { display: block; }
-  body.com-resultado .coluna-resultado { max-width: none; margin: 0; }
-  body.com-resultado .etapa { margin-bottom: 24px; }
-  body.com-resultado .etapa-titulo { font-size: 17px; }
-  body.com-resultado .chip-alternar { font-size: 14px; padding: 8px 12px; }
-  body.com-resultado .exemplos { display: none; }
-}
+/* duas telas: questionário OU resultados */
+body:not(.com-resultado) .coluna-resultado { display: none; }
+body.com-resultado .painel { display: none; }
+body.com-resultado .heroi { padding-block: 8px 24px; }
+body.com-resultado .heroi h1 { font-size: clamp(28px, 5vw, 40px); }
+body.com-resultado .heroi .subtitulo { display: none; }
+body.com-resultado .coluna-resultado { max-width: 900px; }
 
 /* ------------------------------------------------------------------ painel */
 .painel {
@@ -245,9 +231,9 @@ h1 em { font-style: normal; font-weight: 500; color: var(--primaria); }
   border: 1px solid var(--linha);
   border-radius: var(--raio);
   box-shadow: var(--sombra-2);
-  padding: clamp(20px, 4vw, 32px) clamp(16px, 4vw, 32px) 0;
+  padding: clamp(20px, 4vw, 32px) var(--pad-x) 0;
 }
-.painel-cabecalho { display: none; margin-bottom: 16px; }
+.painel-cabecalho { display: none; }
 .painel-titulo {
   margin: 0; font: 500 13px/1.3 var(--fonte-texto);
   letter-spacing: 0.01em; color: var(--tinta-suave);
@@ -463,14 +449,24 @@ textarea:focus-visible, .campo-busca input:focus-visible, .campo-ano input:focus
 .acoes {
   position: sticky; bottom: 0; z-index: 5;
   display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
-  margin-inline: calc(-1 * clamp(16px, 4vw, 32px));
-  padding: 16px clamp(16px, 4vw, 32px) 20px;
+  margin-inline: calc(-1 * var(--pad-x));
+  padding: 16px var(--pad-x) 20px;
   background: var(--vidro);
   -webkit-backdrop-filter: blur(10px) saturate(1.4); backdrop-filter: blur(10px) saturate(1.4);
   border-top: 1px solid var(--linha);
   border-radius: 0 0 var(--raio) var(--raio);
 }
-body.com-resultado .acoes { margin-inline: -20px; padding-inline: 20px; }
+
+/* formulário isolado (sem resultado): caixa maior e mais folgada */
+.painel { padding-top: clamp(24px, 4vw, 48px); }
+.etapa { margin-bottom: 40px; }
+.etapa-titulo { font-size: clamp(21px, 2.8vw, 26px); }
+.dica { font-size: 15px; }
+.bandeja { min-height: 60px; padding: 12px 16px; }
+.campo-busca input { min-height: 52px; font-size: 16px; }
+.chip-alternar { font-size: 16px; padding: 10px 18px; }
+textarea { min-height: 180px; max-height: 480px; font-size: 16px; padding: 16px 18px 32px; }
+.previa-tema { min-height: 88px; padding: 16px 20px; }
 .resumo-pedido { margin: 0; flex: 1 1 200px; font-size: 14px; color: var(--tinta-suave); }
 .resumo-pedido strong { color: var(--tinta); font-weight: 500; }
 
