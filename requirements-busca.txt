@@ -1,0 +1,6 @@
+# Dependências da recuperação (indexação no Qdrant e busca).
+# O torch não está aqui: no Docker ele é instalado antes, na versão só CPU.
+FlagEmbedding>=1.4,<2
+numpy>=2,<3
+qdrant-client>=1.19,<2
+transformers>=5,<6
