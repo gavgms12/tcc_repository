@@ -10,6 +10,8 @@ comparada com a referência (híbrida+rerank) por teste de Wilcoxon pareado.
 Exemplos (da raiz do repositório):
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 150                    # TCC
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto ambos --n 150   # TCC + IC (título e título+palavras)
+    python -m recuperacao.sistema_de_busca.avaliacao.avaliar --gerar-modelo             # cria consultas_manuais.json
+    python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto manual          # suas consultas
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 5 --so-pre        # teste rápido, sem reranker
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 0 --modos hibrida densa
 
@@ -20,6 +22,7 @@ import csv
 import json
 import time
 from datetime import datetime
+from pathlib import Path
 from statistics import mean
 
 from recuperacao.sistema_de_busca import config
@@ -37,22 +40,47 @@ def rodar_modo(rec, consultas: list[dict], modo: str, k: int, top_k: int, so_pre
         for i, q in enumerate(consultas, start=1):
             rec.excluir = q["excluir"]
             try:
-                rankings = {modo: [p["professor_id"] for p in rec.pre_ranking(q["topicos"], top_k=top_k)]}
+                resultados = {modo: rec.pre_ranking(q["topicos"], top_k=top_k)}
                 if not so_pre:
-                    rankings[f"{modo}+rerank"] = [p["professor_id"] for p in rec.recomendar(q["topicos"], top_k=top_k)]
+                    resultados[f"{modo}+rerank"] = rec.recomendar(q["topicos"], top_k=top_k)
             finally:
                 rec.excluir = {}
-            for nome, ranking in rankings.items():
+            for nome, profs in resultados.items():
+                ranking = [p["professor_id"] for p in profs]
                 linhas.append({
                     "conjunto": q["conjunto"], "configuracao": nome, "consulta_id": q["id"], "consulta": q["titulo"], "ano": q["ano"],
                     "esperados": " ".join(sorted(q["relevantes"])), "ranking": " ".join(ranking),
+                    "ranking_nomes": " | ".join(f"{p['nome'] or p['professor_id']} ({p['score']:.4f})" for p in profs),
                     **metricas.todas(ranking, q["relevantes"], k),
+                    "_profs": profs,
                 })
             if i % 10 == 0 or i == len(consultas):
                 print(f"  [{modo}] {i}/{len(consultas)} consultas ({time.perf_counter() - inicio:.0f} s)", flush=True)
     finally:
         config.MODO_BUSCA = antigo
     return linhas
+
+
+def imprimir_rankings(linhas: list[dict], consultas: list[dict], nomes_prof: dict[str, str], k: int) -> None:
+    """Ranking de cada consulta em cada configuração; ★ = esperado alta (ou o orientador), ☆ = esperado média."""
+    por_consulta: dict[tuple[str, str], list[dict]] = {}
+    for l in linhas:
+        por_consulta.setdefault((l["conjunto"], l["consulta_id"]), []).append(l)
+    print("\n" + "=" * 100)
+    print("RANKINGS POR CONSULTA  (★ esperado alta/orientador · ☆ esperado média)")
+    print("=" * 100)
+    for q in consultas:
+        rel = q["relevantes"]
+        marca = lambda pid: "★" if rel.get(pid, 0) >= max(rel.values()) else ("☆" if pid in rel else " ")
+        print(f"\n[{q['conjunto']}] {q['id']}: {q['titulo']}")
+        if len(q["topicos"]) > 1 or next(iter(q["topicos"])) != conjunto.NOME_TEXTO_LIVRE:
+            print(f"  temas/texto: {', '.join(q['topicos'])}")
+        print("  esperados: " + ", ".join(f"{marca(pid)} {nomes_prof.get(pid, pid)}"
+                                          for pid in sorted(rel, key=lambda x: -rel[x])))
+        for l in por_consulta.get((q["conjunto"], q["id"]), []):
+            print(f"  {l['configuracao']}  (nDCG@{k} {l[f'ndcg@{k}']:.3f} · MRR {l['mrr']:.3f})")
+            for i, p in enumerate(l["_profs"], start=1):
+                print(f"    {i:>2}. {marca(p['professor_id'])} {p['nome'] or p['professor_id']:<45} {p['score']:.4f}")
 
 
 def _wilcoxon(a: list[float], b: list[float]) -> float | None:
@@ -104,7 +132,10 @@ def imprimir_resumo(resumo: list[dict], k: int, referencia: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--conjunto", choices=["tcc", "ic", "ambos"], default="tcc")
+    parser.add_argument("--conjunto", nargs="+", choices=["tcc", "ic", "manual", "ambos"], default=["tcc"],
+                        help="um ou mais; 'ambos' = tcc + ic")
+    parser.add_argument("--arquivo", default=str(conjunto.ARQUIVO_MANUAL), help="JSON das consultas manuais")
+    parser.add_argument("--gerar-modelo", action="store_true", help="cria o JSON de consultas manuais e sai")
     parser.add_argument("--n", type=int, default=150, help="quantos TCCs sortear (0 = todos os 373)")
     parser.add_argument("--n-ic", type=int, default=0, help="quantas ICs sortear (0 = todas as 139)")
     parser.add_argument("--consulta-ic", nargs="+", choices=list(conjunto.CONSULTAS_IC), default=list(conjunto.CONSULTAS_IC),
@@ -114,6 +145,8 @@ def main() -> None:
     parser.add_argument("--k", type=int, default=5, help="corte das métricas (nDCG@k, Recall@k)")
     parser.add_argument("--top-k", type=int, default=10, help="tamanho do ranking pedido ao sistema")
     parser.add_argument("--modos", nargs="+", choices=MODOS, default=MODOS)
+    parser.add_argument("--rankings", choices=["auto", "sim", "nao"], default="auto",
+                        help="imprime o ranking de cada consulta (auto: só para o conjunto manual)")
     parser.add_argument("--so-pre", action="store_true", help="só o pré-ranking (não carrega o reranker)")
     args = parser.parse_args()
 
@@ -122,10 +155,16 @@ def main() -> None:
     from recuperacao.sistema_de_busca.modelo import carregar_modelo
 
     client = conectar_Qdrant()
+    if args.gerar_modelo:
+        conjunto.gerar_modelo_manual(client, Path(args.arquivo))
+        return
+    conjuntos = set(args.conjunto) | ({"tcc", "ic"} if "ambos" in args.conjunto else set())
     consultas = []
-    if args.conjunto in ("tcc", "ambos"):
+    if "manual" in conjuntos:
+        consultas += conjunto.consultas_manuais(client, Path(args.arquivo))
+    if "tcc" in conjuntos:
         consultas += conjunto.consultas_tcc(client, args.n or None, tuple(args.anos) if args.anos else None, args.semente)
-    if args.conjunto in ("ic", "ambos"):
+    if "ic" in conjuntos:
         for versao in args.consulta_ic:
             consultas += conjunto.consultas_ic(client, versao, args.n_ic or None, args.semente)
     if not consultas:
@@ -150,7 +189,14 @@ def main() -> None:
         for modo in args.modos:
             linhas += rodar_modo(rec, consultas, modo, args.k, args.top_k, args.so_pre)
         resumo = resumir(linhas, args.k, referencia)
+        mostrar = args.rankings == "sim" or (args.rankings == "auto" and conjuntos == {"manual"})
+        if mostrar:
+            nomes_prof = {str(p["id"]): p.get("nome")
+                          for p in conjunto._scroll(client, config.COLLECTION_PROFESSORES, ["id", "nome"])}
+            imprimir_rankings(linhas, consultas, nomes_prof, args.k)
         imprimir_resumo(resumo, args.k, referencia)
+        for l in linhas:
+            l.pop("_profs", None)
 
     for nome, dados in (("consultas.csv", linhas), ("resumo.csv", resumo)):
         campos = list(dict.fromkeys(c for d in dados for c in d))

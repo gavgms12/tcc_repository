@@ -9,9 +9,11 @@ O texto vira uma consulta de texto livre (como na API). Para não vazar a respos
 "excluir" o próprio trabalho e todo item, de qualquer coleção, com o mesmo título (a IC, o artigo ou o projeto do
 mesmo trabalho); o Recomendador ignora esses ids na busca (Recomendador.excluir).
 """
+import json
 import random
 import re
 import unicodedata
+from pathlib import Path
 
 from recuperacao.sistema_de_busca import config
 
@@ -115,3 +117,79 @@ def consultas_ic(client, consulta: str = "titulo", n: int | None = None, semente
             "excluir": excluir,
         })
     return consultas
+
+
+# ---------------------------------------------------------------------------
+# Consultas escritas à mão
+# ---------------------------------------------------------------------------
+ARQUIVO_MANUAL = Path(__file__).resolve().parent / "consultas_manuais.json"
+GANHO = {"alta": 2, "media": 1}
+
+
+def professores_por_nome(client) -> dict[str, str]:
+    """{nome normalizado: SIAPE} dos professores com perfil indexado."""
+    return {normalizar(p.get("nome")): str(p["id"])
+            for p in _scroll(client, config.COLLECTION_PROFESSORES, ["id", "nome"]) if p.get("nome")}
+
+
+def consultas_manuais(client, caminho: Path = ARQUIVO_MANUAL) -> list[dict]:
+    """Consultas do arquivo JSON: cada uma com "texto" e/ou "temas" (como no questionário) e os professores
+    esperados em "alta" (as melhores escolhas, ganho 2) e "media" (também serviriam, ganho 1)."""
+    if not caminho.exists():
+        raise SystemExit(f"{caminho} não existe. Gere o modelo com --gerar-modelo e preencha.")
+    dados = json.loads(caminho.read_text(encoding="utf-8"))
+    siape = professores_por_nome(client)
+    consultas = []
+    for i, c in enumerate(dados.get("consultas", []), start=1):
+        topicos = {}
+        for tema in c.get("temas") or []:
+            if tema not in config.TOPICOS:
+                print(f"  aviso: consulta {i}: tema desconhecido {tema!r} (ignorado)")
+                continue
+            topicos[tema] = config.texto_topico(tema)
+        texto = (c.get("texto") or "").strip()
+        if texto:
+            topicos[NOME_TEXTO_LIVRE] = texto.lower()   # igual à API
+        relevantes = {}
+        for nivel, ganho in GANHO.items():
+            for nome in c.get(nivel) or []:
+                pid = siape.get(normalizar(nome))
+                if pid is None:
+                    print(f"  aviso: consulta {i}: professor não encontrado {nome!r} (ignorado)")
+                    continue
+                relevantes[pid] = max(relevantes.get(pid, 0), ganho)
+        if not topicos or not relevantes:
+            print(f"  aviso: consulta {i} sem texto/temas ou sem professores esperados (ignorada)")
+            continue
+        consultas.append({
+            "conjunto": "manual",
+            "id": str(c.get("id") or i),
+            "titulo": texto or " + ".join(topicos),
+            "ano": None,
+            "topicos": topicos,
+            "relevantes": relevantes,
+            "excluir": {},
+        })
+    return consultas
+
+
+def gerar_modelo_manual(client, caminho: Path = ARQUIVO_MANUAL) -> None:
+    """Cria o JSON de exemplo, com a lista de professores e de temas para consulta."""
+    if caminho.exists():
+        raise SystemExit(f"{caminho} já existe; edite o arquivo atual ou apague-o para gerar de novo.")
+    nomes = sorted(p["nome"] for p in _scroll(client, config.COLLECTION_PROFESSORES, ["nome"]) if p.get("nome"))
+    modelo = {
+        "_instrucoes": ("Cada consulta tem 'texto' (o que o aluno escreveria) e/ou 'temas' (nomes de '_temas'), "
+                        "e os professores esperados em 'alta' (melhores escolhas) e 'media' (também serviriam), "
+                        "com os nomes de '_professores'. 'id' é opcional."),
+        "_temas": list(config.TOPICOS),
+        "_professores": nomes,
+        "consultas": [
+            {"id": "exemplo-1", "texto": "quero usar visão computacional para monitorar plantações",
+             "temas": [], "alta": [], "media": []},
+            {"id": "exemplo-2", "texto": "", "temas": ["Sistemas Embarcados", "Internet das Coisas"],
+             "alta": [], "media": []},
+        ],
+    }
+    caminho.write_text(json.dumps(modelo, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Modelo criado em {caminho}")

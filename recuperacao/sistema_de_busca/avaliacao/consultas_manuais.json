@@ -1,0 +1,92 @@
+{
+  "_instrucoes": "Cada consulta tem 'texto' (o que o aluno escreveria) e/ou 'temas' (nomes de '_temas'), e os professores esperados em 'alta' (melhores escolhas) e 'media' (também serviriam), com os nomes de '_professores'. 'id' é opcional.",
+  "_temas": [
+    "Sistemas Embarcados",
+    "Inteligência Artificial",
+    "Internet das Coisas",
+    "Engenharia Biomédica",
+    "Sistemas de Controle",
+    "Automação Industrial",
+    "Sistemas Distribuídos e Nuvem",
+    "Processamento de Sinais",
+    "Segurança da Informação",
+    "Eletrônica de Potência",
+    "Sistemas Digitais e FPGA",
+    "Microeletrônica",
+    "Redes de Computadores",
+    "Desenvolvimento Web e Mobile",
+    "Eletrônica Analógica e Instrumentação",
+    "Energia e Fontes Renováveis",
+    "Algoritmos, Grafos e Otimização",
+    "Engenharia de Software",
+    "Robótica",
+    "Telecomunicações e Óptica",
+    "Dados"
+  ],
+  "_professores": [
+    "ANA PAULA SIQUEIRA SILVA DE ALMEIDA",
+    "ANDRE BERNARDI",
+    "BARBARA PIMENTA CAETANO",
+    "BRENO DE OLIVEIRA RENO",
+    "BRUNO TARDIOLE KUEHNE",
+    "CAIO FERNANDES DE PAULA",
+    "CARLOS HENRIQUE VALERIO DE MORAES",
+    "CARLOS WALDECIR DE SOUZA",
+    "DANILO HENRIQUE SPADOTI",
+    "DECIO RENNO DE MENDONCA FARIA",
+    "EDMILSON MARMO MOREIRA",
+    "EDVARD MARTINS DE OLIVEIRA",
+    "EGON LUIZ MULLER JUNIOR",
+    "ENIO ROBERTO RIBEIRO",
+    "ENZO SERAPHIM",
+    "FERNANDO HENRIQUE DUARTE GUARACY",
+    "GABRIEL ANTONIO FANELLI DE SOUZA",
+    "GISCARD FRANCIMEIRE CINTRA VELOSO",
+    "GUILHERME DE SOUSA BASTOS",
+    "GUSTAVO DELLA COLLETTA",
+    "JEREMIAS BARBOSA MACHADO",
+    "JOAO PAULO REUS RODRIGUES LEITE",
+    "JOSE ALBERTO FERREIRA FILHO",
+    "JUAN PABLO OCHOA AVILES",
+    "KLEBER ROBERTO DA SILVA SANTOS",
+    "LEONARDO BRESEGHELLO ZOCCAL",
+    "LUCIANO BERTINI",
+    "LUIS HENRIQUE DE CARVALHO FERREIRA",
+    "LUIZ EDIVAL DE SOUZA",
+    "LUIZ LENARTH GABRIEL VERMAAS",
+    "MATEUS AUGUSTO FAUSTINO CHAIB JUNQUEIRA",
+    "MAURILIO PEREIRA COUTINHO",
+    "ODILON DE OLIVEIRA DUTRA",
+    "RAMON MAIA BORGES",
+    "ROBSON BAUWELZ GONZATTI",
+    "ROBSON LUIZ MORENO",
+    "RODRIGO DE PAULA RODRIGUES",
+    "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA",
+    "RONDINELI RODRIGUES PEREIRA",
+    "TALES CLEBER PIMENTA",
+    "THATYANA DE FARIA PIOLA SERAPHIM",
+    "WILSON CESAR SANT'ANA"
+  ],
+  "consultas": [
+    {
+      "id": "exemplo-1",
+      "texto": "Sistema Embarcado de Visão Computacional para Análise Biomecânica e Cadência Rítmica em Dança de Salão",
+      "temas": [
+        "Sistemas Embarcados",
+        "Inteligência Artificial"
+      ],
+      "alta": ["JOSE ALBERTO FERREIRA FILHO"],
+      "media": ["CARLOS HENRIQUE VALERIO DE MORAES"]
+    },
+    {
+      "id": "exemplo-2",
+      "texto": "",
+      "temas": [
+        "Sistemas Embarcados",
+        "Internet das Coisas"
+      ],
+      "alta": [],
+      "media": []
+    }
+  ]
+}

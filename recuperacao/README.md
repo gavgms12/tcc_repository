@@ -122,6 +122,10 @@ vira uma consulta de texto livre e o orientador é a resposta esperada.
 - `ic:titulo` e `ic:titulo+palavras`: cada iniciação científica (139), pelo título ou pelo título + palavras-chave.
   O resumo fica de fora: o reranker o quebraria em dezenas de consultas e ele ocuparia o limite de 512 tokens
 
+- `manual`: consultas escritas por você em `sistema_de_busca/avaliacao/consultas_manuais.json`, cada uma com `texto`
+  e/ou `temas` (como no questionário) e os professores esperados em `alta` (melhores escolhas, ganho 2) e `media`
+  (também serviriam, ganho 1). `--gerar-modelo` cria o arquivo com exemplos e a lista de professores e temas
+
 Para não vazar a resposta, a busca ignora o próprio trabalho e todo item com o mesmo título (a IC, o artigo ou o
 projeto do mesmo trabalho). Um artigo publicado a partir da IC com outro título continua na busca, então a métrica
 da IC tende a sair um pouco otimista.
@@ -142,6 +146,8 @@ Dentro de cada conjunto, cada configuração é comparada com a híbrida+rerank 
 ```powershell
 python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 150                    # 150 TCCs sorteados, 6 configurações
 python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto ambos --n 150   # TCC + IC (as duas versões)
+python -m recuperacao.sistema_de_busca.avaliacao.avaliar --gerar-modelo             # cria consultas_manuais.json
+python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto manual          # suas consultas
 python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 5 --so-pre   # teste rápido, sem reranker
 ```
 
