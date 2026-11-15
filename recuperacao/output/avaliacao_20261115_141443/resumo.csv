@@ -1,4 +1,0 @@
-﻿conjunto,configuracao,consultas,ndcg@5,mrr,recall@5,hit@1,p_ndcg@5,p_mrr
-manual,densa,1,0.11861329943102608,0.25,0.5,0.0,1.0,1.0
-manual,esparsa,1,0.27541155237618664,1.0,0.5,1.0,1.0,1.0
-manual,hibrida,1,0.17376534287144002,0.5,0.5,0.0,,
