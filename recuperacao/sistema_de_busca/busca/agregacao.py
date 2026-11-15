@@ -93,43 +93,12 @@ def combinar_scores(scores_perfil: pd.DataFrame, scores_itens: dict[str, pd.Data
 
     return df.sort_values("score_final", ascending=False).reset_index(drop=True)
 
-MODOS_UNIAO = ("media", "max", "top_m", "decaimento")
-
-def uniao_topicos(tabela: pd.DataFrame, modo: str | None = None) -> pd.Series:
-    """Score final de cada linha (professor) a partir das colunas (tópicos), segundo o modo de união."""
-    modo = modo or config.UNIAO_TOPICOS
-    if modo not in MODOS_UNIAO:
-        raise ValueError(f"UNIAO_TOPICOS inválido: {modo!r} (use {list(MODOS_UNIAO)})")
-    valores = tabela.astype("float64").copy()
-    if valores.empty:
-        return pd.Series(0.0, index=tabela.index, dtype="float64")
-    if config.NORMALIZAR_TOPICOS:
-        valores = valores / valores.max().where(lambda m: m > 0, 1.0)
-    if config.NOME_TEXTO_LIVRE in valores:
-        valores[config.NOME_TEXTO_LIVRE] *= config.PESO_TEXTO_LIVRE
-
-    n = valores.shape[1]
-    # cada linha do melhor tópico para o pior
-    ordenado = valores.apply(lambda linha: sorted(linha, reverse=True), axis=1, result_type="expand")
-    if modo == "max":
-        final = ordenado.iloc[:, 0]
-    elif modo == "top_m":
-        final = ordenado.iloc[:, :max(1, min(config.UNIAO_TOPICOS_M, n))].mean(axis=1)
-    elif modo == "decaimento":
-        pesos = pesos_decaimento(n, config.UNIAO_TOPICOS_DECAIMENTO)
-        final = (ordenado * pesos).sum(axis=1) / sum(pesos)
-    else:
-        final = ordenado.mean(axis=1)
-    return final.reindex(tabela.index).fillna(0.0)
-
-
 def unir_topicos(rankings: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """Junta os scores de cada professor entre os tópicos conforme config.UNIAO_TOPICOS; tópico ausente conta como 0.
-    As colunas por tópico continuam com o score original; só o score_final muda."""
+    """Média dos scores de cada professor entre os tópicos; tópico ausente conta como 0."""
     tabela = pd.concat(
         {t: df.set_index("professor_id")["score_final"] for t, df in rankings.items()}, axis=1
     ).fillna(0.0)
-    tabela["score_final"] = uniao_topicos(tabela)
+    tabela["score_final"] = tabela.mean(axis=1)
     return (
         tabela.rename_axis("professor_id").reset_index()
               .sort_values("score_final", ascending=False).reset_index(drop=True)
