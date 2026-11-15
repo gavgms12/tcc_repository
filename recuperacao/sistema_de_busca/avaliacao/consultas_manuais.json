@@ -174,8 +174,8 @@
         "Automação Industrial",
         "Inteligência Artificial"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["CARLOS WALDECIR DE SOUZA", "TALES CLEBER PIMENTA", "MAURILIO PEREIRA COUTINHO"],
+      "media": ["LUCIANO BERTINI"],
       "sugestao_claude": [
         "CARLOS WALDECIR DE SOUZA [alta?] — OPC UA com MQTT seguro; zero trust e cibersegurança em TO",
         "MAURILIO PEREIRA COUTINHO [alta?] — segurança da informação e infraestruturas críticas; detecção de intrusão",
@@ -192,8 +192,8 @@
         "Eletrônica de Potência",
         "Energia e Fontes Renováveis"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["ENIO ROBERTO RIBEIRO", "RONDINELI RODRIGUES PEREIRA", "ROBSON BAUWELZ GONZATTI"],
+      "media": ["WILSON CESAR SANT'ANA"],
       "sugestao_claude": [
         "ENIO ROBERTO RIBEIRO [alta?] — conversores CC-CC não isolados; técnicas de MPPT; sombreamento fotovoltaico",
         "RONDINELI RODRIGUES PEREIRA [alta?] — orientou MPPT para carregar bateria com painel solar",
@@ -209,8 +209,8 @@
         "Microeletrônica",
         "Inteligência Artificial"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["GUSTAVO DELLA COLLETTA", "GABRIEL ANTONIO FANELLI DE SOUZA", "ODILON DE OLIVEIRA DUTRA"],
+      "media": ["TALES CLEBER PIMENTA"],
       "sugestao_claude": [
         "GUSTAVO DELLA COLLETTA [alta?] — várias ICs de microarquitetura RISC-V",
         "GABRIEL ANTONIO FANELLI DE SOUZA [alta?] — circuitos neuromórficos ELM em hardware; RISC-V em FPGA",
@@ -226,8 +226,8 @@
         "Robótica",
         "Sistemas de Controle"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["FERNANDO HENRIQUE DUARTE GUARACY", "LUIS HENRIQUE DE CARVALHO FERREIRA"],
+      "media": ["CAIO FERNANDES DE PAULA", "JEREMIAS BARBOSA MACHADO"],
       "sugestao_claude": [
         "FERNANDO HENRIQUE DUARTE GUARACY [alta?] — IC de controle não linear de quadrotor; VANT; controle robusto H∞",
         "LUIS HENRIQUE DE CARVALHO FERREIRA [alta?] — compartilhamento de carga com drones; controle robusto",
@@ -244,8 +244,8 @@
         "Automação Industrial",
         "Inteligência Artificial"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["KLEBER ROBERTO DA SILVA SANTOS", "GUILHERME DE SOUSA BASTOS"],
+      "media": ["LUIZ EDIVAL DE SOUZA"],
       "sugestao_claude": [
         "KLEBER ROBERTO DA SILVA SANTOS [alta?] — células robotizadas, inspeção com scanner laser, servo visual",
         "GUILHERME DE SOUSA BASTOS [alta?] — robótica, multirrobô, rastreamento visual",
@@ -260,8 +260,8 @@
         "Desenvolvimento Web e Mobile",
         "Engenharia de Software"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["EDVARD MARTINS DE OLIVEIRA", "BRUNO TARDIOLE KUEHNE", "BARBARA PIMENTA CAETANO"],
+      "media": ["THATYANA DE FARIA PIOLA SERAPHIM"],
       "sugestao_claude": [
         "BARBARA PIMENTA CAETANO [alta?] — orientou aplicação web para gestão de consultas em UBS",
         "THATYANA DE FARIA PIOLA SERAPHIM [alta?] — muitos TCCs de sistemas web",
@@ -277,8 +277,8 @@
         "Inteligência Artificial",
         "Dados"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["BARBARA PIMENTA CAETANO", "JOAO PAULO REUS RODRIGUES LEITE"],
+      "media": ["CARLOS HENRIQUE VALERIO DE MORAES"],
       "sugestao_claude": [
         "BARBARA PIMENTA CAETANO [alta?] — RAG e agentes; sistema multiagente LLM para editais",
         "EGON LUIZ MULLER JUNIOR [alta?] — FAQ inteligente para editais com LLM; LangChain",
@@ -292,8 +292,8 @@
         "Dados",
         "Sistemas Distribuídos e Nuvem"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["BARBARA PIMENTA CAETANO", "ENZO SERAPHIM"],
+      "media": ["BRUNO TARDIOLE KUEHNE", "EDVARD MARTINS DE OLIVEIRA"],
       "sugestao_claude": [
         "BARBARA PIMENTA CAETANO [alta?] — projeto Céu de Brigadeiro (dados meteorológicos); Apache Druid; orquestração de fluxos de dados",
         "ENZO SERAPHIM [alta?] — banco de dados; data warehouse em BD de grafos",
@@ -308,8 +308,8 @@
         "Sistemas Distribuídos e Nuvem",
         "Internet das Coisas"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["BRUNO TARDIOLE KUEHNE", "EDVARD MARTINS DE OLIVEIRA"],
+      "media": ["EDMILSON MARMO MOREIRA"],
       "sugestao_claude": [
         "BRUNO TARDIOLE KUEHNE [alta?] — fog computing; IoT com QoS; balanceamento em nuvem",
         "EDVARD MARTINS DE OLIVEIRA [alta?] — revisão sobre offloading em edge computing; continuum of computing",
@@ -324,8 +324,8 @@
         "Algoritmos, Grafos e Otimização",
         "Internet das Coisas"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["EDMILSON MARMO MOREIRA", "JOAO PAULO REUS RODRIGUES LEITE"],
+      "media": ["THATYANA DE FARIA PIOLA SERAPHIM"],
       "sugestao_claude": [
         "EDMILSON MARMO MOREIRA [alta?] — teoria dos grafos; fluxo de custo mínimo",
         "JOAO PAULO REUS RODRIGUES LEITE [alta?] — meta-análise de roteamento com IoT na coleta de lixo",
@@ -340,8 +340,8 @@
         "Eletrônica de Potência",
         "Sistemas de Controle"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["RONDINELI RODRIGUES PEREIRA", "ROBSON BAUWELZ GONZATTI", "ENIO ROBERTO RIBEIRO"],
+      "media": ["WILSON CESAR SANT'ANA"],
       "sugestao_claude": [
         "RONDINELI RODRIGUES PEREIRA [alta?] — filtros ativos, harmônicos, controle preditivo",
         "ROBSON BAUWELZ GONZATTI [alta?] — filtros ativos híbridos; FACTS",
@@ -357,8 +357,8 @@
         "Engenharia Biomédica",
         "Eletrônica Analógica e Instrumentação"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["GUSTAVO DELLA COLLETTA", "TALES CLEBER PIMENTA", "ROBSON LUIZ MORENO", "LUIS HENRIQUE DE CARVALHO FERREIRA"],
+      "media": ["ODILON DE OLIVEIRA DUTRA", "LEONARDO BRESEGHELLO ZOCCAL"],
       "sugestao_claude": [
         "ROBSON LUIZ MORENO [alta?] — CIs CMOS de baixa tensão para biomédica; aquisição de EEG",
         "TALES CLEBER PIMENTA [alta?] — sistema integrado de aquisição de EEG em CMOS",
@@ -375,8 +375,8 @@
         "Telecomunicações e Óptica",
         "Redes de Computadores"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["RAMON MAIA BORGES", "MATEUS AUGUSTO FAUSTINO CHAIB JUNQUEIRA"],
+      "media": ["DANILO HENRIQUE SPADOTI"],
       "sugestao_claude": [
         "RAMON MAIA BORGES [alta?] — rádio sobre fibra; fotônica de micro-ondas para 5G/6G",
         "DANILO HENRIQUE SPADOTI [alta?] — radio over fiber multibanda para 5G; óptica",
@@ -391,8 +391,8 @@
         "Inteligência Artificial",
         "Eletrônica de Potência"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["WILSON CESAR SANT'ANA", "GISCARD FRANCIMEIRE CINTRA VELOSO"],
+      "media": ["ANDRE BERNARDI", "CARLOS HENRIQUE VALERIO DE MORAES"],
       "sugestao_claude": [
         "WILSON CESAR SANT'ANA [alta?] — falhas de isolamento em motores; operador de Koopman",
         "GISCARD FRANCIMEIRE CINTRA VELOSO [media?] — sinais acústicos em transformadores",
@@ -408,8 +408,8 @@
         "Sistemas Embarcados",
         "Engenharia de Software"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["ANA PAULA SIQUEIRA SILVA DE ALMEIDA", "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA"],
+      "media": ["EGON LUIZ MULLER JUNIOR", "JOSE ALBERTO FERREIRA FILHO"],
       "sugestao_claude": [
         "ANA PAULA SIQUEIRA SILVA DE ALMEIDA [alta?] — engenharia de usabilidade; equipamentos médicos",
         "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA [alta?] — usabilidade de sistemas eletrônicos críticos; embarcados",
@@ -424,8 +424,8 @@
         "Automação Industrial",
         "Sistemas de Controle"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["LUIZ EDIVAL DE SOUZA", "JEREMIAS BARBOSA MACHADO"],
+      "media": ["KLEBER ROBERTO DA SILVA SANTOS", "FERNANDO HENRIQUE DUARTE GUARACY"],
       "sugestao_claude": [
         "LUIZ EDIVAL DE SOUZA [alta?] — automação e supervisórios; SCADA BR",
         "JEREMIAS BARBOSA MACHADO [alta?] — supervisório com ferramentas abertas; controle preditivo em CLP",
@@ -441,8 +441,8 @@
         "Processamento de Sinais",
         "Eletrônica Analógica e Instrumentação"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["GISCARD FRANCIMEIRE CINTRA VELOSO", "ANDRE BERNARDI"],
+      "media": ["JOSE ALBERTO FERREIRA FILHO"],
       "sugestao_claude": [
         "GISCARD FRANCIMEIRE CINTRA VELOSO [alta?] — vários trabalhos com sinais ultrassônicos em óleo e etanol",
         "ANDRE BERNARDI [alta?] — sinais ultrassônicos; caracterização de etanol-água",
@@ -458,8 +458,8 @@
         "Sistemas Embarcados",
         "Internet das Coisas"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["MAURILIO PEREIRA COUTINHO", "LUCIANO BERTINI"],
+      "media": ["RODRIGO MAXIMIANO ANTUNES DE ALMEIDA", "DECIO RENNO DE MENDONCA FARIA" ,"GUSTAVO DELLA COLLETTA"],
       "sugestao_claude": [
         "MAURILIO PEREIRA COUTINHO [alta?] — criptografia leve em embarcados; segurança e microcontroladores",
         "LUCIANO BERTINI [alta?] — detecção de intrusão em redes IoT com AES de baixa potência",
@@ -475,8 +475,8 @@
         "Dados",
         "Desenvolvimento Web e Mobile"
       ],
-      "alta": ["JOAO PAULO REUS RODRIGUES LEITE", "T"],
-      "media": [],
+      "alta": ["JOAO PAULO REUS RODRIGUES LEITE"],
+      "media": ["EDMILSON MARMO MOREIRA", "BARBARA PIMENTA CAETANO"],
       "sugestao_claude": [
         "JOAO PAULO REUS RODRIGUES LEITE [alta?] — sistema de recomendação; IA",
         "EDMILSON MARMO MOREIRA [media?] — framework para avaliar sistemas de recomendação",
@@ -488,8 +488,8 @@
       "id": "s23",
       "texto": "Controle acionado por eventos de um tanque de nível através de rede sem fio com perda de pacotes",
       "temas": [],
-      "alta": [],
-      "media": [],
+      "alta": ["FERNANDO HENRIQUE DUARTE GUARACY"],
+      "media": ["LUIS HENRIQUE DE CARVALHO FERREIRA", "JEREMIAS BARBOSA MACHADO"],
       "sugestao_claude": [
         "FERNANDO HENRIQUE DUARTE GUARACY [alta?] — controle acionado por eventos em sistema de nível; LQG com perda de pacotes",
         "LUIS HENRIQUE DE CARVALHO FERREIRA [media?] — controle sobre redes com perdas",
@@ -504,8 +504,8 @@
         "Robótica",
         "Inteligência Artificial"
       ],
-      "alta": [],
-      "media": [],
+      "alta": ["GUILHERME DE SOUSA BASTOS", "KLEBER ROBERTO DA SILVA SANTOS"],
+      "media": ["CARLOS HENRIQUE VALERIO DE MORAES"],
       "sugestao_claude": [
         "GUILHERME DE SOUSA BASTOS [alta?] — robótica, multirrobô e aprendizado de máquina",
         "KLEBER ROBERTO DA SILVA SANTOS [alta?] — robótica móvel e navegação autônoma",

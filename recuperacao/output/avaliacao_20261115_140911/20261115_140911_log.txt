@@ -1,0 +1,57 @@
+Consultas: {'manual': 1} | k=5 | top_k=10 | modos=['hibrida'] | normalização=sim | união=['media', 'top_m', 'decaimento'] (normalizar tópicos: não, peso texto livre: 1.5) | reranker=não
+  [hibrida/media] 1/1 consultas (5 s)
+  [hibrida/top_m] 1/1 consultas (2 s)
+  [hibrida/decaimento] 1/1 consultas (3 s)
+
+====================================================================================================
+RANKINGS POR CONSULTA  (★ esperado alta/orientador · ☆ esperado média)
+====================================================================================================
+
+[manual] exemplo-1: Sistema Embarcado de Visão Computacional para Análise Biomecânica e Cadência Rítmica em Dança de Salão
+  temas/texto: Sistemas Embarcados, Inteligência Artificial, Internet das Coisas, Texto livre
+  esperados: ★ JOSE ALBERTO FERREIRA FILHO, ☆ CARLOS HENRIQUE VALERIO DE MORAES
+  hibrida/media  (nDCG@5 0.174 · MRR 0.500)
+     1.   RODRIGO MAXIMIANO ANTUNES DE ALMEIDA          0.2684
+     2. ☆ CARLOS HENRIQUE VALERIO DE MORAES             0.2534
+     3.   EDVARD MARTINS DE OLIVEIRA                    0.1779
+     4.   THATYANA DE FARIA PIOLA SERAPHIM              0.1427
+     5.   JOAO PAULO REUS RODRIGUES LEITE               0.1153
+     6.   LUCIANO BERTINI                               0.0939
+     7. ★ JOSE ALBERTO FERREIRA FILHO                   0.0910
+     8.   BRUNO TARDIOLE KUEHNE                         0.0885
+     9.   GABRIEL ANTONIO FANELLI DE SOUZA              0.0873
+    10.   JEREMIAS BARBOSA MACHADO                      0.0844
+  hibrida/top_m  (nDCG@5 0.174 · MRR 0.500)
+     1.   RODRIGO MAXIMIANO ANTUNES DE ALMEIDA          0.4684
+     2. ☆ CARLOS HENRIQUE VALERIO DE MORAES             0.3908
+     3.   EDVARD MARTINS DE OLIVEIRA                    0.2712
+     4.   THATYANA DE FARIA PIOLA SERAPHIM              0.2306
+     5.   JOAO PAULO REUS RODRIGUES LEITE               0.1976
+     6. ★ JOSE ALBERTO FERREIRA FILHO                   0.1635
+     7.   GABRIEL ANTONIO FANELLI DE SOUZA              0.1478
+     8.   JEREMIAS BARBOSA MACHADO                      0.1258
+     9.   LUCIANO BERTINI                               0.1214
+    10.   MAURILIO PEREIRA COUTINHO                     0.1153
+  hibrida/decaimento  (nDCG@5 0.174 · MRR 0.500)
+     1.   RODRIGO MAXIMIANO ANTUNES DE ALMEIDA          0.3407
+     2. ☆ CARLOS HENRIQUE VALERIO DE MORAES             0.3177
+     3.   EDVARD MARTINS DE OLIVEIRA                    0.2094
+     4.   THATYANA DE FARIA PIOLA SERAPHIM              0.1727
+     5.   JOAO PAULO REUS RODRIGUES LEITE               0.1419
+     6. ★ JOSE ALBERTO FERREIRA FILHO                   0.1207
+     7.   GABRIEL ANTONIO FANELLI DE SOUZA              0.1152
+     8.   LUCIANO BERTINI                               0.1069
+     9.   JEREMIAS BARBOSA MACHADO                      0.1014
+    10.   BRUNO TARDIOLE KUEHNE                         0.0965
+
+====================================================================================================
+RESUMO (média por consulta) | p = Wilcoxon pareado contra hibrida/media
+====================================================================================================
+
+[manual]
+configuração                  n     ndcg@5        mrr   recall@5      hit@1    p nDCG     p MRR
+hibrida/media                 1      0.174      0.500      0.500      0.000         —         —
+hibrida/top_m                 1      0.174      0.500      0.500      0.000         —         —
+hibrida/decaimento            1      0.174      0.500      0.500      0.000         —         —
+
+p < 0,05: diferença provavelmente real; acima disso pode ser ruído da amostra.

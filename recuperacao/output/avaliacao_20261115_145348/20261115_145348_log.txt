@@ -1,0 +1,42 @@
+Consultas: {'tcc': 150} | k=5 | top_k=10 | modos=['hibrida'] | normalização=sim | união=['media', 'decaimento'] (normalizar tópicos: não, peso texto livre: 1.0) | reranker=não
+  [hibrida/media] 10/150 consultas (12 s)
+  [hibrida/media] 20/150 consultas (21 s)
+  [hibrida/media] 30/150 consultas (30 s)
+  [hibrida/media] 40/150 consultas (40 s)
+  [hibrida/media] 50/150 consultas (50 s)
+  [hibrida/media] 60/150 consultas (61 s)
+  [hibrida/media] 70/150 consultas (71 s)
+  [hibrida/media] 80/150 consultas (80 s)
+  [hibrida/media] 90/150 consultas (90 s)
+  [hibrida/media] 100/150 consultas (100 s)
+  [hibrida/media] 110/150 consultas (110 s)
+  [hibrida/media] 120/150 consultas (120 s)
+  [hibrida/media] 130/150 consultas (130 s)
+  [hibrida/media] 140/150 consultas (140 s)
+  [hibrida/media] 150/150 consultas (149 s)
+  [hibrida/decaimento] 10/150 consultas (9 s)
+  [hibrida/decaimento] 20/150 consultas (19 s)
+  [hibrida/decaimento] 30/150 consultas (29 s)
+  [hibrida/decaimento] 40/150 consultas (38 s)
+  [hibrida/decaimento] 50/150 consultas (48 s)
+  [hibrida/decaimento] 60/150 consultas (58 s)
+  [hibrida/decaimento] 70/150 consultas (68 s)
+  [hibrida/decaimento] 80/150 consultas (78 s)
+  [hibrida/decaimento] 90/150 consultas (89 s)
+  [hibrida/decaimento] 100/150 consultas (102 s)
+  [hibrida/decaimento] 110/150 consultas (113 s)
+  [hibrida/decaimento] 120/150 consultas (123 s)
+  [hibrida/decaimento] 130/150 consultas (133 s)
+  [hibrida/decaimento] 140/150 consultas (143 s)
+  [hibrida/decaimento] 150/150 consultas (152 s)
+
+====================================================================================================
+RESUMO (média por consulta) | p = Wilcoxon pareado contra hibrida/media
+====================================================================================================
+
+[tcc]
+configuração                  n     ndcg@5        mrr   recall@5      hit@1    p nDCG     p MRR
+hibrida/media               150      0.390      0.375      0.513      0.247         —         —
+hibrida/decaimento          150      0.390      0.375      0.513      0.247         —         —
+
+p < 0,05: diferença provavelmente real; acima disso pode ser ruído da amostra.

@@ -1,0 +1,62 @@
+{
+  "argumentos": {
+    "conjunto": [
+      "tcc"
+    ],
+    "arquivo": "C:\\Users\\juara\\OneDrive\\Desktop\\Facul\\TCC\\git\\tcc_repository\\recuperacao\\sistema_de_busca\\avaliacao\\consultas_manuais.json",
+    "gerar_modelo": false,
+    "n": 150,
+    "n_ic": 0,
+    "consulta_ic": [
+      "titulo",
+      "titulo+palavras"
+    ],
+    "anos": null,
+    "semente": 42,
+    "k": 5,
+    "top_k": 10,
+    "modos": [
+      "densa",
+      "esparsa",
+      "hibrida"
+    ],
+    "rankings": "auto",
+    "uniao": null,
+    "normalizar_topicos": null,
+    "so_pre": true
+  },
+  "referencia": "hibrida",
+  "resumo": [
+    {
+      "conjunto": "tcc",
+      "configuracao": "densa",
+      "consultas": 150,
+      "ndcg@5": 0.2909026615561449,
+      "mrr": 0.2781666666666667,
+      "recall@5": 0.42,
+      "hit@1": 0.15333333333333332,
+      "p_ndcg@5": 0.0008662748983357623,
+      "p_mrr": 0.0004212914142202248
+    },
+    {
+      "conjunto": "tcc",
+      "configuracao": "esparsa",
+      "consultas": 150,
+      "ndcg@5": 0.34829780462848625,
+      "mrr": 0.3335740740740741,
+      "recall@5": 0.48,
+      "hit@1": 0.2,
+      "p_ndcg@5": 0.09498526128844965,
+      "p_mrr": 0.09832647023431162
+    },
+    {
+      "conjunto": "tcc",
+      "configuracao": "hibrida",
+      "consultas": 150,
+      "ndcg@5": 0.38951945404699084,
+      "mrr": 0.37487566137566136,
+      "recall@5": 0.5133333333333333,
+      "hit@1": 0.24666666666666667
+    }
+  ]
+}

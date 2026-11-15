@@ -1,0 +1,5 @@
+﻿conjunto,configuracao,consultas,ndcg@5,mrr,recall@5,hit@1,p_ndcg@5,p_mrr
+manual,hibrida/media,1,0.17376534287144002,0.5,0.5,0.0,,
+manual,hibrida/max,1,0.17376534287144002,0.5,0.5,0.0,,
+manual,hibrida/top_m,1,0.17376534287144002,0.5,0.5,0.0,,
+manual,hibrida/decaimento,1,0.17376534287144002,0.5,0.5,0.0,,

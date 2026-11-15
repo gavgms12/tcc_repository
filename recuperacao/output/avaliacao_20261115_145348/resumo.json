@@ -1,0 +1,52 @@
+{
+  "argumentos": {
+    "conjunto": [
+      "tcc"
+    ],
+    "arquivo": "C:\\Users\\juara\\OneDrive\\Desktop\\Facul\\TCC\\git\\tcc_repository\\recuperacao\\sistema_de_busca\\avaliacao\\consultas_manuais.json",
+    "gerar_modelo": false,
+    "n": 150,
+    "n_ic": 0,
+    "consulta_ic": [
+      "titulo",
+      "titulo+palavras"
+    ],
+    "anos": null,
+    "semente": 42,
+    "k": 5,
+    "top_k": 10,
+    "modos": [
+      "hibrida"
+    ],
+    "rankings": "auto",
+    "uniao": [
+      "media",
+      "decaimento"
+    ],
+    "normalizar_topicos": "nao",
+    "so_pre": true
+  },
+  "referencia": "hibrida/media",
+  "resumo": [
+    {
+      "conjunto": "tcc",
+      "configuracao": "hibrida/media",
+      "consultas": 150,
+      "ndcg@5": 0.38951945404699084,
+      "mrr": 0.37487566137566136,
+      "recall@5": 0.5133333333333333,
+      "hit@1": 0.24666666666666667
+    },
+    {
+      "conjunto": "tcc",
+      "configuracao": "hibrida/decaimento",
+      "consultas": 150,
+      "ndcg@5": 0.38951945404699084,
+      "mrr": 0.37487566137566136,
+      "recall@5": 0.5133333333333333,
+      "hit@1": 0.24666666666666667,
+      "p_ndcg@5": null,
+      "p_mrr": null
+    }
+  ]
+}

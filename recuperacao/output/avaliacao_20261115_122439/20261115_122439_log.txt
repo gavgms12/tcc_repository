@@ -1,0 +1,57 @@
+Consultas: {'manual': 1} | k=5 | top_k=10 | modos=['densa', 'esparsa', 'hibrida'] | normalização=sim | reranker=não
+  [densa] 1/1 consultas (6 s)
+  [esparsa] 1/1 consultas (3 s)
+  [hibrida] 1/1 consultas (3 s)
+
+====================================================================================================
+RANKINGS POR CONSULTA  (★ esperado alta/orientador · ☆ esperado média)
+====================================================================================================
+
+[manual] exemplo-1: Sistema Embarcado de Visão Computacional para Análise Biomecânica e Cadência Rítmica em Dança de Salão
+  temas/texto: Sistemas Embarcados, Inteligência Artificial, Internet das Coisas, Texto livre
+  esperados: ★ JOSE ALBERTO FERREIRA FILHO, ☆ CARLOS HENRIQUE VALERIO DE MORAES
+  densa  (nDCG@5 0.107 · MRR 0.200)
+     1.   BRUNO TARDIOLE KUEHNE                         0.6379
+     2.   RODRIGO MAXIMIANO ANTUNES DE ALMEIDA          0.5873
+     3.   TALES CLEBER PIMENTA                          0.5668
+     4.   EDVARD MARTINS DE OLIVEIRA                    0.5596
+     5. ☆ CARLOS HENRIQUE VALERIO DE MORAES             0.5541
+     6.   WILSON CESAR SANT'ANA                         0.4860
+     7.   ROBSON BAUWELZ GONZATTI                       0.4739
+     8.   RAMON MAIA BORGES                             0.4691
+     9.   THATYANA DE FARIA PIOLA SERAPHIM              0.4576
+    10.   JOAO PAULO REUS RODRIGUES LEITE               0.4536
+  esparsa  (nDCG@5 0.275 · MRR 1.000)
+     1. ☆ CARLOS HENRIQUE VALERIO DE MORAES             0.3687
+     2.   RODRIGO MAXIMIANO ANTUNES DE ALMEIDA          0.3638
+     3.   EDVARD MARTINS DE OLIVEIRA                    0.3549
+     4.   THATYANA DE FARIA PIOLA SERAPHIM              0.3104
+     5.   GABRIEL ANTONIO FANELLI DE SOUZA              0.2763
+     6.   JOAO PAULO REUS RODRIGUES LEITE               0.2539
+     7.   BRUNO TARDIOLE KUEHNE                         0.2341
+     8.   TALES CLEBER PIMENTA                          0.2238
+     9.   LUCIANO BERTINI                               0.2189
+    10.   DECIO RENNO DE MENDONCA FARIA                 0.2100
+  hibrida  (nDCG@5 0.174 · MRR 0.500)
+     1.   RODRIGO MAXIMIANO ANTUNES DE ALMEIDA          0.2194
+     2. ☆ CARLOS HENRIQUE VALERIO DE MORAES             0.2063
+     3.   EDVARD MARTINS DE OLIVEIRA                    0.1583
+     4.   THATYANA DE FARIA PIOLA SERAPHIM              0.1266
+     5.   JOAO PAULO REUS RODRIGUES LEITE               0.1012
+     6.   GABRIEL ANTONIO FANELLI DE SOUZA              0.0840
+     7.   LUCIANO BERTINI                               0.0810
+     8.   BRUNO TARDIOLE KUEHNE                         0.0790
+     9.   JEREMIAS BARBOSA MACHADO                      0.0770
+    10. ★ JOSE ALBERTO FERREIRA FILHO                   0.0718
+
+====================================================================================================
+RESUMO (média por consulta) | p = Wilcoxon pareado contra hibrida
+====================================================================================================
+
+[manual]
+configuração        n     ndcg@5        mrr   recall@5      hit@1    p nDCG     p MRR
+densa               1      0.107      0.200      0.500      0.000    1.0000    1.0000
+esparsa             1      0.275      1.000      0.500      1.000    1.0000    1.0000
+hibrida             1      0.174      0.500      0.500      0.000         —         —
+
+p < 0,05: diferença provavelmente real; acima disso pode ser ruído da amostra.

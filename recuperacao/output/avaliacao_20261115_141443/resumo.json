@@ -1,0 +1,62 @@
+{
+  "argumentos": {
+    "conjunto": [
+      "manual"
+    ],
+    "arquivo": "C:\\Users\\juara\\OneDrive\\Desktop\\Facul\\TCC\\git\\tcc_repository\\recuperacao\\sistema_de_busca\\avaliacao\\consultas_manuais.json",
+    "gerar_modelo": false,
+    "n": 150,
+    "n_ic": 0,
+    "consulta_ic": [
+      "titulo",
+      "titulo+palavras"
+    ],
+    "anos": null,
+    "semente": 42,
+    "k": 5,
+    "top_k": 10,
+    "modos": [
+      "densa",
+      "esparsa",
+      "hibrida"
+    ],
+    "rankings": "auto",
+    "uniao": null,
+    "normalizar_topicos": null,
+    "so_pre": true
+  },
+  "referencia": "hibrida",
+  "resumo": [
+    {
+      "conjunto": "manual",
+      "configuracao": "densa",
+      "consultas": 1,
+      "ndcg@5": 0.11861329943102608,
+      "mrr": 0.25,
+      "recall@5": 0.5,
+      "hit@1": 0.0,
+      "p_ndcg@5": 1.0,
+      "p_mrr": 1.0
+    },
+    {
+      "conjunto": "manual",
+      "configuracao": "esparsa",
+      "consultas": 1,
+      "ndcg@5": 0.27541155237618664,
+      "mrr": 1.0,
+      "recall@5": 0.5,
+      "hit@1": 1.0,
+      "p_ndcg@5": 1.0,
+      "p_mrr": 1.0
+    },
+    {
+      "conjunto": "manual",
+      "configuracao": "hibrida",
+      "consultas": 1,
+      "ndcg@5": 0.17376534287144002,
+      "mrr": 0.5,
+      "recall@5": 0.5,
+      "hit@1": 0.0
+    }
+  ]
+}
