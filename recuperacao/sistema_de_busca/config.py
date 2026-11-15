@@ -467,7 +467,7 @@ NORMALIZAR_SCORES_BUSCA = True
 #   "harmonico"   1/pos
 #   "exponencial" 0.5^(pos-1)
 DECAIMENTO = "log"
-FINAL_PROFESSOR_K = 10
+FINAL_PROFESSOR_K = 15
 
 # União dos tópicos: como juntar os scores de um professor nos vários tópicos da consulta.
 # Os scores de cada professor são ordenados do melhor tópico para o pior (tópico ausente = 0) e:
@@ -483,7 +483,7 @@ UNIAO_TOPICOS_DECAIMENTO = "log"
 # para um tópico com scores altos em valor absoluto não dominar os outros.
 NORMALIZAR_TOPICOS = False
 # Multiplica o score do texto livre do aluno antes da união (1.0 = mesmo peso dos temas).
-PESO_TEXTO_LIVRE = 1.0
+PESO_TEXTO_LIVRE = 1.3
 NOME_TEXTO_LIVRE = "Texto livre"
 
 # tipo -> de onde vem, quantos resultados buscar, quantos usar por professor, peso
