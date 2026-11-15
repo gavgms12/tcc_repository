@@ -60,7 +60,7 @@ MIN_SCORE_PROFESSOR_RELATIVO = 0
 #     reranking mesmo fora dos FINAL_PROFESSOR_K melhores da busca.
 BONUS_DISCIPLINA_TEMA = 0.05
 BONUS_DISCIPLINA_TEMA_MAX = 0.10
-INCLUIR_PROFESSOR_DISCIPLINA_TEMA = True
+INCLUIR_PROFESSOR_DISCIPLINA_TEMA = False
 
 # Consulta usada no reranking (a busca continua usando o texto completo do tópico):
 #   "texto"  -> texto completo do tópico (comportamento antigo)
@@ -467,7 +467,24 @@ NORMALIZAR_SCORES_BUSCA = True
 #   "harmonico"   1/pos
 #   "exponencial" 0.5^(pos-1)
 DECAIMENTO = "log"
-FINAL_PROFESSOR_K = 15
+FINAL_PROFESSOR_K = 10
+
+# União dos tópicos: como juntar os scores de um professor nos vários tópicos da consulta.
+# Os scores de cada professor são ordenados do melhor tópico para o pior (tópico ausente = 0) e:
+#   "media"      média simples (penaliza quem é especialista em só parte dos temas)
+#   "max"        só o melhor tópico (ignora a cobertura)
+#   "top_m"      média dos UNIAO_TOPICOS_M melhores tópicos
+#   "decaimento" média ponderada com os pesos de UNIAO_TOPICOS_DECAIMENTO (ver DECAIMENTO);
+#                o melhor tópico pesa mais, mas a cobertura ainda conta
+UNIAO_TOPICOS = "decaimento"
+UNIAO_TOPICOS_M = 2
+UNIAO_TOPICOS_DECAIMENTO = "log"
+# Divide os scores de cada tópico pelo maior daquele tópico antes de unir (todo tópico passa a ter 1 no topo),
+# para um tópico com scores altos em valor absoluto não dominar os outros.
+NORMALIZAR_TOPICOS = False
+# Multiplica o score do texto livre do aluno antes da união (1.0 = mesmo peso dos temas).
+PESO_TEXTO_LIVRE = 1.0
+NOME_TEXTO_LIVRE = "Texto livre"
 
 # tipo -> de onde vem, quantos resultados buscar, quantos usar por professor, peso
 
