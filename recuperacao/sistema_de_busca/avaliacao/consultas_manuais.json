@@ -73,20 +73,446 @@
       "texto": "Sistema Embarcado de Visão Computacional para Análise Biomecânica e Cadência Rítmica em Dança de Salão",
       "temas": [
         "Sistemas Embarcados",
-        "Inteligência Artificial"
+        "Inteligência Artificial",
+        "Internet das Coisas"
       ],
-      "alta": ["JOSE ALBERTO FERREIRA FILHO"],
-      "media": ["CARLOS HENRIQUE VALERIO DE MORAES"]
+      "alta": [
+        "CARLOS HENRIQUE VALERIO DE MORAES",
+        "JOSE ALBERTO FERREIRA FILHO"
+      ],
+      "media": [
+        "JEREMIAS BARBOSA MACHADO",
+        "LUCIANO BERTINI",
+        "JOAO PAULO REUS RODRIGUES LEITE"
+      ]
     },
     {
       "id": "exemplo-2",
-      "texto": "",
+      "texto": "Avaliação do KWOK como Alternativa de Baixo Custo para Simulação de Clusters Kubernetes",
       "temas": [
+        "Sistemas Distribuídos e Nuvem",
+        "Redes de Computadores"
+      ],
+      "alta": [
+        "BRUNO TARDIOLE KUEHNE",
+        "ENZO SERAPHIM"
+      ],
+      "media": [
+        "EDMILSON MARMO MOREIRA",
+        "EDVARD MARTINS DE OLIVEIRA"
+      ]
+    },
+    {
+      "id": "s01",
+      "texto": "Monitor de ECG vestível de baixo consumo com detecção automática de arritmias",
+      "temas": [
+        "Engenharia Biomédica",
+        "Sistemas Embarcados",
+        "Processamento de Sinais"
+      ],
+      "alta": ["GUSTAVO DELLA COLLETTA", "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA", "ODILON DE OLIVEIRA DUTRA"],
+      "media": ["JOAO PAULO REUS RODRIGUES LEITE","LUIS HENRIQUE DE CARVALHO FERREIRA"],
+      "sugestao_claude": [
+        "GUSTAVO DELLA COLLETTA [alta?] — detector de pico R de baixa potência; filtro Savitzky-Golay em ECG embarcado",
+        "ODILON DE OLIVEIRA DUTRA [alta?] — eletrocardiógrafo BLE (CC2650); Savitzky-Golay para QRS",
+        "LUIS HENRIQUE DE CARVALHO FERREIRA [alta?] — microssistema de ECG e firmware TI-RTOS para monitoramento cardíaco",
+        "JOAO PAULO REUS RODRIGUES LEITE [media?] — IA aplicada a sinais cardíacos",
+        "EGON LUIZ MULLER JUNIOR [media?] — oxímetro wireless; parâmetros fisiológicos para triagem",
+        "ROBSON LUIZ MORENO [media?] — circuitos CMOS para aplicações biomédicas"
+      ]
+    },
+    {
+      "id": "s02",
+      "texto": "Classificação de doenças em folhas de café com TinyML em microcontrolador",
+      "temas": [
+        "Inteligência Artificial",
+        "Sistemas Embarcados"
+      ],
+      "alta": [
+        "JOAO PAULO REUS RODRIGUES LEITE",
+        "JOSE ALBERTO FERREIRA FILHO"
+      ],
+      "media": [
+        "CARLOS HENRIQUE VALERIO DE MORAES",
+        "GABRIEL ANTONIO FANELLI DE SOUZA"
+      ],
+      "sugestao_claude": [
+        "JOAO PAULO REUS RODRIGUES LEITE [alta?] — artigo 'Coffee disease classification at the edge using deep learning'",
+        "JOSE ALBERTO FERREIRA FILHO [alta?] — disciplina de TinyML; EdgeAI no perfil",
+        "CARLOS HENRIQUE VALERIO DE MORAES [media?] — IC 'Personal Trainer com TinyML'",
+        "GABRIEL ANTONIO FANELLI DE SOUZA [media?] — orientou TinyML para monitorar colmeias",
+        "EGON LUIZ MULLER JUNIOR [media?] — classificação de imagens em TinyML para alimentação de aves",
+        "JEREMIAS BARBOSA MACHADO [media?] — TinyML com CNN para prótese"
+      ]
+    },
+    {
+      "id": "s03",
+      "texto": "Rede LoRaWAN para monitoramento remoto do nível de reservatórios de água em propriedades rurais",
+      "temas": [
+        "Internet das Coisas",
+        "Telecomunicações e Óptica"
+      ],
+      "alta": [
+        "DANILO HENRIQUE SPADOTI",
+        "DECIO RENNO DE MENDONCA FARIA"
+      ],
+      "media": [
+        "EGON LUIZ MULLER JUNIOR"
+      ],
+      "sugestao_claude": [
+        "DANILO HENRIQUE SPADOTI [alta?] — ICs com LoRaWAN para sensor de nível; telemetria IoT",
+        "DECIO RENNO DE MENDONCA FARIA [alta?] — modulação CSS/chirp; ataques de jamming em LoRaWAN",
+        "EGON LUIZ MULLER JUNIOR [media?] — balança IoT com LoRa; comunicação multiponto LoRa",
+        "EDVARD MARTINS DE OLIVEIRA [media?] — middlewares para dados de dispositivos IoT"
+      ]
+    },
+    {
+      "id": "s04",
+      "texto": "Detecção de intrusão em redes industriais OPC UA e Modbus usando aprendizado de máquina",
+      "temas": [
+        "Segurança da Informação",
+        "Automação Industrial",
+        "Inteligência Artificial"
+      ],
+      "alta": ["CARLOS WALDECIR DE SOUZA", "TALES CLEBER PIMENTA", "MAURILIO PEREIRA COUTINHO"],
+      "media": ["LUCIANO BERTINI"],
+      "sugestao_claude": [
+        "CARLOS WALDECIR DE SOUZA [alta?] — OPC UA com MQTT seguro; zero trust e cibersegurança em TO",
+        "MAURILIO PEREIRA COUTINHO [alta?] — segurança da informação e infraestruturas críticas; detecção de intrusão",
+        "TALES CLEBER PIMENTA [alta?] — orientou coletores de dados em redes industriais para anomalias e vulnerabilidades",
+        "LUCIANO BERTINI [media?] — sistema de detecção de intrusão para redes IoT",
+        "CARLOS HENRIQUE VALERIO DE MORAES [media?] — detecção de anomalias em redes com aprendizado de máquina",
+        "ROBSON LUIZ MORENO [media?] — projeto de segurança cibernética em TO"
+      ]
+    },
+    {
+      "id": "s05",
+      "texto": "Conversor CC-CC com rastreamento de máxima potência para carregar baterias a partir de painel solar",
+      "temas": [
+        "Eletrônica de Potência",
+        "Energia e Fontes Renováveis"
+      ],
+      "alta": ["ENIO ROBERTO RIBEIRO", "RONDINELI RODRIGUES PEREIRA", "ROBSON BAUWELZ GONZATTI"],
+      "media": ["WILSON CESAR SANT'ANA"],
+      "sugestao_claude": [
+        "ENIO ROBERTO RIBEIRO [alta?] — conversores CC-CC não isolados; técnicas de MPPT; sombreamento fotovoltaico",
+        "RONDINELI RODRIGUES PEREIRA [alta?] — orientou MPPT para carregar bateria com painel solar",
+        "ROBSON BAUWELZ GONZATTI [alta?] — conversores CC-CC para baterias; carregador de VE",
+        "WILSON CESAR SANT'ANA [media?] — eficiência de conversores; energia solar para centro isolado"
+      ]
+    },
+    {
+      "id": "s06",
+      "texto": "Processador RISC-V em FPGA com acelerador dedicado para inferência de redes neurais",
+      "temas": [
+        "Sistemas Digitais e FPGA",
+        "Microeletrônica",
+        "Inteligência Artificial"
+      ],
+      "alta": ["GUSTAVO DELLA COLLETTA", "GABRIEL ANTONIO FANELLI DE SOUZA", "ODILON DE OLIVEIRA DUTRA"],
+      "media": ["TALES CLEBER PIMENTA"],
+      "sugestao_claude": [
+        "GUSTAVO DELLA COLLETTA [alta?] — várias ICs de microarquitetura RISC-V",
+        "GABRIEL ANTONIO FANELLI DE SOUZA [alta?] — circuitos neuromórficos ELM em hardware; RISC-V em FPGA",
+        "ODILON DE OLIVEIRA DUTRA [alta?] — rede neural reconfigurável em FPGA; projeto RISC-V",
+        "TALES CLEBER PIMENTA [media?] — IP core acelerador para CNN",
+        "LUCIANO BERTINI [media?] — aceleração de KNN em FPGA"
+      ]
+    },
+    {
+      "id": "s07",
+      "texto": "Controle robusto de atitude e trajetória de um quadricóptero",
+      "temas": [
+        "Robótica",
+        "Sistemas de Controle"
+      ],
+      "alta": ["FERNANDO HENRIQUE DUARTE GUARACY", "LUIS HENRIQUE DE CARVALHO FERREIRA"],
+      "media": ["CAIO FERNANDES DE PAULA", "JEREMIAS BARBOSA MACHADO"],
+      "sugestao_claude": [
+        "FERNANDO HENRIQUE DUARTE GUARACY [alta?] — IC de controle não linear de quadrotor; VANT; controle robusto H∞",
+        "LUIS HENRIQUE DE CARVALHO FERREIRA [alta?] — compartilhamento de carga com drones; controle robusto",
+        "CAIO FERNANDES DE PAULA [media?] — controle robusto e multivariável; modos deslizantes",
+        "JEREMIAS BARBOSA MACHADO [media?] — controle adaptativo e preditivo; drones em FANETs",
+        "KLEBER ROBERTO DA SILVA SANTOS [media?] — drone autônomo (projeto DAARS)"
+      ]
+    },
+    {
+      "id": "s08",
+      "texto": "Manipulador robótico com visão computacional para inspeção automática de peças na indústria",
+      "temas": [
+        "Robótica",
+        "Automação Industrial",
+        "Inteligência Artificial"
+      ],
+      "alta": ["KLEBER ROBERTO DA SILVA SANTOS", "GUILHERME DE SOUSA BASTOS"],
+      "media": ["LUIZ EDIVAL DE SOUZA"],
+      "sugestao_claude": [
+        "KLEBER ROBERTO DA SILVA SANTOS [alta?] — células robotizadas, inspeção com scanner laser, servo visual",
+        "GUILHERME DE SOUSA BASTOS [alta?] — robótica, multirrobô, rastreamento visual",
+        "LUIZ EDIVAL DE SOUZA [media?] — automação da manufatura; robótica cooperativa com ROS",
+        "TALES CLEBER PIMENTA [media?] — medição de peças com visão monocular"
+      ]
+    },
+    {
+      "id": "s09",
+      "texto": "Aplicativo web e mobile para agendamento de consultas em unidades básicas de saúde",
+      "temas": [
+        "Desenvolvimento Web e Mobile",
+        "Engenharia de Software"
+      ],
+      "alta": ["EDVARD MARTINS DE OLIVEIRA", "BRUNO TARDIOLE KUEHNE", "BARBARA PIMENTA CAETANO"],
+      "media": ["THATYANA DE FARIA PIOLA SERAPHIM"],
+      "sugestao_claude": [
+        "BARBARA PIMENTA CAETANO [alta?] — orientou aplicação web para gestão de consultas em UBS",
+        "THATYANA DE FARIA PIOLA SERAPHIM [alta?] — muitos TCCs de sistemas web",
+        "EDVARD MARTINS DE OLIVEIRA [media?] — eHealth; aplicativos mobile",
+        "ENZO SERAPHIM [media?] — projeto de software; aplicações web",
+        "BRUNO TARDIOLE KUEHNE [media?] — sistema e-health; apps Android"
+      ]
+    },
+    {
+      "id": "s10",
+      "texto": "Assistente baseado em LLM e RAG para responder dúvidas de alunos sobre editais da universidade",
+      "temas": [
+        "Inteligência Artificial",
+        "Dados"
+      ],
+      "alta": ["BARBARA PIMENTA CAETANO", "JOAO PAULO REUS RODRIGUES LEITE"],
+      "media": ["CARLOS HENRIQUE VALERIO DE MORAES"],
+      "sugestao_claude": [
+        "BARBARA PIMENTA CAETANO [alta?] — RAG e agentes; sistema multiagente LLM para editais",
+        "EGON LUIZ MULLER JUNIOR [alta?] — FAQ inteligente para editais com LLM; LangChain",
+        "JOAO PAULO REUS RODRIGUES LEITE [media?] — IA generativa para o ENEM; chatbots"
+      ]
+    },
+    {
+      "id": "s11",
+      "texto": "Pipeline de ingestão e data warehouse para análise de dados meteorológicos",
+      "temas": [
+        "Dados",
+        "Sistemas Distribuídos e Nuvem"
+      ],
+      "alta": ["BARBARA PIMENTA CAETANO", "ENZO SERAPHIM"],
+      "media": ["BRUNO TARDIOLE KUEHNE", "EDVARD MARTINS DE OLIVEIRA"],
+      "sugestao_claude": [
+        "BARBARA PIMENTA CAETANO [alta?] — projeto Céu de Brigadeiro (dados meteorológicos); Apache Druid; orquestração de fluxos de dados",
+        "ENZO SERAPHIM [alta?] — banco de dados; data warehouse em BD de grafos",
+        "BRUNO TARDIOLE KUEHNE [media?] — big data; Hadoop",
+        "EDVARD MARTINS DE OLIVEIRA [media?] — workflows científicos; ciência de dados"
+      ]
+    },
+    {
+      "id": "s12",
+      "texto": "Offloading de tarefas entre borda e nuvem para aplicações de IoT com restrição de latência",
+      "temas": [
+        "Sistemas Distribuídos e Nuvem",
+        "Internet das Coisas"
+      ],
+      "alta": ["BRUNO TARDIOLE KUEHNE", "EDVARD MARTINS DE OLIVEIRA"],
+      "media": ["EDMILSON MARMO MOREIRA"],
+      "sugestao_claude": [
+        "BRUNO TARDIOLE KUEHNE [alta?] — fog computing; IoT com QoS; balanceamento em nuvem",
+        "EDVARD MARTINS DE OLIVEIRA [alta?] — revisão sobre offloading em edge computing; continuum of computing",
+        "EDMILSON MARMO MOREIRA [media?] — sistemas distribuídos; balanceamento de carga",
+        "JEREMIAS BARBOSA MACHADO [media?] — coautor da revisão de green scheduling em edge"
+      ]
+    },
+    {
+      "id": "s13",
+      "texto": "Otimização de rotas de coleta de lixo com algoritmos em grafos e sensores de nível nas lixeiras",
+      "temas": [
+        "Algoritmos, Grafos e Otimização",
+        "Internet das Coisas"
+      ],
+      "alta": ["EDMILSON MARMO MOREIRA", "JOAO PAULO REUS RODRIGUES LEITE"],
+      "media": ["THATYANA DE FARIA PIOLA SERAPHIM"],
+      "sugestao_claude": [
+        "EDMILSON MARMO MOREIRA [alta?] — teoria dos grafos; fluxo de custo mínimo",
+        "JOAO PAULO REUS RODRIGUES LEITE [alta?] — meta-análise de roteamento com IoT na coleta de lixo",
+        "CARLOS HENRIQUE VALERIO DE MORAES [media?] — meta-heurísticas de otimização",
+        "LUCIANO BERTINI [media?] — ensina teoria de grafos e algoritmos"
+      ]
+    },
+    {
+      "id": "s14",
+      "texto": "Filtro ativo de potência para compensação de harmônicos em redes de distribuição",
+      "temas": [
+        "Eletrônica de Potência",
+        "Sistemas de Controle"
+      ],
+      "alta": ["RONDINELI RODRIGUES PEREIRA", "ROBSON BAUWELZ GONZATTI", "ENIO ROBERTO RIBEIRO"],
+      "media": ["WILSON CESAR SANT'ANA"],
+      "sugestao_claude": [
+        "RONDINELI RODRIGUES PEREIRA [alta?] — filtros ativos, harmônicos, controle preditivo",
+        "ROBSON BAUWELZ GONZATTI [alta?] — filtros ativos híbridos; FACTS",
+        "ENIO ROBERTO RIBEIRO [alta?] — filtro ativo série monofásico",
+        "WILSON CESAR SANT'ANA [media?] — projeto de filtro ativo de potência"
+      ]
+    },
+    {
+      "id": "s15",
+      "texto": "Amplificador CMOS de ultra-baixa tensão para aquisição de sinais de EEG",
+      "temas": [
+        "Microeletrônica",
+        "Engenharia Biomédica",
+        "Eletrônica Analógica e Instrumentação"
+      ],
+      "alta": ["GUSTAVO DELLA COLLETTA", "TALES CLEBER PIMENTA", "ROBSON LUIZ MORENO", "LUIS HENRIQUE DE CARVALHO FERREIRA"],
+      "media": ["ODILON DE OLIVEIRA DUTRA", "LEONARDO BRESEGHELLO ZOCCAL"],
+      "sugestao_claude": [
+        "ROBSON LUIZ MORENO [alta?] — CIs CMOS de baixa tensão para biomédica; aquisição de EEG",
+        "TALES CLEBER PIMENTA [alta?] — sistema integrado de aquisição de EEG em CMOS",
+        "GUSTAVO DELLA COLLETTA [alta?] — OTA de 0,25 V; ultra-baixa potência para biomédica",
+        "LUIS HENRIQUE DE CARVALHO FERREIRA [alta?] — microeletrônica de ultra-baixa tensão",
+        "LEONARDO BRESEGHELLO ZOCCAL [media?] — retificador CMOS para implantes",
+        "ODILON DE OLIVEIRA DUTRA [media?] — comunicação CMOS para EEG"
+      ]
+    },
+    {
+      "id": "s16",
+      "texto": "Sistema de rádio sobre fibra para fronthaul de redes 5G",
+      "temas": [
+        "Telecomunicações e Óptica",
+        "Redes de Computadores"
+      ],
+      "alta": ["RAMON MAIA BORGES", "MATEUS AUGUSTO FAUSTINO CHAIB JUNQUEIRA"],
+      "media": ["DANILO HENRIQUE SPADOTI"],
+      "sugestao_claude": [
+        "RAMON MAIA BORGES [alta?] — rádio sobre fibra; fotônica de micro-ondas para 5G/6G",
+        "DANILO HENRIQUE SPADOTI [alta?] — radio over fiber multibanda para 5G; óptica",
+        "MATEUS AUGUSTO FAUSTINO CHAIB JUNQUEIRA [media?] — telecomunicações e óptica"
+      ]
+    },
+    {
+      "id": "s17",
+      "texto": "Detecção precoce de falhas em motores elétricos por análise de sinais e aprendizado de máquina",
+      "temas": [
+        "Processamento de Sinais",
+        "Inteligência Artificial",
+        "Eletrônica de Potência"
+      ],
+      "alta": ["WILSON CESAR SANT'ANA", "GISCARD FRANCIMEIRE CINTRA VELOSO"],
+      "media": ["ANDRE BERNARDI", "CARLOS HENRIQUE VALERIO DE MORAES"],
+      "sugestao_claude": [
+        "WILSON CESAR SANT'ANA [alta?] — falhas de isolamento em motores; operador de Koopman",
+        "GISCARD FRANCIMEIRE CINTRA VELOSO [media?] — sinais acústicos em transformadores",
+        "CARLOS HENRIQUE VALERIO DE MORAES [media?] — técnicas inteligentes para monitorar transformadores",
+        "ANDRE BERNARDI [media?] — processamento digital de sinais"
+      ]
+    },
+    {
+      "id": "s18",
+      "texto": "Avaliação de usabilidade da interface de um equipamento médico embarcado",
+      "temas": [
+        "Engenharia Biomédica",
+        "Sistemas Embarcados",
+        "Engenharia de Software"
+      ],
+      "alta": ["ANA PAULA SIQUEIRA SILVA DE ALMEIDA", "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA"],
+      "media": ["EGON LUIZ MULLER JUNIOR", "JOSE ALBERTO FERREIRA FILHO"],
+      "sugestao_claude": [
+        "ANA PAULA SIQUEIRA SILVA DE ALMEIDA [alta?] — engenharia de usabilidade; equipamentos médicos",
+        "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA [alta?] — usabilidade de sistemas eletrônicos críticos; embarcados",
+        "EGON LUIZ MULLER JUNIOR [alta?] — usabilidade de equipamentos eletromédicos",
+        "JOSE ALBERTO FERREIRA FILHO [media?] — engenharia clínica"
+      ]
+    },
+    {
+      "id": "s19",
+      "texto": "Sistema supervisório SCADA integrado a CLP para uma planta didática de controle de nível",
+      "temas": [
+        "Automação Industrial",
+        "Sistemas de Controle"
+      ],
+      "alta": ["LUIZ EDIVAL DE SOUZA", "JEREMIAS BARBOSA MACHADO"],
+      "media": ["KLEBER ROBERTO DA SILVA SANTOS", "FERNANDO HENRIQUE DUARTE GUARACY"],
+      "sugestao_claude": [
+        "LUIZ EDIVAL DE SOUZA [alta?] — automação e supervisórios; SCADA BR",
+        "JEREMIAS BARBOSA MACHADO [alta?] — supervisório com ferramentas abertas; controle preditivo em CLP",
+        "FERNANDO HENRIQUE DUARTE GUARACY [media?] — controle de sistemas de nível; planta didática",
+        "KLEBER ROBERTO DA SILVA SANTOS [media?] — automação e supervisórios",
+        "CARLOS WALDECIR DE SOUZA [media?] — instrumentação industrial; redes industriais"
+      ]
+    },
+    {
+      "id": "s20",
+      "texto": "Medidor ultrassônico do teor de água em combustíveis",
+      "temas": [
+        "Processamento de Sinais",
+        "Eletrônica Analógica e Instrumentação"
+      ],
+      "alta": ["GISCARD FRANCIMEIRE CINTRA VELOSO", "ANDRE BERNARDI"],
+      "media": ["JOSE ALBERTO FERREIRA FILHO"],
+      "sugestao_claude": [
+        "GISCARD FRANCIMEIRE CINTRA VELOSO [alta?] — vários trabalhos com sinais ultrassônicos em óleo e etanol",
+        "ANDRE BERNARDI [alta?] — sinais ultrassônicos; caracterização de etanol-água",
+        "JOSE ALBERTO FERREIRA FILHO [media?] — coautor do artigo sobre etanol-água",
+        "CARLOS WALDECIR DE SOUZA [media?] — instrumentação eletrônica"
+      ]
+    },
+    {
+      "id": "s21",
+      "texto": "Criptografia leve em microcontroladores para comunicação segura entre dispositivos IoT",
+      "temas": [
+        "Segurança da Informação",
         "Sistemas Embarcados",
         "Internet das Coisas"
       ],
-      "alta": [],
-      "media": []
+      "alta": ["MAURILIO PEREIRA COUTINHO", "LUCIANO BERTINI"],
+      "media": ["RODRIGO MAXIMIANO ANTUNES DE ALMEIDA", "DECIO RENNO DE MENDONCA FARIA" ,"GUSTAVO DELLA COLLETTA"],
+      "sugestao_claude": [
+        "MAURILIO PEREIRA COUTINHO [alta?] — criptografia leve em embarcados; segurança e microcontroladores",
+        "LUCIANO BERTINI [alta?] — detecção de intrusão em redes IoT com AES de baixa potência",
+        "RODRIGO MAXIMIANO ANTUNES DE ALMEIDA [media?] — token criptografado; segurança de embarcados",
+        "DECIO RENNO DE MENDONCA FARIA [media?] — cibersegurança em RF para IoT"
+      ]
+    },
+    {
+      "id": "s22",
+      "texto": "Sistema de recomendação de orientadores de TCC a partir do perfil acadêmico dos professores",
+      "temas": [
+        "Inteligência Artificial",
+        "Dados",
+        "Desenvolvimento Web e Mobile"
+      ],
+      "alta": ["JOAO PAULO REUS RODRIGUES LEITE"],
+      "media": ["EDMILSON MARMO MOREIRA", "BARBARA PIMENTA CAETANO"],
+      "sugestao_claude": [
+        "JOAO PAULO REUS RODRIGUES LEITE [alta?] — sistema de recomendação; IA",
+        "EDMILSON MARMO MOREIRA [media?] — framework para avaliar sistemas de recomendação",
+        "ANDRE BERNARDI [media?] — orientou sistema de recomendação para diagnóstico",
+        "BARBARA PIMENTA CAETANO [media?] — dados e sistemas web; vitrine de competências"
+      ]
+    },
+    {
+      "id": "s23",
+      "texto": "Controle acionado por eventos de um tanque de nível através de rede sem fio com perda de pacotes",
+      "temas": [],
+      "alta": ["FERNANDO HENRIQUE DUARTE GUARACY"],
+      "media": ["LUIS HENRIQUE DE CARVALHO FERREIRA", "JEREMIAS BARBOSA MACHADO"],
+      "sugestao_claude": [
+        "FERNANDO HENRIQUE DUARTE GUARACY [alta?] — controle acionado por eventos em sistema de nível; LQG com perda de pacotes",
+        "LUIS HENRIQUE DE CARVALHO FERREIRA [media?] — controle sobre redes com perdas",
+        "JEREMIAS BARBOSA MACHADO [media?] — sistemas em rede",
+        "CAIO FERNANDES DE PAULA [media?] — controle digital"
+      ]
+    },
+    {
+      "id": "s24",
+      "texto": "",
+      "temas": [
+        "Robótica",
+        "Inteligência Artificial"
+      ],
+      "alta": ["GUILHERME DE SOUSA BASTOS", "KLEBER ROBERTO DA SILVA SANTOS"],
+      "media": ["CARLOS HENRIQUE VALERIO DE MORAES"],
+      "sugestao_claude": [
+        "GUILHERME DE SOUSA BASTOS [alta?] — robótica, multirrobô e aprendizado de máquina",
+        "KLEBER ROBERTO DA SILVA SANTOS [alta?] — robótica móvel e navegação autônoma",
+        "LUCIANO BERTINI [media?] — segmentação semântica em barcos autônomos",
+        "JEREMIAS BARBOSA MACHADO [media?] — aprendizado por reforço para robôs autônomos"
+      ]
     }
-  ]
+  ],
+  "_instrucoes_sugestoes": "Consultas s01-s24: 'sugestao_claude' traz candidatos sugeridos por IA a partir dos dados indexados ([alta?]/[media?] = nível sugerido). Revise e mova para 'alta'/'media' só os que você concordar; consultas com 'alta' e 'media' vazios são ignoradas na avaliação."
 }
