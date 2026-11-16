@@ -1,6 +1,10 @@
-from storage.minio_storage import ler_json_gold
+import argparse
+
+from src.storage.minio_storage import ler_json_gold
 from recuperacao.sistema_de_busca.indexacao.perfis import criar_perfis, _ano
-from recuperacao.sistema_de_busca.database_vetores import conectar_Qdrant, garantir_colecao, filtrar_alterados, upsert_perfis, atualizar_m
+from recuperacao.sistema_de_busca.database_vetores import (
+    conectar_Qdrant, garantir_colecao, filtrar_alterados, upsert_perfis, atualizar_m, remover_ausentes,
+)
 from recuperacao.sistema_de_busca.modelo import gerar_embeddings, carregar_modelo
 from recuperacao.sistema_de_busca.textos import (
     producao_montar_texto_para_modelo,
@@ -16,9 +20,31 @@ from recuperacao.sistema_de_busca import config
 
 load_dotenv()
 
-from storage.minio_storage import ultima_run_gold, ler_jsons_gold, GOLD
+import os
 
-def indexar_colecao(client, modelo, nome: str, perfis: list[dict], tamanho_bloco: int = 32,campos_inteiros: tuple[str, ...] = ()) -> None:
+from src.storage.minio_storage import GOLD
+
+
+def ultima_run_gold() -> str:
+    """Prefixo da run atual da Gold, ex.: 'runs/20261112T002444Z/'.
+
+    Usa o ponteiro current.json (só é atualizado quando a run termina inteira).
+    GOLD_RUN=<run_id> fixa uma run específica (reprocessar, testes)."""
+    fixa = os.getenv("GOLD_RUN")
+    if fixa:
+        return f"runs/{fixa}/"
+    ponteiro = GOLD.ler_json("current.json")
+    return ponteiro["prefixo"].rstrip("/") + "/"
+
+
+def ler_jsons_gold(prefixo: str) -> list[dict]:
+    """Lê todos os .json sob `prefixo` na Gold (ex.: os perfis de professores)."""
+    prefixo = prefixo.rstrip("/") + "/"
+    return [GOLD.ler_json(chave) for chave in sorted(GOLD.listar(prefixo)) if chave.lower().endswith(".json")]
+
+def indexar_colecao(client, modelo, nome: str, perfis: list[dict], tamanho_bloco: int = 32,campos_inteiros: tuple[str, ...] = (),
+                    exclusao: str = "sim", forcar_exclusao: bool = False) -> None:
+    """exclusao: "sim" apaga do Qdrant o que sumiu dos dados, "simular" só lista, "nao" não verifica."""
     garantir_colecao(client, nome,campos_inteiros)
     novos = filtrar_alterados(client, nome, perfis)
     print(f"{nome}: {len(perfis)} perfis, {len(novos)} novos/alterados")
@@ -28,8 +54,25 @@ def indexar_colecao(client, modelo, nome: str, perfis: list[dict], tamanho_bloco
         embeddings = gerar_embeddings(modelo, bloco)
         upsert_perfis(client, nome, bloco, embeddings)
         print(f"  {nome}: {min(i + tamanho_bloco, len(novos))}/{len(novos)}")
-        
+
+    if exclusao != "nao":
+        remover_ausentes(client, nome, [p["id"] for p in perfis],
+                         simular=(exclusao == "simular"), forcar=forcar_exclusao)
+
+
+def _argumentos():
+    parser = argparse.ArgumentParser(description="Indexa a última run da gold no Qdrant (insere, atualiza e remove).")
+    parser.add_argument("--exclusao", choices=["sim", "simular", "nao"], default="sim",
+                        help="apagar do Qdrant os itens que não estão mais na gold (padrão: sim); "
+                             "'simular' só lista o que seria apagado")
+    parser.add_argument("--forcar-exclusao", action="store_true",
+                        help="apaga mesmo quando passa de 30%% da coleção (cuidado: run da gold incompleta apagaria tudo)")
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = _argumentos()
+    opcoes = {"exclusao": args.exclusao, "forcar_exclusao": args.forcar_exclusao}
     run = ultima_run_gold()
     print("Run:", run)
 
@@ -79,12 +122,12 @@ def main() -> None:
     client = conectar_Qdrant()
     modelo = carregar_modelo()
 
-    indexar_colecao(client, modelo, config.COLLECTION_PROFESSORES, perfis_professores, )
-    indexar_colecao(client, modelo, config.COLLECTION_ICS, perfis_ics, campos_inteiros=("ano",))
-    indexar_colecao(client, modelo, config.COLLECTION_PROJETOS, perfis_projetos, campos_inteiros=("ano",))
-    indexar_colecao(client, modelo, config.COLLECTION_PRODUCAO, perfis_producoes, campos_inteiros=("ano",))
-    indexar_colecao(client, modelo, config.COLLECTION_ORIENTADOR, perfis_orientacoes, campos_inteiros=("ano",))
-    indexar_colecao(client, modelo, config.COLLECTION_DISCIPLINAS, perfis_disciplinas)
+    indexar_colecao(client, modelo, config.COLLECTION_PROFESSORES, perfis_professores, **opcoes)
+    indexar_colecao(client, modelo, config.COLLECTION_ICS, perfis_ics, campos_inteiros=("ano",), **opcoes)
+    indexar_colecao(client, modelo, config.COLLECTION_PROJETOS, perfis_projetos, campos_inteiros=("ano",), **opcoes)
+    indexar_colecao(client, modelo, config.COLLECTION_PRODUCAO, perfis_producoes, campos_inteiros=("ano",), **opcoes)
+    indexar_colecao(client, modelo, config.COLLECTION_ORIENTADOR, perfis_orientacoes, campos_inteiros=("ano",), **opcoes)
+    indexar_colecao(client, modelo, config.COLLECTION_DISCIPLINAS, perfis_disciplinas, **opcoes)
 
     atualizar_m(16,client, config.COLLECTION_PROFESSORES)
     atualizar_m(16,client, config.COLLECTION_ICS)
