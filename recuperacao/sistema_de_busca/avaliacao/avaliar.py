@@ -14,6 +14,8 @@ Exemplos (da raiz do repositório):
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto manual          # suas consultas
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 5 --so-pre        # teste rápido, sem reranker
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 0 --modos hibrida densa
+    python -m recuperacao.sistema_de_busca.avaliacao.avaliar --so-pre --modos hibrida --uniao media max top_m decaimento
+        (compara as formas de unir os tópicos; cada configuração vira "<modo>/<união>", referência = média)
 
 Saída: terminal + recuperacao/output/avaliacao_<data-hora>/ (log, consultas.csv, resumo.csv, resumo.json).
 """
@@ -27,22 +29,30 @@ from statistics import mean
 
 from recuperacao.sistema_de_busca import config
 from recuperacao.sistema_de_busca.avaliacao import conjunto, metricas
+from recuperacao.sistema_de_busca.busca.agregacao import MODOS_UNIAO
 from recuperacao.sistema_de_busca.busca.exibicao import PASTA_OUTPUT, salvar_em_txt
 
 MODOS = ["densa", "esparsa", "hibrida"]
+LARGURA = 26   # coluna "configuração" no resumo (cabe "hibrida+rerank/decaimento")
 
 
-def rodar_modo(rec, consultas: list[dict], modo: str, k: int, top_k: int, so_pre: bool) -> list[dict]:
-    """Roda todas as consultas com config.MODO_BUSCA = modo; uma linha por (consulta, configuração)."""
+def rodar_modo(rec, consultas: list[dict], modo: str, k: int, top_k: int, so_pre: bool,
+               uniao: str | None = None) -> list[dict]:
+    """Roda todas as consultas com config.MODO_BUSCA = modo (e config.UNIAO_TOPICOS = uniao, se dado);
+    uma linha por (consulta, configuração)."""
     antigo, config.MODO_BUSCA = config.MODO_BUSCA, modo
+    antiga_uniao = config.UNIAO_TOPICOS
+    if uniao:
+        config.UNIAO_TOPICOS = uniao
+    sufixo = f"/{uniao}" if uniao else ""
     linhas, inicio = [], time.perf_counter()
     try:
         for i, q in enumerate(consultas, start=1):
             rec.excluir = q["excluir"]
             try:
-                resultados = {modo: rec.pre_ranking(q["topicos"], top_k=top_k)}
+                resultados = {f"{modo}{sufixo}": rec.pre_ranking(q["topicos"], top_k=top_k)}
                 if not so_pre:
-                    resultados[f"{modo}+rerank"] = rec.recomendar(q["topicos"], top_k=top_k)
+                    resultados[f"{modo}+rerank{sufixo}"] = rec.recomendar(q["topicos"], top_k=top_k)
             finally:
                 rec.excluir = {}
             for nome, profs in resultados.items():
@@ -55,9 +65,10 @@ def rodar_modo(rec, consultas: list[dict], modo: str, k: int, top_k: int, so_pre
                     "_profs": profs,
                 })
             if i % 10 == 0 or i == len(consultas):
-                print(f"  [{modo}] {i}/{len(consultas)} consultas ({time.perf_counter() - inicio:.0f} s)", flush=True)
+                print(f"  [{modo}{sufixo}] {i}/{len(consultas)} consultas ({time.perf_counter() - inicio:.0f} s)", flush=True)
     finally:
         config.MODO_BUSCA = antigo
+        config.UNIAO_TOPICOS = antiga_uniao
     return linhas
 
 
@@ -109,8 +120,11 @@ def resumir(linhas: list[dict], k: int, referencia: str) -> list[dict]:
                 r[f"p_{m}"] = _wilcoxon([a[m] for a, _ in pares], [b[m] for _, b in pares])
         resumo.append(r)
     ordem = {nome: i for i, nome in enumerate(c for m in MODOS for c in (m, f"{m}+rerank"))}
+    unioes = list(dict.fromkeys(l["configuracao"].partition("/")[2] for l in linhas))
     conjuntos = list(dict.fromkeys(l["conjunto"] for l in linhas))
-    return sorted(resumo, key=lambda r: (conjuntos.index(r["conjunto"]), ordem.get(r["configuracao"], 99)))
+    return sorted(resumo, key=lambda r: (conjuntos.index(r["conjunto"]),
+                                         ordem.get(r["configuracao"].partition("/")[0], 99),
+                                         unioes.index(r["configuracao"].partition("/")[2])))
 
 
 def imprimir_resumo(resumo: list[dict], k: int, referencia: str) -> None:
@@ -118,14 +132,14 @@ def imprimir_resumo(resumo: list[dict], k: int, referencia: str) -> None:
     print("\n" + "=" * 100)
     print(f"RESUMO (média por consulta) | p = Wilcoxon pareado contra {referencia}")
     print("=" * 100)
-    cabecalho = f"{'configuração':<16} {'n':>4}  " + "  ".join(f"{m:>9}" for m in nomes) + f"  {'p nDCG':>8}  {'p MRR':>8}"
+    cabecalho = f"{'configuração':<{LARGURA}} {'n':>4}  " + "  ".join(f"{m:>9}" for m in nomes) + f"  {'p nDCG':>8}  {'p MRR':>8}"
     conjunto_atual = None
     for r in resumo:
         if r["conjunto"] != conjunto_atual:
             conjunto_atual = r["conjunto"]
             print(f"\n[{conjunto_atual}]\n{cabecalho}")
         p = [r.get(f"p_ndcg@{k}"), r.get("p_mrr")]
-        print(f"{r['configuracao']:<16} {r['consultas']:>4}  " + "  ".join(f"{r[m]:>9.3f}" for m in nomes)
+        print(f"{r['configuracao']:<{LARGURA}} {r['consultas']:>4}  " + "  ".join(f"{r[m]:>9.3f}" for m in nomes)
               + "".join(f"  {v:>8.4f}" if v is not None else f"  {'—':>8}" for v in p))
     print("\np < 0,05: diferença provavelmente real; acima disso pode ser ruído da amostra.")
 
@@ -147,6 +161,10 @@ def main() -> None:
     parser.add_argument("--modos", nargs="+", choices=MODOS, default=MODOS)
     parser.add_argument("--rankings", choices=["auto", "sim", "nao"], default="auto",
                         help="imprime o ranking de cada consulta (auto: só para o conjunto manual)")
+    parser.add_argument("--uniao", nargs="+", choices=list(MODOS_UNIAO),
+                        help="formas de unir os tópicos a comparar (padrão: só config.UNIAO_TOPICOS, sem sufixo)")
+    parser.add_argument("--normalizar-topicos", choices=["sim", "nao"],
+                        help="sobrescreve config.NORMALIZAR_TOPICOS nesta execução")
     parser.add_argument("--so-pre", action="store_true", help="só o pré-ranking (não carrega o reranker)")
     args = parser.parse_args()
 
@@ -175,7 +193,11 @@ def main() -> None:
         from recuperacao.sistema_de_busca.busca.reranking import carregar_reranker
         reranker = carregar_reranker()
     rec = Recomendador(client, carregar_modelo(), reranker)
-    referencia = "hibrida" if args.so_pre else "hibrida+rerank"
+    if args.normalizar_topicos:
+        config.NORMALIZAR_TOPICOS = args.normalizar_topicos == "sim"
+    unioes = args.uniao or [None]
+    ref_uniao = ("media" if "media" in unioes else unioes[0]) if args.uniao else None
+    referencia = ("hibrida" if args.so_pre else "hibrida+rerank") + (f"/{ref_uniao}" if ref_uniao else "")
 
     pasta = PASTA_OUTPUT / f"avaliacao_{datetime.now():%Y%m%d_%H%M%S}"
     pasta.mkdir(parents=True, exist_ok=True)
@@ -184,10 +206,13 @@ def main() -> None:
         for q in consultas:
             contagem[q["conjunto"]] = contagem.get(q["conjunto"], 0) + 1
         print(f"Consultas: {contagem} | k={args.k} | top_k={args.top_k} | modos={args.modos} | "
-              f"normalização={'sim' if config.NORMALIZAR_SCORES_BUSCA else 'não'} | reranker={'não' if args.so_pre else 'sim'}")
+              f"normalização={'sim' if config.NORMALIZAR_SCORES_BUSCA else 'não'} | "
+              f"união={args.uniao or config.UNIAO_TOPICOS} (normalizar tópicos: {'sim' if config.NORMALIZAR_TOPICOS else 'não'}, "
+              f"peso texto livre: {config.PESO_TEXTO_LIVRE}) | reranker={'não' if args.so_pre else 'sim'}")
         linhas = []
         for modo in args.modos:
-            linhas += rodar_modo(rec, consultas, modo, args.k, args.top_k, args.so_pre)
+            for uniao in unioes:
+                linhas += rodar_modo(rec, consultas, modo, args.k, args.top_k, args.so_pre, uniao)
         resumo = resumir(linhas, args.k, referencia)
         mostrar = args.rankings == "sim" or (args.rankings == "auto" and conjuntos == {"manual"})
         if mostrar:
