@@ -55,10 +55,14 @@
     [15000, "Quase lá: a primeira busca de um tema demora mais…"],
   ];
 
+  const API_MODAL = "https://ju-araujo--busca-orientadores-web.modal.run";
+
   const API = (() => {
     const param = new URLSearchParams(location.search).get("api");
     if (param) return param.replace(/\/+$/, "");
     if (location.protocol === "file:") return "http://localhost:8000";
+    // hospedado fora da API (ex.: GitHub Pages): usa a API do Modal
+    if (location.hostname.endsWith("github.io")) return API_MODAL;
     return "";
   })();
 
@@ -831,6 +835,39 @@
     const abrir = todos.some((d) => !d.open);
     for (const d of todos) d.open = abrir;
     atualizarBotaoTodos();
+  });
+
+  // ================================================================ exportar PDF
+  // Usa a impressão do navegador ("Salvar como PDF"). Durante a impressão: todos os detalhes abertos,
+  // tema claro e um título de arquivo com a data; depois volta tudo como estava.
+  // Preparação nos eventos do navegador: vale também para Ctrl+P / menu Imprimir, não só para o botão.
+  let restaurarImpressao = null;
+  function prepararImpressao() {
+    if (restaurarImpressao) return;
+    const raiz = document.documentElement;
+    const temaAntes = raiz.dataset.theme;
+    const tituloAntes = document.title;
+    const fechados = [...lista.querySelectorAll(".porque")].filter((d) => !d.open);
+    const data = new Date();
+
+    for (const d of fechados) d.open = true;
+    raiz.dataset.theme = "light";
+    document.title = `orientadores-recomendados-${data.toISOString().slice(0, 10)}`;
+    $("data-impressao").textContent = `Gerado em ${data.toLocaleString("pt-BR")}`;
+
+    restaurarImpressao = () => {
+      for (const d of fechados) d.open = false;
+      if (temaAntes === undefined) delete raiz.dataset.theme; else raiz.dataset.theme = temaAntes;
+      document.title = tituloAntes;
+      atualizarBotaoTodos();
+      restaurarImpressao = null;
+    };
+  }
+  window.addEventListener("beforeprint", prepararImpressao);
+  window.addEventListener("afterprint", () => restaurarImpressao && restaurarImpressao());
+  $("exportar-pdf").addEventListener("click", () => {
+    prepararImpressao();   // antes do print(): alguns navegadores (celular) não disparam beforeprint a tempo
+    window.print();
   });
 
   // ================================================================ comparação

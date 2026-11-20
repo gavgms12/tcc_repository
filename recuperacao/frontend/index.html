@@ -16,7 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E">
 </head>
 <body>
   <a class="pular" href="#questionario">Pular para o questionário</a>
@@ -166,9 +167,11 @@
           <div class="resultado-titulos">
             <h2 id="titulo-resultado" tabindex="-1">Professores recomendados</h2>
             <p id="meta-resultado" class="meta-resultado"></p>
+            <p id="data-impressao" class="so-impressao"></p>
           </div>
           <div class="resultado-acoes">
             <button id="alternar-todos" type="button" class="botao-texto">Abrir todos</button>
+            <button id="exportar-pdf" type="button" class="botao-texto">Exportar PDF</button>
             <button id="editar-busca" type="button" class="botao-texto">← Voltar ao questionário</button>
           </div>
           <ul id="resumo-busca" class="resumo-busca" aria-label="Termos da busca"></ul>
@@ -215,6 +218,6 @@
     <p class="rodape-credito">Trabalho de Conclusão de Curso · IESTI · Universidade Federal de Itajubá</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

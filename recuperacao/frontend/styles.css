@@ -811,8 +811,11 @@ textarea { min-height: 180px; max-height: 480px; font-size: 16px; padding: 16px 
   .tabela-comparar thead th { min-width: 168px; font-size: 15px; }
 }
 
+.so-impressao { display: none; }
+
 @media print {
-  .topo-barra, .painel, .barra-comparar, .resultado-acoes, .comparar, .rodape { display: none !important; }
+  .topo-barra, .painel, .barra-comparar, .resultado-acoes, .comparar, .rodape, .status, dialog { display: none !important; }
+  .so-impressao { display: block; font-size: 12px; color: var(--tinta-suave); margin-top: 4px; }
   body { background: #fff; }
   .layout { display: block; }
   .professor { break-inside: avoid; box-shadow: none; }

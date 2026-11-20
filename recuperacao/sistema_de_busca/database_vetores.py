@@ -93,6 +93,52 @@ def upsert_perfis(client: QdrantClient, collection_nome: str, perfis: list[dict]
 def deletar_collection(client, classe=''):
     client.delete_collection(classe)
 
+
+def remover_ausentes(client: QdrantClient, collection_nome: str, ids_atuais, simular: bool = False,
+                     limite_fracao: float = 0.3, forcar: bool = False, lote: int = 500) -> list[str]:
+    """Apaga da coleção os pontos cujo id não está mais nos dados atuais (ids_atuais = ids da gold).
+
+    Trava: se for apagar mais de limite_fracao da coleção (ex.: run da gold vazia ou incompleta),
+    não apaga nada, a não ser com forcar=True. simular=True só lista o que seria apagado.
+    Devolve os ids (originais, do payload) dos pontos ausentes."""
+    if not client.collection_exists(collection_nome):
+        return []
+    atuais = {qdrant_id(i) for i in ids_atuais}
+
+    ausentes, offset = {}, None   # id do ponto no Qdrant -> id original
+    total = 0
+    while True:
+        pontos, offset = client.scroll(collection_nome, limit=lote, offset=offset,
+                                       with_payload=["id"], with_vectors=False)
+        total += len(pontos)
+        for p in pontos:
+            if str(p.id) not in atuais:
+                ausentes[str(p.id)] = str((p.payload or {}).get("id", p.id))
+        if offset is None:
+            break
+
+    if not ausentes:
+        print(f"  {collection_nome}: nenhum ponto ausente")
+        return []
+
+    fracao = len(ausentes) / total
+    exemplos = ", ".join(list(ausentes.values())[:5])
+    print(f"  {collection_nome}: {len(ausentes)}/{total} pontos não estão mais nos dados ({fracao:.0%}). Ex.: {exemplos}")
+    if simular:
+        print("    (simulação: nada foi apagado)")
+        return list(ausentes.values())
+    if fracao > limite_fracao and not forcar:
+        print(f"    NÃO apagado: passa do limite de {limite_fracao:.0%} (a run da gold pode estar incompleta). "
+              f"Use --forcar-exclusao se for isso mesmo.")
+        return list(ausentes.values())
+
+    ids = list(ausentes)
+    for i in range(0, len(ids), lote):
+        client.delete(collection_name=collection_nome,
+                      points_selector=models.PointIdsList(points=ids[i:i + lote]), wait=True)
+    print(f"    {len(ids)} pontos apagados")
+    return list(ausentes.values())
+
 def filtrar_alterados(client: QdrantClient, collection_nome: str, perfis: list[dict], lote: int = 200) -> list[dict]:
     """Devolve só os perfis novos ou cujo hash mudou."""
     alterados = []
