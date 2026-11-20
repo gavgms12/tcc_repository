@@ -5,7 +5,11 @@ Rodar localmente (carrega os modelos e sobe em http://localhost:8000, docs em /d
 
 No Colab (GPU + link público): ver recuperacao/colab_api_busca.ipynb
 """
+import json
+import os
 import threading
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +24,23 @@ from recuperacao.sistema_de_busca.busca.exibicao import _melhores_itens, resumo_
 
 NOME_TEXTO_LIVRE = "Texto livre"
 PASTA_FRONTEND = Path(__file__).resolve().parents[1] / "frontend"   # recuperacao/frontend
+# Pasta onde cada busca (pedido + resposta) é salva como um JSON. Sem a variável, não salva nada.
+PASTA_LOG_BUSCAS = os.getenv("LOG_BUSCAS_DIR")
+
+
+def _salvar_busca(pedido: "PedidoBusca", resultado: dict) -> None:
+    """Um arquivo por busca (nome com data + id aleatório): buscas simultâneas não disputam o mesmo arquivo."""
+    if not PASTA_LOG_BUSCAS:
+        return
+    try:
+        agora = datetime.now(timezone.utc)
+        pasta = Path(PASTA_LOG_BUSCAS) / agora.strftime("%Y-%m-%d")
+        pasta.mkdir(parents=True, exist_ok=True)
+        registro = {"momento_utc": agora.isoformat(), "pedido": pedido.model_dump(), "resposta": resultado}
+        arquivo = pasta / f"{agora.strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}.json"
+        arquivo.write_text(json.dumps(registro, ensure_ascii=False), encoding="utf-8")
+    except Exception as erro:   # falha ao salvar nunca derruba a busca
+        print(f"Não foi possível salvar a busca: {erro}")
 
 
 class PedidoBusca(BaseModel):
@@ -85,6 +106,15 @@ def criar_app(rec) -> FastAPI:
 
     # front-end do questionário (recuperacao/frontend) no mesmo endereço da API
     if PASTA_FRONTEND.is_dir():
+        # O navegador sempre confere (pelo ETag) se há versão nova do front. Sem isso, no Modal os arquivos
+        # chegam com Last-Modified de 1970 e o navegador guarda o app.js antigo por anos.
+        @app.middleware("http")
+        async def sem_cache_frontend(request, call_next):
+            resposta = await call_next(request)
+            if request.url.path.startswith("/app"):
+                resposta.headers["Cache-Control"] = "no-cache"
+            return resposta
+
         app.mount("/app", StaticFiles(directory=PASTA_FRONTEND, html=True), name="frontend")
 
         @app.get("/", include_in_schema=False)
@@ -123,7 +153,9 @@ def criar_app(rec) -> FastAPI:
         if pre is not None:
             resultado["pre_ranking"] = pre
             resultado["tempos_pre_ranking"] = tempos_pre
-        return _limpar(resultado)
+        resultado = _limpar(resultado)
+        _salvar_busca(pedido, resultado)
+        return resultado
 
     return app
 
