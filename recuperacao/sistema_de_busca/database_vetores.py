@@ -41,11 +41,6 @@ def criar_collection_qdrant(client_qdrant, collection_nome):
         sparse_vectors_config={
             "sparse": SparseVectorParams(),
         },
-        hnsw_config=models.HnswConfigDiff(
-                m=0,  # Bulk load fast: m=0 (build links after ingest).
-                ef_construct=100,  # Build quality: used after we set m>0
-                full_scan_threshold=10,  # force HNSW instead of full scan
-        ),
     )
 
 # aplica filtro do payload antes da busca (colocar antes de adicionar dados)
@@ -278,11 +273,3 @@ def filtro_excluindo(filtro: models.Filter | None, ids) -> models.Filter | None:
     return models.Filter(must=filtro.must, should=filtro.should,
                          must_not=list(filtro.must_not or []) + [condicao])
 
-
-def atualizar_m(m, client, collection_name):
-    client.update_collection(
-        collection_name=collection_name,
-        hnsw_config=models.HnswConfigDiff(
-            m=m
-        ),
-    )

@@ -55,6 +55,12 @@
     [15000, "Quase lá: a primeira busca de um tema demora mais…"],
   ];
 
+  // ?debug=1 na URL mostra os scores brutos da API (para validar o ranking; o aluno não vê)
+  const DEBUG = new URLSearchParams(location.search).has("debug");
+  const fmtScore = (v) => (typeof v === "number" ? v.toFixed(3).replace(".", ",") : "—");
+  const dicaRel = (rel, score) =>
+    `${Math.round(rel * 100)}% do melhor nesta busca` + (DEBUG ? ` · score ${fmtScore(score)}` : "");
+
   const API_MODAL = "https://ju-araujo--busca-orientadores-web.modal.run";
 
   const API = (() => {
@@ -613,11 +619,18 @@
     return "moderada";
   }
 
+  // Níveis de cobertura de um tema: rel = score do professor no tema / maior score do tema na lista.
+  const NIVEIS_COBERTURA = [
+    { nivel: "forte", min: 0.8, frase: "forte em" },
+    { nivel: "boa", min: 0.6, frase: "boa cobertura em" },
+    { nivel: "média", min: 0.4, frase: "média em" },
+    { nivel: "baixa", min: 0.2, frase: "baixa em" },
+    { nivel: "fraca", min: 0, frase: "pouca evidência em" },
+  ];
+
   function nivelCobertura(rel) {
-    if (rel >= 0.75) return "forte";
-    if (rel >= 0.4) return "média";
-    if (rel > 0) return "fraca";
-    return "sem evidência";
+    if (!(rel > 0)) return "sem evidência";
+    return NIVEIS_COBERTURA.find((n) => rel >= n.min).nivel;
   }
 
   function medidor(valor, rotulo, slot) {
@@ -643,7 +656,7 @@
       const cobertura = topicos.map((t) => {
         const v = (p.scores_topicos || {})[t] || 0;
         const rel = maxTopico[t] ? v / maxTopico[t] : 0;
-        return { topico: t, rel, nivel: nivelCobertura(rel), slot: slot(t) };
+        return { topico: t, rel, score: v, nivel: nivelCobertura(rel), slot: slot(t) };
       });
       const disciplinas = new Set();
       for (const det of Object.values(p.topicos || {})) {
@@ -740,10 +753,12 @@
         el("h3", { id: idNome, texto: p.nome }),
         el("p", { class: "prof-resumo", texto: resumo })),
       el("label", { class: "comparar" }, marcar, el("span", { texto: "Comparar" })),
-      el("div", { class: "afinidade" },
+      el("div", { class: "afinidade", title: `${p.percentual}% da afinidade do 1º colocado` + (DEBUG ? ` · score ${fmtScore(p.bruto.score)}` : "") },
         el("span", { class: "nivel", texto: `Afinidade ${nivelAfinidade(p.percentual)}` }),
         medidor(p.percentual / 100, `Afinidade relativa: ${p.percentual}%`),
-        el("strong", { texto: `${p.percentual}%` })),
+        el("strong", { texto: `${p.percentual}%` }),
+        DEBUG ? el("span", { class: "debug-score",
+          texto: `final ${fmtScore(p.bruto.score)} · pré-ranking ${fmtScore(p.bruto.score_inicial)}` }) : null),
       selos.length ? el("div", { class: "selos" }, selos) : null,
     );
 
@@ -763,22 +778,22 @@
   }
 
   function blocoCobertura(p) {
-    const grupos = { forte: [], "média": [], fraca: [] };
+    const grupos = Object.fromEntries(NIVEIS_COBERTURA.map((n) => [n.nivel, []]));
     for (const c of p.cobertura) {
       if (grupos[c.nivel]) grupos[c.nivel].push(c.topico === NOME_TEXTO_LIVRE ? "seu texto" : c.topico);
     }
-    const frases = [];
-    if (grupos.forte.length) frases.push(`Forte em ${listaHumana(grupos.forte)}`);
-    if (grupos["média"].length) frases.push(`${frases.length ? "média" : "Média"} em ${listaHumana(grupos["média"])}`);
-    if (grupos.fraca.length) frases.push(`${frases.length ? "pouca" : "Pouca"} evidência em ${listaHumana(grupos.fraca)}`);
+    const frases = NIVEIS_COBERTURA
+      .filter((n) => grupos[n.nivel].length)
+      .map((n) => `${n.frase} ${listaHumana(grupos[n.nivel])}`);
+    if (frases.length) frases[0] = frases[0][0].toUpperCase() + frases[0].slice(1);
 
     return el("section", {},
       el("h4", { class: "bloco-titulo", texto: "Cobertura dos seus temas, comparada aos demais" }),
       frases.length ? el("p", { class: "frase-cobertura", texto: frases.join(" · ") + "." }) : null,
-      el("ul", { class: "coberturas" }, p.cobertura.map((c) => el("li", { class: "cobertura", "data-slot": c.slot },
+      el("ul", { class: "coberturas" }, p.cobertura.map((c) => el("li", { class: "cobertura", "data-slot": c.slot, title: dicaRel(c.rel, c.score) },
         el("span", { class: "cobertura-nome" }, el("span", { texto: nomeTopico(c.topico), title: nomeTopico(c.topico) })),
         medidor(c.rel, `${nomeTopico(c.topico)}: cobertura ${c.nivel}`, c.slot),
-        el("span", { class: "cobertura-nivel", texto: c.nivel }),
+        el("span", { class: "cobertura-nivel", texto: DEBUG ? `${c.nivel} · ${fmtScore(c.score)}` : c.nivel }),
       ))),
     );
   }
@@ -933,8 +948,8 @@
         const maxRel = melhorEntre(profs.map((p) => p.cobertura[k].rel));
         linha(nomeTopico(t), profs.map((p) => {
           const c = p.cobertura[k];
-          return el("div", { class: "celula-cobertura", "data-slot": c.slot },
-            el("span", { class: c.rel === maxRel && c.rel > 0 ? "melhor" : null, texto: c.nivel }),
+          return el("div", { class: "celula-cobertura", "data-slot": c.slot, title: dicaRel(c.rel, c.score) },
+            el("span", { class: c.rel === maxRel && c.rel > 0 ? "melhor" : null, texto: DEBUG ? `${c.nivel} · ${fmtScore(c.score)}` : c.nivel }),
             medidor(c.rel, `${p.nome}, ${nomeTopico(t)}: ${c.nivel}`, c.slot));
         }));
       });
