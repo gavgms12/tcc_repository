@@ -5,7 +5,7 @@ import pandas as pd
 from FlagEmbedding import FlagReranker
 
 from recuperacao.sistema_de_busca import config
-from recuperacao.sistema_de_busca.busca.agregacao import decaimento_da_fonte, media_decaimento
+from recuperacao.sistema_de_busca.busca.agregacao import decaimento_da_fonte, media_decaimento, uniao_topicos
 from recuperacao.sistema_de_busca.database_vetores import buscar_payloads_varios
 from recuperacao.sistema_de_busca.busca.cache_rerank import cache_disco, chave
 from recuperacao.sistema_de_busca.busca.disciplinas_tema import bonus as bonus_disciplinas, normalizar_nome
@@ -298,7 +298,8 @@ def rankear_professores(candidatos: list[dict]) -> list[dict]:
     return sorted(por_prof.values(), key=lambda x: x["rerank_score"], reverse=True)
 
 def unir_rerank(por_topico: dict[str, list[dict]]) -> list[dict]:
-    """Média do rerank de cada professor entre os tópicos, guardando o detalhe de cada um."""
+    """Junta o rerank de cada professor entre os tópicos com a mesma regra do pré-ranking (uniao_topicos:
+    UNIAO_TOPICOS, NORMALIZAR_TOPICOS, PESO_TEXTO_LIVRE), guardando o detalhe de cada um."""
     unidos: dict[str, dict] = {}
     for topico, ranking in por_topico.items():
         for r in ranking:
@@ -310,6 +311,9 @@ def unir_rerank(por_topico: dict[str, list[dict]]) -> list[dict]:
             })
             d["scores_topicos"][topico] = r["rerank_score"]
             d["topicos"][topico] = r
-    for d in unidos.values():
-        d["rerank_score"] = sum(d["scores_topicos"].values()) / len(por_topico)
+    if unidos:
+        tabela = pd.DataFrame.from_dict({pid: d["scores_topicos"] for pid, d in unidos.items()}, orient="index")
+        finais = uniao_topicos(tabela[list(por_topico)])
+        for pid, d in unidos.items():
+            d["rerank_score"] = float(finais[pid])
     return sorted(unidos.values(), key=lambda x: x["rerank_score"], reverse=True)
