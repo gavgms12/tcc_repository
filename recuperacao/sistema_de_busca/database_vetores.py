@@ -58,12 +58,14 @@ def garantir_colecao(client, nome: str, campos_inteiros: tuple[str, ...] = ()) -
             vectors_config={"dense": VectorParams(size=config.VECTOR_SIZE, distance=Distance.COSINE)},
             sparse_vectors_config={"sparse": SparseVectorParams()},
         )
-        for campo in campos_inteiros:
-            client.create_payload_index(
-                collection_name=nome,
-                field_name=campo,
-                field_schema=models.PayloadSchemaType.INTEGER,
-            )
+    # Fora do `if`: uma coleção que já existia também ganha o índice de um campo novo
+    # (criar de novo um índice que já existe não dá erro).
+    for campo in campos_inteiros:
+        client.create_payload_index(
+            collection_name=nome,
+            field_name=campo,
+            field_schema=models.PayloadSchemaType.INTEGER,
+        )
 
 def upsert_perfis(client: QdrantClient, collection_nome: str, perfis: list[dict],
                   embeddings: dict[str, dict], lote: int = 50) -> None:
@@ -181,7 +183,7 @@ def em_paralelo(tarefas: dict, max_workers: int = 8) -> dict:
 
 
 def busca_hibrida(client, collection_nome: str, emb: dict, limit: int,
-                  campos=("id", "nome", "titulo", "professor_ids", "tipo"), filtro=None):
+                  campos=("id", "nome", "titulo", "professor_ids", "tipo", "anos_professores"), filtro=None):
     """Busca conforme config.MODO_BUSCA ("hibrida", "densa" ou "esparsa"). Não traz o texto (só os campos pedidos)."""
     if not colecao_existe(client, collection_nome):
         return []

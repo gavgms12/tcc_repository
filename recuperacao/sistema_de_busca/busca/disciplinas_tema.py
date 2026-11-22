@@ -31,7 +31,8 @@ def catalogo_disciplinas(client) -> list[dict]:
         while True:
             pontos, offset = client.scroll(
                 config.COLLECTION_DISCIPLINAS, limit=500, offset=offset,
-                with_payload=["id", "nome", "codigo", "professor_ids", "texto"], with_vectors=False,
+                with_payload=["id", "nome", "codigo", "professor_ids", "anos_professores", "texto"],
+                with_vectors=False,
             )
             payloads += [p.payload for p in pontos]
             if offset is None:
@@ -40,12 +41,49 @@ def catalogo_disciplinas(client) -> list[dict]:
     return _catalogo[id(client)]
 
 
-def disciplinas_do_topico(client, topico: str) -> list[dict]:
-    """Disciplinas (payloads) cujo nome está na lista "disciplinas" do tópico. Vazio para texto livre."""
+def ano_min_disciplinas(ano_min=None, piso=None):
+    """Ano inicial das disciplinas: o do aluno, mas nunca antes de config.ANO_MINIMO_DISCIPLINAS."""
+    piso = config.ANO_MINIMO_DISCIPLINAS if piso is None else piso
+    if piso is None:
+        return ano_min
+    return piso if ano_min is None else max(ano_min, piso)
+
+
+def professores_no_periodo(payload: dict, ano_min=None, ano_max=None) -> list:
+    """`professor_ids` da disciplina, só com quem a lecionou em algum ano entre ano_min e ano_max.
+
+    Sem filtro de ano, ou sem "anos_professores" no payload (índice antigo), não corta ninguém.
+    """
+    ids = payload.get("professor_ids") or []
+    anos = payload.get("anos_professores")
+    if (ano_min is None and ano_max is None) or anos is None:
+        return ids
+    return [
+        pid for pid in ids
+        if any((ano_min is None or a >= ano_min) and (ano_max is None or a <= ano_max)
+               for a in anos.get(str(pid), ()))
+    ]
+
+
+def restringir_ao_periodo(pontos, ano_min=None, ano_max=None):
+    """Corta de cada ponto de disciplina os professores que não a lecionaram no período (altera o payload)."""
+    for p in pontos:
+        p.payload["professor_ids"] = professores_no_periodo(p.payload, ano_min, ano_max)
+    return pontos
+
+
+def disciplinas_do_topico(client, topico: str, ano_min=None, ano_max=None) -> list[dict]:
+    """Disciplinas (payloads) cujo nome está na lista "disciplinas" do tópico. Vazio para texto livre.
+
+    Com filtro de ano, cada disciplina só fica com os professores que a lecionaram no período.
+    """
     nomes = {normalizar_nome(n) for n in config.disciplinas_topico(topico)}
     if not nomes:
         return []
-    return [d for d in catalogo_disciplinas(client) if normalizar_nome(d.get("nome")) in nomes]
+    return [
+        d | {"professor_ids": professores_no_periodo(d, ano_min, ano_max)}
+        for d in catalogo_disciplinas(client) if normalizar_nome(d.get("nome")) in nomes
+    ]
 
 
 def bonus(qtd_disciplinas: int) -> float:

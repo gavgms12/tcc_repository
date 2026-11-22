@@ -691,7 +691,7 @@
     // cabeçalho
     const n = analise.profs.length;
     const meta = [n ? plural(n, ["professor", "professores"]) : "Nenhum professor"];
-    if (pedido.ano_min) meta.push(`trabalhos desde ${pedido.ano_min}`);
+    if (pedido.ano_min) meta.push(`trabalhos e disciplinas desde ${pedido.ano_min}`);
     if (ctx.segundos) meta.push(`${ctx.segundos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s`);
     metaResultado.textContent = meta.join(" · ");
     resumoBusca.replaceChildren(...analise.topicos.map((t) => el("li", {

@@ -60,6 +60,11 @@ MIN_SCORE_PROFESSOR_RELATIVO = 0
 #   - bônus somado ao score do tópico: BONUS_DISCIPLINA_TEMA por disciplina (nome distinto), até o teto;
 #     0 -> só marca na resposta ("disciplina_do_tema"), sem mudar o score.
 BONUS_DISCIPLINA_TEMA = 0.05
+
+# Piso do ano das disciplinas: só contam as que o professor lecionou a partir deste ano, mesmo com o
+# campo de ano vazio ou com um ano anterior; um ano posterior escolhido pelo aluno vale normalmente.
+# None desliga o piso.
+ANO_MINIMO_DISCIPLINAS = 2020
 BONUS_DISCIPLINA_TEMA_MAX = 0.10
 
 # Consulta usada no reranking (a busca continua usando o texto completo do tópico):
@@ -547,7 +552,9 @@ FONTES_ITENS = {
         "pesos_internos": {
             "padrao": 1.0
         },
-        "filtra_ano": False
+        # "ano" da disciplina = todos os anos em que foi lecionada; o corte por professor
+        # (quem a lecionou no período) é feito na busca, com "anos_professores".
+        "filtra_ano": True
     }
 }
 
