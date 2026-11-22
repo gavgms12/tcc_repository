@@ -8,7 +8,7 @@ from recuperacao.sistema_de_busca.modelo import embedar_consultas
 from recuperacao.sistema_de_busca.database_vetores import (busca_hibrida, buscar_payloads_varios, em_paralelo, filtro_ano,
                                                            filtro_excluindo)
 from .agregacao import combinar_scores, decaimento_da_fonte, hits_para_df, score_top_n, scores_perfis, unir_topicos
-from .disciplinas_tema import disciplinas_do_topico, professores_do_topico
+from .disciplinas_tema import disciplinas_do_topico
 from .reranking import (adicionar_disciplinas_tema, aplicar_corte, consultas_rerank, criar_candidatos, ids_candidatos,
                         pontuar_candidatos, rankear_professores, unir_rerank)
 from .diagnostico import explicar_pre_ranking, explicar_reranking, verificar_pesos_internos
@@ -95,18 +95,6 @@ class Recomendador:
         }
         todos = unir_topicos(rankings)
         ranking = todos[todos["professor_id"].isin(com_itens)].head(config.FINAL_PROFESSOR_K)
-
-        # quem leciona disciplina do tema entra mesmo fora dos melhores da busca (no fim da lista)
-        if config.INCLUIR_PROFESSOR_DISCIPLINA_TEMA:
-            extras = set().union(*(professores_do_topico(self.client, t) for t in topicos))
-            extras -= set(ranking["professor_id"])
-            if extras:
-                achados = todos[todos["professor_id"].isin(extras)]
-                novos = pd.DataFrame([
-                    {"professor_id": pid, **{t: 0.0 for t in topicos}, "score_final": 0.0}
-                    for pid in sorted(extras - set(achados["professor_id"]))
-                ], columns=todos.columns)
-                ranking = pd.concat([f for f in (ranking, achados, novos) if not f.empty], ignore_index=True)
         return ranking, rankings, rels
 
     def pre_ranking(self, topicos: dict[str, str], top_k: int = 10, ano_min=None, ano_max=None,

@@ -2,8 +2,7 @@
 
 Quem leciona uma disciplina listada no tema é evidência direta (não depende do modelo):
   - a disciplina entra sempre como candidata do professor e não é cortada;
-  - o professor ganha um bônus no score do tópico (config.BONUS_DISCIPLINA_TEMA);
-  - opcionalmente, o professor entra no ranking mesmo fora dos melhores da busca.
+  - o professor ganha um bônus no score do tópico (config.BONUS_DISCIPLINA_TEMA).
 
 O casamento é pelo nome, ignorando acentos, maiúsculas, pontuação e um código no início
 ("SD122 Circuitos Digitais I" casa com "Circuitos Digitais I"). Um mesmo nome pode ter vários
@@ -47,11 +46,6 @@ def disciplinas_do_topico(client, topico: str) -> list[dict]:
     if not nomes:
         return []
     return [d for d in catalogo_disciplinas(client) if normalizar_nome(d.get("nome")) in nomes]
-
-
-def professores_do_topico(client, topico: str) -> set[str]:
-    """Professores que lecionam alguma disciplina do tópico."""
-    return {str(pid) for d in disciplinas_do_topico(client, topico) for pid in d.get("professor_ids") or []}
 
 
 def bonus(qtd_disciplinas: int) -> float:
