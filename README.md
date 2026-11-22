@@ -252,4 +252,4 @@ Cobrem as chaves datadas e a leitura da Bronze, os caches (ementas, IC, Lattes),
 
 ## Próximos passos
 
-- Limitar as disciplinas a 2022 em diante, para que disciplinas antigas não influenciem o perfil.
+- Limitar as disciplinas a 2022 em diante, para que disciplinas antigas não influenciem o perfil. Os anos já chegam à Gold em `disciplinasPorAno` de cada perfil; falta aplicar o filtro.

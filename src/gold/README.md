@@ -39,9 +39,10 @@ Campos do perfil:
 | `projetos` | Lattes | lista de IDs → `projetos.json` |
 | `orientacoes` | Lattes | lista de IDs → `orientacoes.json` |
 | `disciplinas` | SIGAA (`disciplinasSigaa`) | lista de `idSigaa` → `disciplinas.json` |
+| `disciplinasPorAno` | SIGAA (`anosDisciplinasSigaa`) | ano → `idSigaa` das disciplinas que o docente lecionou naquele ano (`{"2025": ["46624", "5098"], "2024": [...]}`), do ano mais recente ao mais antigo. Complementa `disciplinas`, que continua igual |
 | `trabalhosIniciacaoCientifica` | SIGAA e Lattes | lista de IDs → `trabalhos_ic.json` |
 
-Nenhum perfil cita o mesmo trabalho duas vezes. Depois de deduplicar cada catálogo, `deduplicar_perfil` compara as seções do perfil entre si (título igual sem caixa, acentos e pontuação, ou o mesmo título sem subtítulo a partir de 5 palavras) e mantém a entrada da seção com mais texto, nesta ordem: trabalhos de IC, projetos, produções, orientações, disciplinas. Disciplinas de mesmo nome ou com ementas parecidas (sigla antiga/nova, teoria/prática) viram uma só, e fica a versão ministrada mais recentemente (a Silver já entrega `disciplinasSigaa` do período mais recente para o mais antigo); se ela não tem ementa, recebe a de uma versão antiga de mesmo nome.
+Nenhum perfil cita o mesmo trabalho duas vezes. Depois de deduplicar cada catálogo, `deduplicar_perfil` compara as seções do perfil entre si (título igual sem caixa, acentos e pontuação, ou o mesmo título sem subtítulo a partir de 5 palavras) e mantém a entrada da seção com mais texto, nesta ordem: trabalhos de IC, projetos, produções, orientações, disciplinas. Disciplinas de mesmo nome ou com ementas parecidas (sigla antiga/nova, teoria/prática) viram uma só, e fica a versão ministrada mais recentemente (a Silver já entrega `disciplinasSigaa` do período mais recente para o mais antigo); se ela não tem ementa, recebe a de uma versão antiga de mesmo nome. Os anos das versões removidas passam para a que ficou, então `disciplinasPorAno` cobre todas as vezes em que a matéria foi ministrada.
 
 `unificar_perfis.py` valida, ao final, se cada perfil tem conteúdo textual suficiente para um embedding útil (sem resumo nem tópicos, texto duplicado entre campos, ou algum ID que vazou como texto) e imprime um aviso por professor problemático — não descarta nada silenciosamente.
 

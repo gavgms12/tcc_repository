@@ -340,3 +340,43 @@ def test_versao_de_mesmo_nome_de_disciplina_removida_tambem_sai():
     perfil = {"disciplinas": ["teoria", "pratica_nova", "pratica_antiga"]}
     g.deduplicar_perfil(perfil, catalogos)
     assert perfil["disciplinas"] == ["teoria"]
+
+
+
+def test_montar_perfil_agrupa_disciplinas_por_ano():
+    sigaa = {
+        "siape": "10", "disciplinasSigaa": ["5", "6", "7"],
+        "anosDisciplinasSigaa": [
+            {"idSigaa": "5", "anos": [2025, 2023]},
+            {"idSigaa": "6", "anos": [2025]},
+            {"idSigaa": "fora_do_perfil", "anos": [2020]},
+        ],
+    }
+    perfil = g.montar_perfil_unificado(sigaa, None, {}, {}, {}, {}, {})
+    # `disciplinas` não muda: é o que a indexação do Qdrant lê.
+    assert perfil["disciplinas"] == ["5", "6", "7"]
+    assert perfil["disciplinasPorAno"] == {"2025": ["5", "6"], "2023": ["5"]}
+
+
+def test_deduplicar_perfil_junta_anos_da_versao_removida():
+    ementa = "Programação orientada a objetos: classes, herança, polimorfismo e interfaces."
+    catalogos = {
+        "disciplinas": {
+            "nova": {"nome": "Técnicas de Programação", "ementa": ementa},
+            "antiga": {"nome": "TÉCNICAS DE PROGRAMAÇÃO", "ementa": None},
+            "pratica": {"nome": "POO (Prática)", "ementa": ementa.upper()},
+            "redes": {"nome": "Redes", "ementa": "Camadas e protocolos."},
+        }
+    }
+    perfil = {
+        "disciplinas": ["nova", "redes", "antiga", "pratica"],
+        "disciplinasPorAno": {
+            "2025": ["nova", "pratica"], "2024": ["redes"],
+            "2021": ["pratica"], "2019": ["antiga"],
+        },
+    }
+    g.deduplicar_perfil(perfil, catalogos)
+    assert perfil["disciplinas"] == ["nova", "redes"]
+    assert perfil["disciplinasPorAno"] == {
+        "2025": ["nova"], "2024": ["redes"], "2021": ["nova"], "2019": ["nova"],
+    }

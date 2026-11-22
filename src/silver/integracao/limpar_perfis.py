@@ -394,6 +394,30 @@ def normalizar_disciplinas(disciplinas_ministradas: list[dict]) -> list[str]:
     return sorted(ultimo_periodo, key=lambda i: (ultimo_periodo[i], i), reverse=True)
 
 
+def anos_por_disciplina(disciplinas_ministradas: list[dict]) -> list[dict]:
+    """Anos em que o docente ministrou cada disciplina.
+
+    Uma entrada por idSigaa, na mesma ordem de `normalizar_disciplinas`, com os
+    anos sem repetição do mais recente para o mais antigo (o semestre é
+    descartado: "2025.2" conta como 2025). Fica como lista de registros, e não
+    como dict, porque o Parquet exige colunas de esquema fixo. A Gold usa isso
+    para agrupar as disciplinas do perfil por ano.
+    """
+    anos: dict[str, set[int]] = {}
+    for disciplina in disciplinas_ministradas:
+        id_sigaa = disciplina.get("idSigaa")
+        if not id_sigaa:
+            continue
+        ano = chave_periodo(disciplina.get("periodo"))[0]
+        conjunto = anos.setdefault(id_sigaa, set())
+        if ano:
+            conjunto.add(ano)
+    return [
+        {"idSigaa": id_sigaa, "anos": sorted(anos[id_sigaa], reverse=True)}
+        for id_sigaa in normalizar_disciplinas(disciplinas_ministradas)
+    ]
+
+
 def construir_catalogos_disciplinas(
     componentes_payload: dict,
     docentes_payload: dict,
@@ -540,9 +564,8 @@ def montar_perfil_sigaa(
 
     docente_sigaa = docentes_sigaa_por_siape.get(siape, {}) if siape else {}
     perfil = limpar_perfil_sigaa(docente_sigaa)
-    disciplinas = normalizar_disciplinas(
-        docente_sigaa.get("disciplinasMinistradas", [])
-    )
+    ministradas = docente_sigaa.get("disciplinasMinistradas", [])
+    disciplinas = normalizar_disciplinas(ministradas)
 
     return {
         "nome": identidade.get("nome"),
@@ -554,6 +577,7 @@ def montar_perfil_sigaa(
         "formacaoAcademicaProfissional": perfil["formacaoAcademicaProfissional"],
         "areasInteresse": perfil["areasInteresse"],
         "disciplinasSigaa": disciplinas,
+        "anosDisciplinasSigaa": anos_por_disciplina(ministradas),
         "trabalhosIniciacaoCientifica": (
             trabalhos_por_siape.get(siape, []) if siape else []
         ),
