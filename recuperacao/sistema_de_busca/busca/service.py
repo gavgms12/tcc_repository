@@ -8,7 +8,7 @@ from recuperacao.sistema_de_busca.modelo import embedar_consultas
 from recuperacao.sistema_de_busca.database_vetores import (busca_hibrida, buscar_payloads_varios, em_paralelo, filtro_ano,
                                                            filtro_excluindo)
 from .agregacao import combinar_scores, decaimento_da_fonte, hits_para_df, score_top_n, scores_perfis, unir_topicos
-from .disciplinas_tema import disciplinas_do_topico, professores_do_topico
+from .disciplinas_tema import ano_min_disciplinas, disciplinas_do_topico, restringir_ao_periodo
 from .reranking import (adicionar_disciplinas_tema, aplicar_corte, consultas_rerank, criar_candidatos, ids_candidatos,
                         pontuar_candidatos, rankear_professores, unir_rerank)
 from .diagnostico import explicar_pre_ranking, explicar_reranking, verificar_pesos_internos
@@ -35,9 +35,10 @@ class Recomendador:
         finally:
             self.tempos[etapa] = self.tempos.get(etapa, 0.0) + time.perf_counter() - inicio
 
-    def _buscar(self, topicos: dict[str, str], filtro) -> dict[tuple[str, str], list]:
+    def _buscar(self, topicos: dict[str, str], filtro, filtro_disciplina=None) -> dict[tuple[str, str], list]:
         """Embedding de todos os tópicos (um lote só) e busca híbrida de cada (tópico, coleção) em paralelo.
 
+        filtro_disciplina: filtro de ano próprio das disciplinas (tem o piso ANO_MINIMO_DISCIPLINAS).
         Retorna {(tópico, "professor" ou tipo): pontos}.
         """
         with self._medir("embedding"):
@@ -48,7 +49,8 @@ class Recomendador:
                 lambda emb=emb: busca_hibrida(self.client, config.COLLECTION_PROFESSORES, emb, config.LIMIT_PROFESSORES)
             )
             for tipo, cfg in config.FONTES_ITENS.items():
-                filtro_tipo = filtro_excluindo(filtro if cfg.get("filtra_ano") else None, self.excluir.get(tipo))
+                f_ano = filtro_disciplina if tipo == "disciplina" else filtro
+                filtro_tipo = filtro_excluindo(f_ano if cfg.get("filtra_ano") else None, self.excluir.get(tipo))
                 tarefas[(topico, tipo)] = (
                     lambda emb=emb, cfg=cfg, f=filtro_tipo: busca_hibrida(
                         self.client, cfg["collection"], emb, cfg["limit"], filtro=f,
@@ -78,11 +80,16 @@ class Recomendador:
     def _ranking_inicial(self, topicos: dict[str, str], ano_min=None, ano_max=None, debug=False):
         """1ª e 2ª etapas: pré-ranking por tópico, união dos tópicos e corte nos melhores professores."""
         filtro = filtro_ano(ano_min, ano_max)
+        ano_min_disc = ano_min_disciplinas(ano_min)
 
         # 1ª etapa: pré-ranking separado para cada tópico
         rankings, rels = {}, {}
         with self._medir("busca"):
-            resultados = self._buscar(topicos, filtro)
+            resultados = self._buscar(topicos, filtro, filtro_ano(ano_min_disc, ano_max))
+            # O filtro do Qdrant só tira disciplinas que ninguém lecionou no período; o ano é
+            # por professor, então quem só a lecionou fora do período sai aqui.
+            for topico in topicos:
+                restringir_ao_periodo(resultados.get((topico, "disciplina"), []), ano_min_disc, ano_max)
             for topico in topicos:
                 rankings[topico], rels[topico] = self._pre_rankear(topico, resultados, debug)
 
@@ -95,18 +102,6 @@ class Recomendador:
         }
         todos = unir_topicos(rankings)
         ranking = todos[todos["professor_id"].isin(com_itens)].head(config.FINAL_PROFESSOR_K)
-
-        # quem leciona disciplina do tema entra mesmo fora dos melhores da busca (no fim da lista)
-        if config.INCLUIR_PROFESSOR_DISCIPLINA_TEMA:
-            extras = set().union(*(professores_do_topico(self.client, t) for t in topicos))
-            extras -= set(ranking["professor_id"])
-            if extras:
-                achados = todos[todos["professor_id"].isin(extras)]
-                novos = pd.DataFrame([
-                    {"professor_id": pid, **{t: 0.0 for t in topicos}, "score_final": 0.0}
-                    for pid in sorted(extras - set(achados["professor_id"]))
-                ], columns=todos.columns)
-                ranking = pd.concat([f for f in (ranking, achados, novos) if not f.empty], ignore_index=True)
         return ranking, rankings, rels
 
     def pre_ranking(self, topicos: dict[str, str], top_k: int = 10, ano_min=None, ano_max=None,
@@ -200,7 +195,8 @@ class Recomendador:
             for topico, texto in topicos.items():
                 with self._medir("candidatos"):
                     candidatos = criar_candidatos(self.client, ranking, rels[topico], payloads)
-                    candidatos = adicionar_disciplinas_tema(candidatos, disciplinas_do_topico(self.client, topico))
+                    candidatos = adicionar_disciplinas_tema(candidatos, disciplinas_do_topico(
+                        self.client, topico, ano_min_disciplinas(ano_min), ano_max))
                 with self._medir("modelo_reranker"):
                     candidatos = pontuar_candidatos(self.reranker, consultas_rerank(topico, texto), candidatos)
                 candidatos = aplicar_corte(candidatos)

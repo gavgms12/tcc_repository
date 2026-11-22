@@ -1,16 +1,17 @@
 import pandas as pd
 from transformers import AutoTokenizer
-from storage.minio_storage import ler_json_gold
+from src.storage.minio_storage import ler_json_gold
 from recuperacao.sistema_de_busca.indexacao.perfis import criar_perfis, _ano
 from recuperacao.sistema_de_busca.textos import (
     producao_montar_texto_para_modelo,
     ics_montar_texto_para_modelo,
     professor_montar_texto_para_modelo,
     projeto_montar_texto_para_modelo,
-    orientacao_montar_texto_para_modelo
+    orientacao_montar_texto_para_modelo,
+    disciplina_montar_texto_para_modelo,
 )
 from recuperacao.sistema_de_busca.indexacao.relacoes import construir_relacoes, professores_por_objeto
-from storage.minio_storage import ultima_run_gold, ler_jsons_gold, GOLD
+from recuperacao.sistema_de_busca.indexacao.execucao import ultima_run_gold, ler_jsons_gold
 
 def contar_tokens(tokanizer,perfis: list[dict]) -> pd.Series:
     ids = tokanizer([p["texto"] for p in perfis], truncation=False)["input_ids"]
@@ -33,6 +34,7 @@ def main() -> None:
     producoes = ler_json_gold(f"{run}producoes.json")
     projetos = ler_json_gold(f"{run}projetos.json")
     orientacoes = ler_json_gold(f"{run}orientacoes.json")
+    disciplinas = ler_json_gold(f"{run}disciplinas.json")
     
     relacoes = construir_relacoes(professores)
     mapa_ic = professores_por_objeto(relacoes, "ic")
@@ -40,7 +42,7 @@ def main() -> None:
     mapa_producoes = professores_por_objeto(relacoes, "producao")
     mapa_orientacoes = professores_por_objeto(relacoes, "orientacao")
     
-    #mapa_disciplina = professores_por_objeto(relacoes, "disciplina")
+    mapa_disciplina = professores_por_objeto(relacoes, "disciplina")
     perfis_ics = criar_perfis(
         ics, ics_montar_texto_para_modelo, "id",
         lambda t: {"titulo": t.get("titulo"), "ano": _ano(t.get("ano"))},
@@ -67,7 +69,12 @@ def main() -> None:
         orientacoes, orientacao_montar_texto_para_modelo, "id",
         lambda p: {"titulo": p.get("titulo"),"ano": _ano(p.get("ano_inicio")), "tipo": p.get("tipo")}, mapa_orientacoes,
     )
+    perfis_disciplinas = criar_perfis(
+        disciplinas, disciplina_montar_texto_para_modelo, "idSigaa",
+        lambda p: {"codigo": p.get("codigo"), "nome": p.get("nome")}, mapa_disciplina,
+    )
     resumo_tokens(tokenizer,"professores", perfis_professores)
+    resumo_tokens(tokenizer, "disciplinas", perfis_disciplinas)
     resumo_tokens(tokenizer, "ics", perfis_ics)
     resumo_tokens(tokenizer, "projetos", perfis_projetos)
     resumo_tokens(tokenizer, "orientacoes", perfis_orientacoes)
@@ -77,7 +84,7 @@ def main() -> None:
     consulta = "Quero desenvolver um projeto de programação embarcada usando microcontroladores"
     n_consulta = len(tokenizer(consulta)["input_ids"])
 
-    tokens = contar_tokens(tokenizer, perfis_professores)
+    tokens = contar_tokens(tokenizer, perfis_ics)
     print("Limite para o documento:", 512 - n_consulta)
     print("Cortados no reranker:", (tokens > 512 - n_consulta).sum(), "de", len(tokens))
 

@@ -6,7 +6,10 @@ load_dotenv()
 
 EMBEDDING_MODEL = 'BAAI/bge-m3'
 RERANKER_MODEL  = 'BAAI/bge-reranker-v2-m3'
-VECTOR_SIZE     = 1024
+VECTOR_SIZE     = 1024   # dimensão do vetor denso: vem do modelo (hidden_size do BGE-M3), não é ajustável
+# Limite de tokens dos documentos na indexação (o BGE-M3 suporta até 8192; o padrão da biblioteca é 512).
+# 1024 cobre todos os itens medidos em indexacao/tokenizar.py. As consultas seguem no padrão (512).
+EMBEDDING_MAX_LENGTH = 1024
 
 # Cache em disco das notas do reranker (preenchido por indexacao/prerankear.py).
 # None desliga o cache em disco. A variável de ambiente RERANK_CACHE_PATH troca o caminho (usada no Colab).
@@ -55,12 +58,14 @@ MIN_SCORE_PROFESSOR_RELATIVO = 0
 # Disciplinas do tema (campo "disciplinas" em TOPICOS): quem leciona uma delas é evidência direta.
 #   - a disciplina sempre entra como candidata do professor e não é cortada;
 #   - bônus somado ao score do tópico: BONUS_DISCIPLINA_TEMA por disciplina (nome distinto), até o teto;
-#     0 -> só marca na resposta ("disciplina_do_tema"), sem mudar o score;
-#   - INCLUIR_PROFESSOR_DISCIPLINA_TEMA: professores que lecionam disciplina do tema entram no
-#     reranking mesmo fora dos FINAL_PROFESSOR_K melhores da busca.
+#     0 -> só marca na resposta ("disciplina_do_tema"), sem mudar o score.
 BONUS_DISCIPLINA_TEMA = 0.05
+
+# Piso do ano das disciplinas: só contam as que o professor lecionou a partir deste ano, mesmo com o
+# campo de ano vazio ou com um ano anterior; um ano posterior escolhido pelo aluno vale normalmente.
+# None desliga o piso.
+ANO_MINIMO_DISCIPLINAS = 2020
 BONUS_DISCIPLINA_TEMA_MAX = 0.10
-INCLUIR_PROFESSOR_DISCIPLINA_TEMA = False
 
 # Consulta usada no reranking (a busca continua usando o texto completo do tópico):
 #   "texto"  -> texto completo do tópico (comportamento antigo)
@@ -476,7 +481,7 @@ FINAL_PROFESSOR_K = 15
 #   "top_m"      média dos UNIAO_TOPICOS_M melhores tópicos
 #   "decaimento" média ponderada com os pesos de UNIAO_TOPICOS_DECAIMENTO (ver DECAIMENTO);
 #                o melhor tópico pesa mais, mas a cobertura ainda conta
-UNIAO_TOPICOS = "decaimento"
+UNIAO_TOPICOS = "media"
 UNIAO_TOPICOS_M = 2
 UNIAO_TOPICOS_DECAIMENTO = "log"
 # Divide os scores de cada tópico pelo maior daquele tópico antes de unir (todo tópico passa a ter 1 no topo),
@@ -547,7 +552,9 @@ FONTES_ITENS = {
         "pesos_internos": {
             "padrao": 1.0
         },
-        "filtra_ano": False
+        # "ano" da disciplina = todos os anos em que foi lecionada; o corte por professor
+        # (quem a lecionou no período) é feito na busca, com "anos_professores".
+        "filtra_ano": True
     }
 }
 

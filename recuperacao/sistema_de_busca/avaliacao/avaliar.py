@@ -15,14 +15,24 @@ Exemplos (da raiz do repositório):
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 5 --so-pre        # teste rápido, sem reranker
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --n 0 --modos hibrida densa
     python -m recuperacao.sistema_de_busca.avaliacao.avaliar --so-pre --modos hibrida --uniao media max top_m decaimento
-        (compara as formas de unir os tópicos; cada configuração vira "<modo>/<união>", referência = média)
+        (compara as formas de unir os tópicos; cada configuração vira "<modo>/uniao=<valor>")
+
+Análise de sensibilidade (--variar): muda UM parâmetro por vez, mantendo os demais como em config.py.
+A configuração atual (sem sufixo) é a referência do Wilcoxon e das colunas "dif".
+    python -m recuperacao.sistema_de_busca.avaliacao.avaliar --modos hibrida --n 150 \
+        --variar corte=0,0.05,0.2 peso_texto=1.0,1.5 rerank_consulta=nome,texto pesos=iguais
+    Parâmetros: {PARAMS}
+    Os que só afetam o reranking (corte, corte_por_tipo, rerank_consulta, final_k) não geram
+    linha de pré-ranking (seria igual à base) e são ignorados com --so-pre.
 
 Saída: terminal + recuperacao/output/avaliacao_<data-hora>/ (log, consultas.csv, resumo.csv, resumo.json).
 """
 import argparse
 import csv
 import json
+import copy
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
@@ -33,42 +43,125 @@ from recuperacao.sistema_de_busca.busca.agregacao import MODOS_UNIAO
 from recuperacao.sistema_de_busca.busca.exibicao import PASTA_OUTPUT, salvar_em_txt
 
 MODOS = ["densa", "esparsa", "hibrida"]
-LARGURA = 26   # coluna "configuração" no resumo (cabe "hibrida+rerank/decaimento")
+LARGURA = 36   # coluna "configuração" no resumo (cabe "hibrida+rerank/rerank_consulta=partes")
+
+
+def _bool(v: str) -> bool:
+    if v.lower() in ("sim", "true", "1"):
+        return True
+    if v.lower() in ("nao", "não", "false", "0"):
+        return False
+    raise ValueError(f"esperado sim/nao: {v!r}")
+
+
+# nome no --variar -> (atributo em config, conversor, só afeta o reranking?)
+PARAMETROS = {
+    "corte":              ("MIN_RERANK_RELATIVO", float, True),
+    "corte_por_tipo":     ("CORTE_POR_TIPO", _bool, True),
+    "rerank_consulta":    ("RERANK_CONSULTA", str, True),
+    "final_k":            ("FINAL_PROFESSOR_K", int, True),
+    "peso_texto":         ("PESO_TEXTO_LIVRE", float, False),
+    "bonus_disciplina":   ("BONUS_DISCIPLINA_TEMA", float, False),
+    "peso_professor":     ("PESO_PROFESSOR", float, False),
+    "decaimento":         ("DECAIMENTO", str, False),
+    "uniao":              ("UNIAO_TOPICOS", str, False),
+    "pesos":              (None, str, False),   # predefinição: "documento" (config.py) ou "iguais"
+}
+__doc__ = __doc__.replace("{PARAMS}", ", ".join(PARAMETROS))
+
+
+def _pesos_iguais() -> None:
+    """Todas as fontes (e o perfil) com o mesmo peso global e todos os subtipos com peso interno 1."""
+    peso = 1.0 / (len(config.FONTES_ITENS) + 1)
+    config.PESO_PROFESSOR = peso
+    for cfg in config.FONTES_ITENS.values():
+        cfg["peso_global"] = peso
+        cfg["pesos_internos"] = {t: 1.0 for t in cfg.get("pesos_internos", {"padrao": 1.0})}
+
+
+@contextmanager
+def aplicar_variacao(variacao: tuple[str, object] | None):
+    """Troca um parâmetro do config durante o bloco e restaura no fim (inclusive FONTES_ITENS)."""
+    if variacao is None:
+        yield
+        return
+    nome, valor = variacao
+    atributo = PARAMETROS[nome][0]
+    salvos = {a: copy.deepcopy(getattr(config, a)) for a in ("FONTES_ITENS", "PESO_PROFESSOR")}
+    if atributo:
+        salvos[atributo] = getattr(config, atributo)
+    try:
+        if nome == "pesos":
+            if valor == "iguais":
+                _pesos_iguais()
+            elif valor != "documento":
+                raise ValueError(f"pesos: use 'documento' ou 'iguais', não {valor!r}")
+        else:
+            setattr(config, atributo, valor)
+        yield
+    finally:
+        for a, v in salvos.items():
+            setattr(config, a, v)
+
+
+def ler_variacoes(itens: list[str]) -> list[tuple[str, object]]:
+    """["corte=0,0.2", "pesos=iguais"] -> [("corte", 0.0), ("corte", 0.2), ("pesos", "iguais")].
+    Valores iguais ao atual do config são descartados (já são a base)."""
+    variacoes = []
+    for item in itens:
+        nome, _, valores = item.partition("=")
+        if nome not in PARAMETROS or not valores:
+            raise SystemExit(f"--variar {item!r}: use nome=v1,v2 com nome em {', '.join(PARAMETROS)}")
+        atributo, conv, _ = PARAMETROS[nome]
+        atual = getattr(config, atributo) if atributo else "documento"
+        for bruto in valores.split(","):
+            try:
+                valor = conv(bruto.strip())
+            except ValueError as erro:
+                raise SystemExit(f"--variar {nome}: {erro}")
+            if nome == "pesos" and valor not in ("documento", "iguais"):
+                raise SystemExit("--variar pesos: use 'documento' ou 'iguais'")
+            if valor != atual and (nome, valor) not in variacoes:
+                variacoes.append((nome, valor))
+    return variacoes
 
 
 def rodar_modo(rec, consultas: list[dict], modo: str, k: int, top_k: int, so_pre: bool,
-               uniao: str | None = None) -> list[dict]:
-    """Roda todas as consultas com config.MODO_BUSCA = modo (e config.UNIAO_TOPICOS = uniao, se dado);
+               variacao: tuple[str, object] | None = None) -> list[dict]:
+    """Roda todas as consultas com config.MODO_BUSCA = modo e a variação de parâmetro dada (None = base);
     uma linha por (consulta, configuração)."""
+    so_rerank = variacao is not None and PARAMETROS[variacao[0]][2]
+    if so_rerank and so_pre:
+        print(f"  [{modo}] {variacao[0]} só afeta o reranking: ignorado com --so-pre")
+        return []
+    sufixo = f"/{variacao[0]}={variacao[1]}" if variacao else ""
     antigo, config.MODO_BUSCA = config.MODO_BUSCA, modo
-    antiga_uniao = config.UNIAO_TOPICOS
-    if uniao:
-        config.UNIAO_TOPICOS = uniao
-    sufixo = f"/{uniao}" if uniao else ""
     linhas, inicio = [], time.perf_counter()
     try:
-        for i, q in enumerate(consultas, start=1):
-            rec.excluir = q["excluir"]
-            try:
-                resultados = {f"{modo}{sufixo}": rec.pre_ranking(q["topicos"], top_k=top_k)}
-                if not so_pre:
-                    resultados[f"{modo}+rerank{sufixo}"] = rec.recomendar(q["topicos"], top_k=top_k)
-            finally:
-                rec.excluir = {}
-            for nome, profs in resultados.items():
-                ranking = [p["professor_id"] for p in profs]
-                linhas.append({
-                    "conjunto": q["conjunto"], "configuracao": nome, "consulta_id": q["id"], "consulta": q["titulo"], "ano": q["ano"],
-                    "esperados": " ".join(sorted(q["relevantes"])), "ranking": " ".join(ranking),
-                    "ranking_nomes": " | ".join(f"{p['nome'] or p['professor_id']} ({p['score']:.4f})" for p in profs),
-                    **metricas.todas(ranking, q["relevantes"], k),
-                    "_profs": profs,
-                })
-            if i % 10 == 0 or i == len(consultas):
-                print(f"  [{modo}{sufixo}] {i}/{len(consultas)} consultas ({time.perf_counter() - inicio:.0f} s)", flush=True)
+        with aplicar_variacao(variacao):
+            for i, q in enumerate(consultas, start=1):
+                rec.excluir = q["excluir"]
+                try:
+                    resultados = {}
+                    if not so_rerank:
+                        resultados[f"{modo}{sufixo}"] = rec.pre_ranking(q["topicos"], top_k=top_k)
+                    if not so_pre:
+                        resultados[f"{modo}+rerank{sufixo}"] = rec.recomendar(q["topicos"], top_k=top_k)
+                finally:
+                    rec.excluir = {}
+                for nome, profs in resultados.items():
+                    ranking = [p["professor_id"] for p in profs]
+                    linhas.append({
+                        "conjunto": q["conjunto"], "configuracao": nome, "consulta_id": q["id"], "consulta": q["titulo"], "ano": q["ano"],
+                        "esperados": " ".join(sorted(q["relevantes"])), "ranking": " ".join(ranking),
+                        "ranking_nomes": " | ".join(f"{p['nome'] or p['professor_id']} ({p['score']:.4f})" for p in profs),
+                        **metricas.todas(ranking, q["relevantes"], k),
+                        "_profs": profs,
+                    })
+                if i % 10 == 0 or i == len(consultas):
+                    print(f"  [{modo}{sufixo}] {i}/{len(consultas)} consultas ({time.perf_counter() - inicio:.0f} s)", flush=True)
     finally:
         config.MODO_BUSCA = antigo
-        config.UNIAO_TOPICOS = antiga_uniao
     return linhas
 
 
@@ -117,14 +210,15 @@ def resumir(linhas: list[dict], k: int, referencia: str) -> list[dict]:
         if ref and nome != referencia:
             pares = [(l, ref[l["consulta_id"]]) for l in grupo if l["consulta_id"] in ref]
             for m in (f"ndcg@{k}", "mrr"):
+                r[f"delta_{m}"] = mean(a[m] - b[m] for a, b in pares) if pares else None
                 r[f"p_{m}"] = _wilcoxon([a[m] for a, _ in pares], [b[m] for _, b in pares])
         resumo.append(r)
     ordem = {nome: i for i, nome in enumerate(c for m in MODOS for c in (m, f"{m}+rerank"))}
-    unioes = list(dict.fromkeys(l["configuracao"].partition("/")[2] for l in linhas))
+    variacoes = list(dict.fromkeys(l["configuracao"].partition("/")[2] for l in linhas))
     conjuntos = list(dict.fromkeys(l["conjunto"] for l in linhas))
     return sorted(resumo, key=lambda r: (conjuntos.index(r["conjunto"]),
                                          ordem.get(r["configuracao"].partition("/")[0], 99),
-                                         unioes.index(r["configuracao"].partition("/")[2])))
+                                         variacoes.index(r["configuracao"].partition("/")[2])))
 
 
 def imprimir_resumo(resumo: list[dict], k: int, referencia: str) -> None:
@@ -132,15 +226,18 @@ def imprimir_resumo(resumo: list[dict], k: int, referencia: str) -> None:
     print("\n" + "=" * 100)
     print(f"RESUMO (média por consulta) | p = Wilcoxon pareado contra {referencia}")
     print("=" * 100)
-    cabecalho = f"{'configuração':<{LARGURA}} {'n':>4}  " + "  ".join(f"{m:>9}" for m in nomes) + f"  {'p nDCG':>8}  {'p MRR':>8}"
+    cabecalho = (f"{'configuração':<{LARGURA}} {'n':>4}  " + "  ".join(f"{m:>9}" for m in nomes)
+                 + f"  {'dif nDCG':>8}  {'p nDCG':>8}  {'dif MRR':>8}  {'p MRR':>8}")
     conjunto_atual = None
     for r in resumo:
         if r["conjunto"] != conjunto_atual:
             conjunto_atual = r["conjunto"]
             print(f"\n[{conjunto_atual}]\n{cabecalho}")
-        p = [r.get(f"p_ndcg@{k}"), r.get("p_mrr")]
+        extras = [(r.get(f"delta_ndcg@{k}"), "+8.3f"), (r.get(f"p_ndcg@{k}"), "8.4f"),
+                  (r.get("delta_mrr"), "+8.3f"), (r.get("p_mrr"), "8.4f")]
         print(f"{r['configuracao']:<{LARGURA}} {r['consultas']:>4}  " + "  ".join(f"{r[m]:>9.3f}" for m in nomes)
-              + "".join(f"  {v:>8.4f}" if v is not None else f"  {'—':>8}" for v in p))
+              + "".join(f"  {v:>{fmt}}" if v is not None else f"  {'—':>8}" for v, fmt in extras))
+    print("\ndif = média da diferença por consulta contra a referência (positivo = melhor).")
     print("\np < 0,05: diferença provavelmente real; acima disso pode ser ruído da amostra.")
 
 
@@ -163,6 +260,8 @@ def main() -> None:
                         help="imprime o ranking de cada consulta (auto: só para o conjunto manual)")
     parser.add_argument("--uniao", nargs="+", choices=list(MODOS_UNIAO),
                         help="formas de unir os tópicos a comparar (padrão: só config.UNIAO_TOPICOS, sem sufixo)")
+    parser.add_argument("--variar", nargs="+", default=[], metavar="NOME=V1,V2",
+                        help="análise de sensibilidade, um parâmetro por vez: " + ", ".join(PARAMETROS))
     parser.add_argument("--normalizar-topicos", choices=["sim", "nao"],
                         help="sobrescreve config.NORMALIZAR_TOPICOS nesta execução")
     parser.add_argument("--so-pre", action="store_true", help="só o pré-ranking (não carrega o reranker)")
@@ -195,9 +294,11 @@ def main() -> None:
     rec = Recomendador(client, carregar_modelo(), reranker)
     if args.normalizar_topicos:
         config.NORMALIZAR_TOPICOS = args.normalizar_topicos == "sim"
-    unioes = args.uniao or [None]
-    ref_uniao = ("media" if "media" in unioes else unioes[0]) if args.uniao else None
-    referencia = ("hibrida" if args.so_pre else "hibrida+rerank") + (f"/{ref_uniao}" if ref_uniao else "")
+    # --uniao é atalho para --variar uniao=...
+    itens_variar = list(args.variar) + ([f"uniao={','.join(args.uniao)}"] if args.uniao else [])
+    variacoes = [None] + ler_variacoes(itens_variar)
+    modo_ref = "hibrida" if "hibrida" in args.modos else args.modos[-1]
+    referencia = modo_ref if args.so_pre else f"{modo_ref}+rerank"
 
     pasta = PASTA_OUTPUT / f"avaliacao_{datetime.now():%Y%m%d_%H%M%S}"
     pasta.mkdir(parents=True, exist_ok=True)
@@ -207,12 +308,15 @@ def main() -> None:
             contagem[q["conjunto"]] = contagem.get(q["conjunto"], 0) + 1
         print(f"Consultas: {contagem} | k={args.k} | top_k={args.top_k} | modos={args.modos} | "
               f"normalização={'sim' if config.NORMALIZAR_SCORES_BUSCA else 'não'} | "
-              f"união={args.uniao or config.UNIAO_TOPICOS} (normalizar tópicos: {'sim' if config.NORMALIZAR_TOPICOS else 'não'}, "
+              f"união={config.UNIAO_TOPICOS} (normalizar tópicos: {'sim' if config.NORMALIZAR_TOPICOS else 'não'}, "
               f"peso texto livre: {config.PESO_TEXTO_LIVRE}) | reranker={'não' if args.so_pre else 'sim'}")
+        if len(variacoes) > 1:
+            print("Variações (uma por vez, demais parâmetros como em config.py): "
+                  + ", ".join(f"{n}={v}" for n, v in variacoes[1:]))
         linhas = []
         for modo in args.modos:
-            for uniao in unioes:
-                linhas += rodar_modo(rec, consultas, modo, args.k, args.top_k, args.so_pre, uniao)
+            for variacao in variacoes:
+                linhas += rodar_modo(rec, consultas, modo, args.k, args.top_k, args.so_pre, variacao)
         resumo = resumir(linhas, args.k, referencia)
         mostrar = args.rankings == "sim" or (args.rankings == "auto" and conjuntos == {"manual"})
         if mostrar:
@@ -229,7 +333,8 @@ def main() -> None:
             escritor = csv.DictWriter(f, fieldnames=campos)
             escritor.writeheader()
             escritor.writerows(dados)
-    (pasta / "resumo.json").write_text(json.dumps({"argumentos": vars(args), "referencia": referencia, "resumo": resumo},
+    (pasta / "resumo.json").write_text(json.dumps({"argumentos": vars(args), "referencia": referencia,
+                                                   "variacoes": [f"{n}={v}" for n, v in variacoes[1:]], "resumo": resumo},
                                                   ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nArquivos em {pasta}")
 

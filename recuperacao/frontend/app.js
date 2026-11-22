@@ -61,6 +61,10 @@
   const dicaRel = (rel, score) =>
     `${Math.round(rel * 100)}% do melhor nesta busca` + (DEBUG ? ` · score ${fmtScore(score)}` : "");
 
+  // Nível com a relevância relativa ao lado, ex.: "forte (92%)".
+  const textoNivel = (c) =>
+    `${c.nivel} (${Math.round(c.rel * 100)}%)` + (DEBUG ? ` · ${fmtScore(c.score)}` : "");
+
   const API_MODAL = "https://ju-araujo--busca-orientadores-web.modal.run";
 
   const API = (() => {
@@ -687,7 +691,7 @@
     // cabeçalho
     const n = analise.profs.length;
     const meta = [n ? plural(n, ["professor", "professores"]) : "Nenhum professor"];
-    if (pedido.ano_min) meta.push(`trabalhos desde ${pedido.ano_min}`);
+    if (pedido.ano_min) meta.push(`trabalhos e disciplinas desde ${pedido.ano_min}`);
     if (ctx.segundos) meta.push(`${ctx.segundos.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s`);
     metaResultado.textContent = meta.join(" · ");
     resumoBusca.replaceChildren(...analise.topicos.map((t) => el("li", {
@@ -793,7 +797,7 @@
       el("ul", { class: "coberturas" }, p.cobertura.map((c) => el("li", { class: "cobertura", "data-slot": c.slot, title: dicaRel(c.rel, c.score) },
         el("span", { class: "cobertura-nome" }, el("span", { texto: nomeTopico(c.topico), title: nomeTopico(c.topico) })),
         medidor(c.rel, `${nomeTopico(c.topico)}: cobertura ${c.nivel}`, c.slot),
-        el("span", { class: "cobertura-nivel", texto: DEBUG ? `${c.nivel} · ${fmtScore(c.score)}` : c.nivel }),
+        el("span", { class: "cobertura-nivel", texto: textoNivel(c) }),
       ))),
     );
   }
@@ -949,7 +953,7 @@
         linha(nomeTopico(t), profs.map((p) => {
           const c = p.cobertura[k];
           return el("div", { class: "celula-cobertura", "data-slot": c.slot, title: dicaRel(c.rel, c.score) },
-            el("span", { class: c.rel === maxRel && c.rel > 0 ? "melhor" : null, texto: DEBUG ? `${c.nivel} · ${fmtScore(c.score)}` : c.nivel }),
+            el("span", { class: c.rel === maxRel && c.rel > 0 ? "melhor" : null, texto: textoNivel(c) }),
             medidor(c.rel, `${p.nome}, ${nomeTopico(t)}: ${c.nivel}`, c.slot));
         }));
       });

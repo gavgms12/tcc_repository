@@ -20,4 +20,9 @@ venv/
 
 # Saídas baixadas da Gold para conferência manual
 /gold_perfil_professor/
+
+# Saída do sistema 
 recuperacao/output/
+
+# Cache do reranker
+recuperacao/sistema_de_busca/cache/

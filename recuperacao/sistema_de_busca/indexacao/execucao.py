@@ -15,7 +15,9 @@ from recuperacao.sistema_de_busca.textos import (
     disciplina_montar_texto_para_modelo
 )
 from dotenv import load_dotenv
-from recuperacao.sistema_de_busca.indexacao.relacoes import construir_relacoes, professores_por_objeto
+from recuperacao.sistema_de_busca.indexacao.relacoes import (
+    anos_disciplinas, construir_relacoes, professores_por_objeto,
+)
 from recuperacao.sistema_de_busca import config
 
 load_dotenv()
@@ -115,9 +117,22 @@ def main() -> None:
         orientacoes, orientacao_montar_texto_para_modelo, "id",
         lambda p: {"titulo": p.get("titulo"),"ano": _ano(p.get("ano_inicio")), "tipo": p.get("tipo")}, mapa_orientacoes,
     )
+    # Ano da disciplina é por professor: "anos_professores" guarda {siape: anos} para a busca
+    # descartar quem só lecionou fora do período; "ano" (todos os anos) deixa o Qdrant já
+    # descartar as disciplinas que ninguém lecionou no período.
+    anos_disc = anos_disciplinas(professores)
+
+    def metadata_disciplina(p):
+        anos_professores = anos_disc.get(str(p.get("idSigaa")), {})
+        return {
+            "codigo": p.get("codigo"), "nome": p.get("nome"),
+            "anos_professores": anos_professores,
+            "ano": sorted({a for anos in anos_professores.values() for a in anos}, reverse=True),
+        }
+
     perfis_disciplinas = criar_perfis(
             disciplinas, disciplina_montar_texto_para_modelo, "idSigaa",
-            lambda p: {"codigo": p.get("codigo"), "nome": p.get("nome")}, mapa_disciplina,
+            metadata_disciplina, mapa_disciplina,
         )
     client = conectar_Qdrant()
     modelo = carregar_modelo()
@@ -127,7 +142,7 @@ def main() -> None:
     indexar_colecao(client, modelo, config.COLLECTION_PROJETOS, perfis_projetos, campos_inteiros=("ano",), **opcoes)
     indexar_colecao(client, modelo, config.COLLECTION_PRODUCAO, perfis_producoes, campos_inteiros=("ano",), **opcoes)
     indexar_colecao(client, modelo, config.COLLECTION_ORIENTADOR, perfis_orientacoes, campos_inteiros=("ano",), **opcoes)
-    indexar_colecao(client, modelo, config.COLLECTION_DISCIPLINAS, perfis_disciplinas, **opcoes)
+    indexar_colecao(client, modelo, config.COLLECTION_DISCIPLINAS, perfis_disciplinas, campos_inteiros=("ano",), **opcoes)
 
 
     # indexar_colecao(client, modelo, config.COLLECTION_DISCIPLINAS, perfis_disciplinas)

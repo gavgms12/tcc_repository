@@ -30,14 +30,14 @@ def ics_montar_texto_para_modelo(producao):
     if titulo:
         partes.append(f"Título: {titulo}")
         
-    resumo = _limpar(producao.get("resumo"))
-    
-    if resumo:
-        partes.append(f"Resumo: {resumo}")
-
+    # palavras-chave antes do resumo: se o texto passar do limite de tokens, a truncagem corta o fim do resumo
     palavras_chave = _juntar_lista(producao.get("palavrasChaves"))
     if palavras_chave:
         partes.append(f"Palavras-chave: {palavras_chave}")
+
+    resumo = _limpar(producao.get("resumo"))
+    if resumo:
+        partes.append(f"Resumo: {resumo}")
 
     return "\n".join(partes)
 
@@ -46,10 +46,6 @@ def ics_montar_texto_para_modelo(producao):
 def professor_montar_texto_para_modelo(perfil):
 
     partes = []
-    
-    resumo = _limpar(perfil.get("resumo"))
-    if resumo:
-        partes.append(f"Resumo: {resumo}")
     
     # formacao_academica = _limpar(perfil.get("formacaoAcademicaProfissional"))
     # if formacao_academica:
@@ -66,6 +62,9 @@ def professor_montar_texto_para_modelo(perfil):
     if topicos_interesse:
         partes.append(f"Tópicos de Interesse: {topicos_interesse}")
 
+    resumo = _limpar(perfil.get("resumo"))
+    if resumo:
+        partes.append(f"Resumo: {resumo}")
     
     return "\n".join(partes)
 
