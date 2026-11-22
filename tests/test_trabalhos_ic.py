@@ -52,3 +52,23 @@ def test_normalizar_disciplinas_ordena_da_mais_recente():
         {"idSigaa": None, "periodo": "2026.1"},
     ]
     assert normalizar_disciplinas(ministradas) == ["nova", "antiga", "so_ano"]
+
+
+
+def test_anos_por_disciplina_descarta_semestre_e_repeticao():
+    from silver.integracao.limpar_perfis import anos_por_disciplina
+
+    ministradas = [
+        {"idSigaa": "antiga", "periodo": "2019.2"},
+        {"idSigaa": "nova", "periodo": "2025.1"},
+        {"idSigaa": "antiga", "periodo": "2024.2"},
+        {"idSigaa": "antiga", "periodo": "2024.1"},  # mesmo ano, outro semestre
+        {"idSigaa": "nova", "periodo": "2025.1"},  # outra turma, mesmo período
+        {"idSigaa": "sem_periodo", "periodo": None},
+        {"idSigaa": None, "periodo": "2026.1"},
+    ]
+    assert anos_por_disciplina(ministradas) == [
+        {"idSigaa": "nova", "anos": [2025]},
+        {"idSigaa": "antiga", "anos": [2024, 2019]},
+        {"idSigaa": "sem_periodo", "anos": []},
+    ]

@@ -105,7 +105,38 @@ class PerfilGold(TypedDict):
     projetos: list[str]
     orientacoes: list[str]
     disciplinas: list[str]
+    # Ano ("2025") -> IDs das disciplinas que o docente lecionou naquele ano,
+    # do ano mais recente para o mais antigo. Complementa `disciplinas` (que a
+    # indexação usa como está) para limitar as disciplinas por ano.
+    disciplinasPorAno: dict[str, list[str]]
     trabalhosIniciacaoCientifica: list[str]
+
+
+def agrupar_disciplinas_por_ano(
+    registros: list[dict] | None, ids_disciplinas: list[str]
+) -> dict[str, list[str]]:
+    """Converte `anosDisciplinasSigaa` da Silver em ano -> IDs das disciplinas.
+
+    Só entram disciplinas do perfil; dentro de cada ano elas seguem a ordem de
+    `disciplinas`. As chaves são texto porque o JSON não aceita chave numérica.
+    """
+    anos_por_id: dict[str, set[int]] = {i: set() for i in ids_disciplinas}
+    for registro in registros or []:
+        id_sigaa = registro.get("idSigaa")
+        if id_sigaa in anos_por_id:
+            anos_por_id[id_sigaa].update(int(a) for a in registro.get("anos") or [])
+    return montar_disciplinas_por_ano(anos_por_id, ids_disciplinas)
+
+
+def montar_disciplinas_por_ano(
+    anos_por_id: dict[str, set[int]], ids_disciplinas: list[str]
+) -> dict[str, list[str]]:
+    """idSigaa -> anos vira ano -> idSigaa, do ano mais recente ao mais antigo."""
+    todos = sorted({a for anos in anos_por_id.values() for a in anos}, reverse=True)
+    return {
+        str(ano): [i for i in ids_disciplinas if ano in anos_por_id.get(i, ())]
+        for ano in todos
+    }
 
 
 def identificador_professor(perfil: dict) -> str:
@@ -301,6 +332,18 @@ def deduplicar_perfil(perfil: PerfilGold, catalogos: dict[str, dict[str, dict]])
     ementas_mantidas: list[str] = []
     # Disciplinas mantidas ainda sem ementa, pelo título.
     sem_ementa: dict[str, dict] = {}
+    # Disciplina mantida que cobre cada título/ementa: recebe os anos das
+    # versões removidas, para o filtro por ano enxergar todas as vezes em que a
+    # matéria foi ministrada.
+    dono_titulo: list[tuple[str, str]] = []
+    dono_ementa: list[tuple[str, str]] = []
+    # idSigaa -> anos, para juntar os anos das versões removidas.
+    anos_por_id: dict[str, set[int]] | None = None
+    if perfil.get("disciplinasPorAno") is not None:
+        anos_por_id = {}
+        for ano, ids_ano in perfil["disciplinasPorAno"].items():
+            for id_ano in ids_ano:
+                anos_por_id.setdefault(id_ano, set()).add(int(ano))
     removidos: dict[str, int] = {}
     for campo, campo_titulo in SECOES_PERFIL:
         catalogo = catalogos.get(campo, {})
@@ -327,18 +370,38 @@ def deduplicar_perfil(perfil: PerfilGold, catalogos: dict[str, dict[str, dict]])
                     atual["ementa"] = registro["ementa"]
                     sem_ementa = {t: r for t, r in sem_ementa.items() if r is not atual}
                     ementas_mantidas.append(ementa)
+                dono = None
+                if campo == "disciplinas":
+                    dono = next(
+                        (d for t, d in dono_titulo if titulos_equivalentes(titulo, t)), None
+                    ) or next(
+                        (d for e, d in dono_ementa if ementa and ementas_parecidas(ementa, e)),
+                        None,
+                    )
+                    if dono and anos_por_id is not None:
+                        anos_por_id.setdefault(dono, set()).update(anos_por_id.get(id_item, ()))
                 if titulo:
                     titulos_vistos.append(titulo)
+                    if dono:
+                        dono_titulo.append((titulo, dono))
                 continue
             mantidos.add(id_item)
             if titulo:
                 titulos_vistos.append(titulo)
+                if campo == "disciplinas":
+                    dono_titulo.append((titulo, id_item))
             if ementa:
                 ementas_mantidas.append(ementa)
+                if campo == "disciplinas":
+                    dono_ementa.append((ementa, id_item))
             elif campo == "disciplinas" and titulo:
                 sem_ementa[titulo] = registro
         perfil[campo] = [i for i in ids if i in mantidos]
         removidos[campo] = len(ids) - len(perfil[campo])
+    if anos_por_id is not None:
+        perfil["disciplinasPorAno"] = montar_disciplinas_por_ano(
+            anos_por_id, perfil.get("disciplinas") or []
+        )
     return removidos
 
 
@@ -456,6 +519,7 @@ def montar_perfil_unificado(
     )
 
     logger.debug("Unificando: %s", sigaa.get("nome"))
+    ids_disciplinas = ids_unicos(sigaa.get("disciplinasSigaa"))
     ids_ic = ids_unicos(sigaa.get("trabalhosIniciacaoCientifica"))
     id_por_titulo: dict[str, str] = {}
     for id_trabalho in ids_ic:
@@ -494,7 +558,10 @@ def montar_perfil_unificado(
         "producoes": registrar_itens(lattes.get("producoes"), producoes),
         "projetos": registrar_itens(lattes.get("projetos"), projetos, CAMPOS_PROJETO),
         "orientacoes": registrar_itens(demais_orientacoes, orientacoes),
-        "disciplinas": ids_unicos(sigaa.get("disciplinasSigaa")),
+        "disciplinas": ids_disciplinas,
+        "disciplinasPorAno": agrupar_disciplinas_por_ano(
+            sigaa.get("anosDisciplinasSigaa"), ids_disciplinas
+        ),
         "trabalhosIniciacaoCientifica": ids_ic,
     }
 
