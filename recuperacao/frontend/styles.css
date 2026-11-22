@@ -650,7 +650,7 @@ textarea { min-height: 180px; max-height: 480px; font-size: 16px; padding: 16px 
 .cobertura-nome::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cor); flex: none; }
 .cobertura-nome span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cobertura .medidor { max-width: none; }
-.cobertura-nivel { font-size: 13px; color: var(--tinta-suave); min-width: 9ch; text-align: right; }
+.cobertura-nivel { font-size: 13px; color: var(--tinta-suave); min-width: 13ch; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 @container (max-width: 460px) {
   .cobertura { grid-template-columns: minmax(0, 1fr) auto; }
   .cobertura .medidor { grid-column: 1 / -1; grid-row: 2; }
