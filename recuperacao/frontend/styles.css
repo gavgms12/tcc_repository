@@ -436,7 +436,7 @@ textarea:focus-visible, .campo-busca input:focus-visible, .campo-ano input:focus
 }
 .segmentos input:checked + label { background: var(--superficie); color: var(--tinta); box-shadow: var(--sombra-1), 0 0 0 1px var(--linha); }
 .segmentos input:focus-visible + label { box-shadow: var(--foco); }
-.campo-ano { flex: 1 1 220px; max-width: 280px; }
+.campo-ano { flex: 1 1 220px; max-width: 360px; }
 .campo-ano input { min-height: 44px; padding: 12px 12px; }
 
 /* erro + ações */
