@@ -23,7 +23,11 @@ SIGAA · site do IESTI · periódicos de IC                 scriptLattes (CNPq)
         ▼
   ┌───────────┐   JSON: um perfil por docente (siape) + catálogos
   │   GOLD    │   de produções, projetos, orientações e IC,
-  └───────────┘   publicados em runs/<execução>/ e apontados por current.json
+  └─────┬─────┘   publicados em runs/<execução>/ e apontados por current.json
+        ▼
+  ┌───────────┐   DAG indexacao_qdrant: lê a Gold do MinIO, gera os embeddings
+  │  QDRANT   │   e envia os vetores ao Qdrant Cloud (HTTPS + API key)
+  └───────────┘   — usa o código de recuperacao/
 ```
 
 Armazenamento: **MinIO** (compatível com S3), um bucket por camada (`bronze`, `silver`, `gold`). Orquestração: **Apache Airflow**, com uma DAG por camada encadeadas por *assets* (a conclusão de uma aciona a seguinte), e metadados em **PostgreSQL**. Tudo roda em Docker Compose — detalhes da infraestrutura em [docs/arquitetura.md](docs/arquitetura.md).
@@ -172,7 +176,7 @@ As portas só aceitam conexões desta máquina.
 
 ### Pelo Airflow
 
-Dispare a DAG **`bronze_scrape_professores_sigaa`**. Ao terminar, ela aciona `silver_professores_sigaa`, que aciona `gold_professores_sigaa`. Tempos de referência com os caches quentes: Bronze ~3–4 min, Silver ~15 s, Gold ~5 s. As tasks têm novas tentativas automáticas.
+Dispare a DAG **`bronze_scrape_professores_sigaa`**. Ao terminar, ela aciona `silver_professores_sigaa`, que aciona `gold_professores_sigaa`, que aciona `indexacao_qdrant` (precisa da pasta `recuperacao/`, do `requirements-busca.txt` e de `QDRANT_URL`/`QDRANT_API_KEY` no `.env`; sem eles ela falha com mensagem explicando o que falta, sem afetar a Gold). Tempos de referência com os caches quentes: Bronze ~3–4 min, Silver ~15 s, Gold ~5 s. As tasks têm novas tentativas automáticas.
 
 ### Pela linha de comando
 

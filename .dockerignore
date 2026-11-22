@@ -11,7 +11,7 @@ data/
 gold_perfil_professor/
 **/__pycache__
 **/*.py[cod]
-*.egg-info/
+**/*.egg-info/
 .pytest_cache/
 tests/
 docs/
