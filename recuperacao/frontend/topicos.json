@@ -1,0 +1,249 @@
+{
+ "topicos": [
+  "Sistemas Embarcados",
+  "Inteligência Artificial",
+  "Internet das Coisas",
+  "Engenharia Biomédica",
+  "Sistemas de Controle",
+  "Automação Industrial",
+  "Sistemas Distribuídos e Nuvem",
+  "Processamento de Sinais",
+  "Segurança da Informação",
+  "Eletrônica de Potência",
+  "Sistemas Digitais e FPGA",
+  "Microeletrônica",
+  "Redes de Computadores",
+  "Desenvolvimento Web e Mobile",
+  "Eletrônica Analógica e Instrumentação",
+  "Energia e Fontes Renováveis",
+  "Algoritmos, Grafos e Otimização",
+  "Engenharia de Software",
+  "Robótica",
+  "Telecomunicações e Óptica",
+  "Dados"
+ ],
+ "detalhes": [
+  {
+   "nome": "Sistemas Embarcados",
+   "categoria": "Eletrônica",
+   "descricao": "projeto de hardware e software para sistemas dedicados: microcontroladores, firmware, programação embarcada e sistemas de tempo real",
+   "disciplinas": [
+    "Microcontroladores e Microprocessadores",
+    "Laboratório de Microcontroladores e Microprocessadores",
+    "Laboratório de Programação Embarcada",
+    "Sistemas Operacionais"
+   ]
+  },
+  {
+   "nome": "Inteligência Artificial",
+   "categoria": "Computação",
+   "descricao": "métodos que permitem a sistemas aprender com dados e tomar decisões: aprendizado de máquina, redes neurais, lógica fuzzy e visão computacional",
+   "disciplinas": [
+    "Inteligência Artificial",
+    "TinyML - Aprendizado de Máquina Aplicado para Dispositivos IoT Embarcados"
+   ]
+  },
+  {
+   "nome": "Internet das Coisas",
+   "categoria": "Eletrônica",
+   "descricao": "dispositivos conectados que coletam e trocam dados: sensores, comunicação sem fio, plataformas IoT e computação de borda",
+   "disciplinas": [
+    "TinyML - Aprendizado de Máquina Aplicado para Dispositivos IoT Embarcados"
+   ]
+  },
+  {
+   "nome": "Engenharia Biomédica",
+   "categoria": "Eletrônica",
+   "descricao": "tecnologia aplicada à saúde: instrumentação biomédica, sinais fisiológicos, equipamentos médicos e engenharia clínica",
+   "disciplinas": [
+    "Instrumentação Biomédica II",
+    "Tópicos Especiais em Engenharia Clínica",
+    "Gestão em Tecnologias Médicas I",
+    "Gestão em Tecnologias Médicas II"
+   ]
+  },
+  {
+   "nome": "Sistemas de Controle",
+   "categoria": "Controle e Energia",
+   "descricao": "modelagem e controle de sistemas dinâmicos: controle clássico e moderno, controle robusto, identificação de sistemas e controle multivariável",
+   "disciplinas": [
+    "Sistemas de Controle",
+    "Laboratório de Sistemas de Controle",
+    "Modelagem e Análise de Sistemas Dinâmicos",
+    "Laboratório de Controle Clássico",
+    "Controle Multivariável"
+   ]
+  },
+  {
+   "nome": "Automação Industrial",
+   "categoria": "Controle e Energia",
+   "descricao": "automação de processos e máquinas na indústria: CLPs, sistemas supervisórios, redes industriais e instrumentação industrial",
+   "disciplinas": [
+    "Automação de Sistemas",
+    "Automação e Supervisão de Processos I",
+    "Redes Industriais",
+    "Laboratório de Instrumentação Industrial I",
+    "Banco de Dados para Automação"
+   ]
+  },
+  {
+   "nome": "Sistemas Distribuídos e Nuvem",
+   "categoria": "Computação",
+   "descricao": "sistemas que rodam em várias máquinas: computação paralela, computação em nuvem, clusters e arquiteturas orientadas a serviços",
+   "disciplinas": [
+    "Sistemas Distribuídos",
+    "Laboratório de Sistemas Distribuídos",
+    "Tópicos Especiais em Sistemas Distribuídos",
+    "Processamento Paralelo (Prática)"
+   ]
+  },
+  {
+   "nome": "Processamento de Sinais",
+   "categoria": "Eletrônica",
+   "descricao": "análise e tratamento de sinais: filtragem digital, análise espectral, transformadas e condicionamento de sinais",
+   "disciplinas": [
+    "Processamento Digital de Sinais",
+    "Sinais e Sistemas",
+    "Introdução à Análise de Sinais",
+    "Condicionamento de Sinais"
+   ]
+  },
+  {
+   "nome": "Segurança da Informação",
+   "categoria": "Computação",
+   "descricao": "proteção de sistemas e dados: criptografia, cibersegurança, análise de vulnerabilidades e privacidade",
+   "disciplinas": [
+    "Criptografia e Segurança de Dados",
+    "Tópicos Especiais em Segurança da Informação",
+    "Introdução à Proteção e Segurança de Dados"
+   ]
+  },
+  {
+   "nome": "Eletrônica de Potência",
+   "categoria": "Controle e Energia",
+   "descricao": "conversão e controle de energia elétrica com dispositivos eletrônicos: conversores, inversores, filtros ativos e acionamentos",
+   "disciplinas": [
+    "Fundamentos de Eletrônica de Potência",
+    "Eletrônica de Potência e Acionamentos Controlados",
+    "Eletrônica de Potência Aplicada a Sistemas Elétricos",
+    "Laboratório de Conversores Eletrônicos de Potência"
+   ]
+  },
+  {
+   "nome": "Sistemas Digitais e FPGA",
+   "categoria": "Eletrônica",
+   "descricao": "projeto de circuitos e sistemas digitais: FPGA, linguagens de descrição de hardware e arquitetura de computadores",
+   "disciplinas": [
+    "Circuitos Digitais I",
+    "Introdução ao Verilog",
+    "Arquitetura de Sistemas Digitais",
+    "Síntese Lógica",
+    "Verificação de Sistemas Digitais",
+    "Eletrônica Digital II"
+   ]
+  },
+  {
+   "nome": "Microeletrônica",
+   "categoria": "Eletrônica",
+   "descricao": "projeto de circuitos integrados: tecnologia CMOS, circuitos integrados analógicos e digitais, layout e fabricação",
+   "disciplinas": [
+    "Introdução à Microeletrônica",
+    "Projeto de Circuitos Integrados Analógicos",
+    "Projeto de Circuitos Integrados Digitais",
+    "Referências CMOS de Tensão e Corrente"
+   ]
+  },
+  {
+   "nome": "Redes de Computadores",
+   "categoria": "Computação",
+   "descricao": "comunicação entre computadores e dispositivos: protocolos, arquitetura de redes, redes móveis e redes industriais",
+   "disciplinas": [
+    "Redes de Computadores",
+    "Laboratório de Redes de Computadores",
+    "Redes de Comunicação para Processos",
+    "Redes Industriais"
+   ]
+  },
+  {
+   "nome": "Desenvolvimento Web e Mobile",
+   "categoria": "Computação",
+   "descricao": "criação de aplicações para navegadores e dispositivos móveis: front-end, back-end, APIs e aplicativos",
+   "disciplinas": []
+  },
+  {
+   "nome": "Eletrônica Analógica e Instrumentação",
+   "categoria": "Eletrônica",
+   "descricao": "circuitos eletrônicos analógicos e medição: amplificadores, sensores, condicionamento e instrumentos de medida",
+   "disciplinas": [
+    "Eletrônica Analógica I",
+    "Eletrônica Analógica II",
+    "Eletrônica Básica e Instrumentação",
+    "Laboratório de Eletrônica Analógica I"
+   ]
+  },
+  {
+   "nome": "Energia e Fontes Renováveis",
+   "categoria": "Controle e Energia",
+   "descricao": "geração, qualidade e armazenamento de energia elétrica: fontes renováveis, sistemas elétricos de potência e redes inteligentes",
+   "disciplinas": [
+    "Condicionadores de Energia",
+    "Acionamento e Condicionamento de Energia",
+    "Automação de Sistemas Elétricos"
+   ]
+  },
+  {
+   "nome": "Algoritmos, Grafos e Otimização",
+   "categoria": "Computação",
+   "descricao": "fundamentos da computação e resolução de problemas: estruturas de dados, análise de algoritmos, teoria dos grafos e otimização",
+   "disciplinas": [
+    "Estrutura de Dados",
+    "Análise de Algoritmos",
+    "Teoria dos Grafos",
+    "Matemática Discreta"
+   ]
+  },
+  {
+   "nome": "Engenharia de Software",
+   "categoria": "Computação",
+   "descricao": "processos e práticas para construir software de qualidade: requisitos, arquitetura de software, testes e DevOps",
+   "disciplinas": [
+    "Engenharia de Software",
+    "Programação Orientada a Objetos",
+    "Laboratório de Programação Orientada a Objeto",
+    "Engenharia de Software I"
+   ]
+  },
+  {
+   "nome": "Robótica",
+   "categoria": "Controle e Energia",
+   "descricao": "projeto e controle de robôs: manipuladores, robôs móveis, drones e manufatura automatizada",
+   "disciplinas": [
+    "Robótica",
+    "Introdução à Robótica",
+    "Laboratório de Robótica",
+    "Manufatura Integrada por Computador e Robótica"
+   ]
+  },
+  {
+   "nome": "Telecomunicações e Óptica",
+   "categoria": "Eletrônica",
+   "descricao": "transmissão de informação por sinais elétricos, ondas e luz: antenas, radiofrequência, micro-ondas e comunicações ópticas",
+   "disciplinas": [
+    "Eletromagnetismo",
+    "Telecomunicações II",
+    "Laboratório de Telecomunicações II"
+   ]
+  },
+  {
+   "nome": "Dados",
+   "categoria": "Computação",
+   "descricao": "armazenamento, processamento e análise de dados: bancos de dados, engenharia de dados e ciência de dados",
+   "disciplinas": [
+    "Banco de Dados",
+    "Laboratório de Banco de Dados",
+    "Banco de Dados para Automação",
+    "Metodologia Científica e Análise de Dados"
+   ]
+  }
+ ]
+}

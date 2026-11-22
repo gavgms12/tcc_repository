@@ -29,14 +29,23 @@ def baixar_modelos():
         snapshot_download(nome)
 
 
+if modal.is_local():
+    # Atualiza o catálogo estático do front (topicos.json) com os TOPICOS atuais antes de enviar os arquivos.
+    import sys
+
+    sys.path.insert(0, str(RAIZ))
+    from recuperacao.sistema_de_busca.catalogo import gerar_arquivo
+
+    gerar_arquivo()
+
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install_from_requirements(str(RAIZ / "requirements-busca.txt"))
     .pip_install("torch", "fastapi[standard]", "pandas>=2.2,<3", "python-dotenv>=1.0,<2", "huggingface_hub")
     .env({
         "HF_HOME": "/modelos",
-        # cache de scores do reranker: em disco local do container (some quando ele desliga)
-        "RERANK_CACHE_PATH": "/tmp/rerank_scores.sqlite",
+        # cache de scores do reranker: no volume "rerank-cache" (persiste entre containers e deploys)
+        "RERANK_CACHE_PATH": "/cache/rerank_scores.sqlite",
     })
     .run_function(baixar_modelos)
     # código por último: mudar o código não refaz o build dos modelos
@@ -51,11 +60,37 @@ app = modal.App("busca-orientadores", image=image)
 #   modal volume get buscas-log / recuperacao/output/buscas_log
 logs = modal.Volume.from_name("buscas-log", create_if_missing=True)
 
+# Disco persistente com o cache SQLite das notas do reranker. Preencher (na GPU do Modal) com:
+#   modal run recuperacao/modal_app.py::prerankear
+#   modal run recuperacao/modal_app.py::prerankear --args "--topicos 'Sistemas Embarcados' --modo partes"
+# Rodar de novo depois de reindexar ou de mudar tópicos/RERANK_CONSULTA (pares já salvos são pulados).
+cache_rerank = modal.Volume.from_name("rerank-cache", create_if_missing=True)
+
 
 @app.function(
     gpu="T4",
     secrets=[modal.Secret.from_name("qdrant")],
-    volumes={"/logs": logs},
+    volumes={"/cache": cache_rerank},
+    timeout=3 * 3600,
+)
+def prerankear(args: str = ""):
+    """Roda indexacao/prerankear.py no Modal e grava as notas no volume "rerank-cache"."""
+    import shlex
+    import sys
+
+    from recuperacao.sistema_de_busca.indexacao import prerankear as pre
+
+    sys.argv = ["prerankear", *shlex.split(args)]
+    try:
+        pre.main()
+    finally:
+        cache_rerank.commit()   # garante que o que foi calculado fica salvo, mesmo se interromper
+
+
+@app.function(
+    gpu="T4",
+    secrets=[modal.Secret.from_name("qdrant")],
+    volumes={"/logs": logs, "/cache": cache_rerank},
     env={"LOG_BUSCAS_DIR": "/logs"},
     scaledown_window=300,   # desliga após 5 min sem uso (não cobra parado). Próxima busca: cold start ~30-60s
     timeout=600,

@@ -229,11 +229,24 @@
   })();
 
   // ================================================================ temas
+  // Catálogo estático (topicos.json, ao lado do index.html) primeiro: aparece na hora, sem esperar
+  // a API acordar a GPU. Se o arquivo não existir (ex.: aberto como file://), cai na API.
+  async function buscarCatalogo() {
+    try {
+      const resp = await fetch("topicos.json", { cache: "no-cache" });
+      if (resp.ok) {
+        const dados = await resp.json();
+        if ((dados.detalhes || dados.topicos || []).length) return dados;
+      }
+    } catch (e) { /* sem arquivo estático: usa a API */ }
+    const resp = await fetch(`${API}/topicos`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  }
+
   async function carregarTemas() {
     try {
-      const resp = await fetch(`${API}/topicos`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const dados = await resp.json();
+      const dados = await buscarCatalogo();
       detalhesTemas = (dados.detalhes || (dados.topicos || []).map((nome) => ({ nome, categoria: "Temas" })))
         .map((t, i) => ({
           ...t,
@@ -998,5 +1011,13 @@
   atualizarTexto();
   atualizarOpcoes();
   atualizarSelecao();
+  // Acorda a API (GPU) na primeira interação com o questionário (clicar num tema, digitar, focar um campo):
+  // o cold start (~30-60 s) corre enquanto a pessoa escolhe, e quem só abre a página não liga a GPU.
+  // Uma vez só, sem esperar a resposta e sem erro na tela.
+  const acordarApi = () => {
+    ["pointerdown", "keydown", "focusin"].forEach((ev) => form.removeEventListener(ev, acordarApi));
+    fetch(`${API}/saude`, { cache: "no-store" }).catch(() => {});
+  };
+  ["pointerdown", "keydown", "focusin"].forEach((ev) => form.addEventListener(ev, acordarApi));
   carregarTemas();
 })();
