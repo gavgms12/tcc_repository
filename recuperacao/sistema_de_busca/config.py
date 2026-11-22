@@ -6,7 +6,10 @@ load_dotenv()
 
 EMBEDDING_MODEL = 'BAAI/bge-m3'
 RERANKER_MODEL  = 'BAAI/bge-reranker-v2-m3'
-VECTOR_SIZE     = 1024
+VECTOR_SIZE     = 1024   # dimensão do vetor denso: vem do modelo (hidden_size do BGE-M3), não é ajustável
+# Limite de tokens dos documentos na indexação (o BGE-M3 suporta até 8192; o padrão da biblioteca é 512).
+# 1024 cobre todos os itens medidos em indexacao/tokenizar.py. As consultas seguem no padrão (512).
+EMBEDDING_MAX_LENGTH = 1024
 
 # Cache em disco das notas do reranker (preenchido por indexacao/prerankear.py).
 # None desliga o cache em disco. A variável de ambiente RERANK_CACHE_PATH troca o caminho (usada no Colab).

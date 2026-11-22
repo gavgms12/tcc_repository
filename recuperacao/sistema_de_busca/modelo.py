@@ -1,5 +1,5 @@
 from FlagEmbedding import BGEM3FlagModel
-from recuperacao.sistema_de_busca.config import EMBEDDING_MODEL
+from recuperacao.sistema_de_busca.config import EMBEDDING_MODEL, EMBEDDING_MAX_LENGTH
 
 def carregar_modelo():
     return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True)
@@ -14,7 +14,7 @@ def gerar_embeddings(modelo, perfis: list[dict], batch_size: int = 16) -> dict[s
         batch_size=batch_size,
         return_dense=True,
         return_sparse=True,
-        
+        max_length=EMBEDDING_MAX_LENGTH,
     )
 
     return {
