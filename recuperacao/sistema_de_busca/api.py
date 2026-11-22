@@ -93,16 +93,8 @@ def criar_app(rec) -> FastAPI:
 
     @app.get("/topicos")
     def topicos():
-        detalhes = [
-            {
-                "nome": nome,
-                "categoria": (dados.get("categoria") if isinstance(dados, dict) else None) or "Outros",
-                "descricao": dados.get("descricao") if isinstance(dados, dict) else dados,
-                "disciplinas": config.disciplinas_topico(nome),
-            }
-            for nome, dados in config.TOPICOS.items()
-        ]
-        return {"topicos": list(config.TOPICOS), "detalhes": detalhes}
+        from recuperacao.sistema_de_busca.catalogo import catalogo_topicos
+        return catalogo_topicos()
 
     # front-end do questionário (recuperacao/frontend) no mesmo endereço da API
     if PASTA_FRONTEND.is_dir():

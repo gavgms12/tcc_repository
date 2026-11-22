@@ -481,7 +481,7 @@ FINAL_PROFESSOR_K = 15
 #   "top_m"      média dos UNIAO_TOPICOS_M melhores tópicos
 #   "decaimento" média ponderada com os pesos de UNIAO_TOPICOS_DECAIMENTO (ver DECAIMENTO);
 #                o melhor tópico pesa mais, mas a cobertura ainda conta
-UNIAO_TOPICOS = "media"
+UNIAO_TOPICOS = "decaimento"
 UNIAO_TOPICOS_M = 2
 UNIAO_TOPICOS_DECAIMENTO = "log"
 # Divide os scores de cada tópico pelo maior daquele tópico antes de unir (todo tópico passa a ter 1 no topo),
