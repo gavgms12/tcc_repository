@@ -30,7 +30,7 @@ Consome a camada **Gold** do pipeline (perfis dos docentes do IESTI) e recomenda
 
 | Componente | Escolha | Onde |
 |---|---|---|
-| Embedding | `BAAI/bge-m3` (denso 1024 + esparso aprendido, fp16) | [modelo.py](sistema_de_busca/modelo.py) |
+| Embedding | `BAAI/bge-m3` (denso 1024 + esparso aprendido, fp16; documentos até `EMBEDDING_MAX_LENGTH` = 1024 tokens, consultas até 512) | [modelo.py](sistema_de_busca/modelo.py) |
 | Reranker | `BAAI/bge-reranker-v2-m3` (*cross-encoder*, `max_length` 512, score normalizado em [0, 1]) | [busca/reranking.py](sistema_de_busca/busca/reranking.py) |
 | Banco vetorial | Qdrant (Cloud), vetores `dense` e `sparse` no mesmo ponto | [database_vetores.py](sistema_de_busca/database_vetores.py) |
 | Fusão | `Prefetch` denso + `Prefetch` esparso → `FusionQuery(Fusion.RRF)` | [database_vetores.py](sistema_de_busca/database_vetores.py) |
@@ -48,7 +48,9 @@ O índice HNSW usa os padrões do Qdrant: abaixo do limite de indexação a busc
 | `iniciacao_cientifica` | Trabalhos de IC |
 | `disciplina` | Disciplinas lecionadas (com ementa) |
 
-Itens com ano têm índice de payload em `ano` (filtro `ano_min` / `ano_max`).
+Itens com ano têm índice de payload em `ano` (filtro `ano_min` / `ano_max`). Nas disciplinas o ano é do par (professor, disciplina), a partir do `disciplinasPorAno` do perfil: só contam as que o professor lecionou no período, e nunca antes de `ANO_MINIMO_DISCIPLINAS` (2020), mesmo com o campo de ano vazio.
+
+Nos trabalhos de IC o texto enviado ao modelo é título → palavras-chave → resumo: se passar do limite de tokens, a truncagem corta o fim do resumo, e não as palavras-chave.
 
 ---
 
@@ -59,7 +61,7 @@ Itens com ano têm índice de payload em `ano` (filtro `ano_min` / `ano_max`).
 3. **Agregação** ([busca/agregacao.py](sistema_de_busca/busca/agregacao.py)): por professor, média ponderada dos `n` melhores itens de cada tipo (`DECAIMENTO = "log"`, como no nDCG), combinada pelos pesos de cada fonte (`peso_global`, `pesos_internos`) e pelo perfil (`PESO_PROFESSOR`).
 4. **Reranking** dos itens dos `FINAL_PROFESSOR_K` melhores professores. Com `RERANK_CONSULTA = "partes"`, cada item é comparado ao nome do tópico e a cada subtópico e fica com a maior nota. Itens abaixo de `MIN_RERANK_RELATIVO` do melhor do mesmo tipo são cortados.
 5. **Disciplinas do tema** ([busca/disciplinas_tema.py](sistema_de_busca/busca/disciplinas_tema.py)): quem leciona uma disciplina listada no tópico ganha `BONUS_DISCIPLINA_TEMA` (até o teto).
-6. **União dos tópicos** (`UNIAO_TOPICOS = "decaimento"`): o melhor tópico do professor pesa mais, mas a cobertura dos demais também conta.
+6. **União dos tópicos** (`UNIAO_TOPICOS = "media"`): média simples dos scores do professor em cada tópico. Também há `max`, `top_m` e `decaimento` (o melhor tópico pesa mais); na avaliação manual (26 consultas) `media` e `decaimento` empataram (diferença de nDCG@5 ≈ 0, p > 0,4).
 
 Todos os parâmetros ficam em [config.py](sistema_de_busca/config.py), comentados.
 
@@ -71,6 +73,7 @@ Todos os parâmetros ficam em [config.py](sistema_de_busca/config.py), comentado
 recuperacao/
 ├── modal_app.py                 deploy da API + front no Modal (GPU, link fixo)
 ├── frontend/                    questionário do aluno (HTML/JS/CSS), publicado também no GitHub Pages
+│   └── topicos.json             catálogo estático de temas (gerado por catalogo.py)
 ├── notebooks/
 │   ├── colab_api_busca.ipynb    API no Colab (GPU + link público)
 │   └── colab_avaliacao.ipynb    avaliação no Colab
@@ -79,6 +82,7 @@ recuperacao/
     ├── modelo.py                carrega o BGE-M3 e gera embeddings
     ├── database_vetores.py      conexão, criação de coleções, upsert e busca (híbrida/densa/esparsa)
     ├── textos.py                monta o texto de cada item enviado ao modelo
+    ├── catalogo.py              catálogo de tópicos (GET /topicos) e geração do frontend/topicos.json
     ├── api.py                   API FastAPI (/recomendar, /topicos, /saude, front em /app)
     ├── comparar_modos.py        compara RERANK_CONSULTA "nome" × "partes"
     ├── indexacao/
@@ -136,7 +140,14 @@ python -m recuperacao.sistema_de_busca.indexacao.prerankear --estimar          #
 python -m recuperacao.sistema_de_busca.indexacao.prerankear --topicos "Sistemas Embarcados" --modo partes
 ```
 
-Sem o cache, o reranker roda na hora (lento em CPU).
+Sem o cache, o reranker roda na hora (lento em CPU). É retomável (pares já salvos são pulados) e deve ser refeito depois de reindexar ou de mudar os tópicos ou o `RERANK_CONSULTA`. A chave do cache inclui o texto do item, então uma nota velha nunca é usada por engano. Textos livres não podem ser pré-calculados, mas a nota calculada na hora também fica salva.
+
+No Modal, o cache fica no volume persistente `rerank-cache` e é preenchido na GPU de lá:
+
+```bash
+modal run recuperacao/modal_app.py::prerankear                       # todos os temas
+modal run recuperacao/modal_app.py::prerankear --args "--estimar"    # só conta os pares
+```
 
 ### 3. Subir a API
 
@@ -153,12 +164,24 @@ Sobe em `http://localhost:8000` (docs em `/docs`, front em `/app`).
 | `POST /recomendar` | Corpo: `texto` e/ou `topicos` (até 5), `top_k`, `ano_min`, `ano_max`, `incluir_pre_ranking` |
 
 Outras formas de publicar:
-- **Modal** (GPU, link fixo): `modal deploy recuperacao/modal_app.py`. Instruções no topo de [modal_app.py](modal_app.py).
+- **Modal** (GPU, link fixo): `modal deploy recuperacao/modal_app.py`. Instruções no topo de [modal_app.py](modal_app.py). O container desliga após 5 min sem uso; o próximo acesso tem cold start de ~30-60 s.
 - **Colab** (GPU, link temporário): [notebooks/colab_api_busca.ipynb](notebooks/colab_api_busca.ipynb).
+
+Ordem ao atualizar o sistema: reindexar → `modal deploy` → `prerankear` no Modal.
+
+#### Buscas registradas
+No Modal, cada busca (pedido + resposta) é salva no volume `buscas-log`, um JSON por busca em pastas por dia (horário em UTC):
+
+```bash
+modal volume get buscas-log / recuperacao/output/buscas_log
+```
 
 ### 4. Front-end
 
 [frontend/](frontend/) escolhe a API automaticamente: mesmo endereço quando servido em `/app`, `localhost:8000` quando aberto como arquivo, a API do Modal no GitHub Pages, ou `?api=<url>` na URL. `?debug=1` mostra os scores brutos.
+
+- **Temas sem esperar a GPU:** o front lê primeiro o `topicos.json` estático e só usa `GET /topicos` se o arquivo não existir. O arquivo é regenerado a cada `modal deploy` e no workflow do GitHub Pages (que também roda quando o `config.py` muda). Para gerar à mão: `python -m recuperacao.sistema_de_busca.catalogo`.
+- **Aquecimento da GPU:** na primeira interação com o questionário (clique, digitação ou foco), o front chama `GET /saude` uma vez. O cold start acontece enquanto a pessoa escolhe os temas, e quem só abre a página não liga a GPU.
 
 ### 5. Avaliar
 
@@ -167,3 +190,14 @@ python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto tcc --n 150 
 ```
 
 Compara busca densa, esparsa e híbrida, cada uma sem e com reranking, nas mesmas consultas (título do TCC/IC → orientador real), com nDCG@k, MRR, Recall@k e Hit@1, e teste de Wilcoxon pareado contra a referência (híbrida + rerank). `--so-pre` avalia só o pré-ranking, sem carregar o reranker.
+
+Conjuntos (`--conjunto`): `tcc` e `ic` (título → orientador real; uma consulta = um texto livre) e `manual` ([consultas_manuais.json](sistema_de_busca/avaliacao/consultas_manuais.json): temas e/ou texto, com professores esperados em `alta` (ganho 2) e `media` (ganho 1)). Parâmetros que dependem de vários temas, como `UNIAO_TOPICOS`, só fazem diferença no conjunto `manual`.
+
+**Análise de sensibilidade** (`--variar`): muda um parâmetro por vez, mantendo os demais como em `config.py`. A configuração atual é a referência, e o resumo mostra as colunas `dif nDCG` e `dif MRR` com o Wilcoxon de cada variação.
+
+```bash
+python -m recuperacao.sistema_de_busca.avaliacao.avaliar --conjunto manual --modos hibrida \
+    --variar uniao=decaimento corte=0,0.05,0.2 peso_texto=1.0,1.5 pesos=iguais
+```
+
+Parâmetros: `corte`, `corte_por_tipo`, `rerank_consulta`, `final_k`, `peso_texto`, `bonus_disciplina`, `peso_professor`, `decaimento`, `uniao` e `pesos` (`documento` ou `iguais`). Os que só afetam o reranking são ignorados com `--so-pre`. No Colab ([colab_avaliacao.ipynb](notebooks/colab_avaliacao.ipynb)), use o campo `VARIAR`.
