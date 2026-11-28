@@ -59,6 +59,8 @@ PARAMETROS = {
     "corte":              ("MIN_RERANK_RELATIVO", float, True),
     "corte_por_tipo":     ("CORTE_POR_TIPO", _bool, True),
     "rerank_consulta":    ("RERANK_CONSULTA", str, True),
+    "fragmentos":         ("TEXTO_LIVRE_FRAGMENTOS", str, True),
+    "min_palavras":       ("TEXTO_LIVRE_MIN_PALAVRAS", int, True),
     "final_k":            ("FINAL_PROFESSOR_K", int, True),
     "peso_texto":         ("PESO_TEXTO_LIVRE", float, False),
     "bonus_disciplina":   ("BONUS_DISCIPLINA_TEMA", float, False),

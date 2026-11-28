@@ -110,7 +110,7 @@ def adicionar_disciplinas_tema(candidatos: list[dict], disciplinas: list[dict]) 
 
 
 _cache_scores: dict[tuple[str, str], float] = {}
-RERANK_MAX_LENGTH = 512
+
 estatisticas = {"pares_calculados": 0, "pares_do_disco": 0}   # modelo x lidos do cache em disco
 
 
@@ -137,8 +137,16 @@ def partes_texto_livre(texto: str) -> list[str]:
     limpo = re.sub(r"\s+", " ", limpo).strip(" ,.;:")
     if len(limpo) <= 2:
         limpo = texto.strip()
+    modo = config.TEXTO_LIVRE_FRAGMENTOS
+    if modo == "inteiro":
+        return [limpo]
+    if modo not in ("todos", "filtrado"):
+        raise ValueError(f"TEXTO_LIVRE_FRAGMENTOS inválido: {modo!r} (use todos, filtrado ou inteiro)")
     partes = [p.strip(" ,.;:") for p in re.split(r"[;.,\n]|\s+e\s+|\s+ou\s+|\s+/\s+", limpo)]
     partes = [p for p in partes if len(p) > 2]
+    if modo == "filtrado":
+        # fragmentos curtos ("modelo", "iot") são genéricos e, com a nota máxima, puxam itens fora do tema
+        partes = [p for p in partes if len(p.split()) >= config.TEXTO_LIVRE_MIN_PALAVRAS]
     return list(dict.fromkeys([limpo] + partes))
 
 
@@ -176,7 +184,7 @@ def calcular_scores(reranker, pares: list[tuple[str, str]]) -> None:
 
     disco = cache_disco()
     if disco is not None:
-        chaves = {p: chave(p[0], p[1], RERANK_MAX_LENGTH) for p in faltando}
+        chaves = {p: chave(p[0], p[1], config.RERANK_MAX_LENGTH) for p in faltando}
         achados = disco.buscar(list(chaves.values()))
         for p, k in chaves.items():
             if k in achados:
@@ -188,14 +196,14 @@ def calcular_scores(reranker, pares: list[tuple[str, str]]) -> None:
 
     if reranker is None:
         raise ValueError(f"{len(faltando)} par(es) sem nota no cache e nenhum reranker carregado")
-    scores = reranker.compute_score(faltando, batch_size=16, max_length=RERANK_MAX_LENGTH, normalize=True)
+    scores = reranker.compute_score(faltando, batch_size=16, max_length=config.RERANK_MAX_LENGTH, normalize=True)
     if scores is None:
         raise ValueError("O reranker não retornou scores")
     scores = [float(s) for s in np.atleast_1d(scores)]
     _cache_scores.update(zip(faltando, scores, strict=True))
     estatisticas["pares_calculados"] += len(faltando)
     if disco is not None:
-        disco.salvar({chave(q, t, RERANK_MAX_LENGTH): s for (q, t), s in zip(faltando, scores)})
+        disco.salvar({chave(q, t, config.RERANK_MAX_LENGTH): s for (q, t), s in zip(faltando, scores)})
 
 
 def pontuar_candidatos(reranker, consultas: str | list[str], candidatos: list[dict]) -> list[dict]:

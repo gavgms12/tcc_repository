@@ -10,6 +10,10 @@ VECTOR_SIZE     = 1024   # dimensão do vetor denso: vem do modelo (hidden_size 
 # Limite de tokens dos documentos na indexação (o BGE-M3 suporta até 8192; o padrão da biblioteca é 512).
 # 1024 cobre todos os itens medidos em indexacao/tokenizar.py. As consultas seguem no padrão (512).
 EMBEDDING_MAX_LENGTH = 1024
+# Limite de tokens do reranker para o PAR (consulta + item); com truncation='only_second' só o item é cortado.
+# 1024 cobre os itens mais longos (ICs) mesmo com um texto livre grande (~350 tokens para 2000 caracteres).
+# Faz parte da chave do cache do reranker: ao mudar, rodar indexacao/prerankear.py de novo.
+RERANK_MAX_LENGTH = 1024
 
 # Cache em disco das notas do reranker (preenchido por indexacao/prerankear.py).
 # None desliga o cache em disco. A variável de ambiente RERANK_CACHE_PATH troca o caminho (usada no Colab).
@@ -72,6 +76,14 @@ BONUS_DISCIPLINA_TEMA_MAX = 0.10
 #   "nome"   -> só o nome do tópico (ex.: "grafos")
 #   "partes" -> nome + cada parte da ementa separada; o item fica com o MAIOR score
 RERANK_CONSULTA = "partes"
+
+# Como o TEXTO LIVRE do aluno vira consultas do reranker no modo "partes" (os temas do catálogo não mudam).
+# O texto inteiro sempre entra; a diferença está nos fragmentos (quebrados em , ; . "e" "ou"):
+#   "todos"    -> todos os fragmentos (comportamento antigo)
+#   "filtrado" -> só fragmentos com pelo menos TEXTO_LIVRE_MIN_PALAVRAS palavras
+#   "inteiro"  -> sem fragmentos, só o texto inteiro
+TEXTO_LIVRE_FRAGMENTOS = "todos"
+TEXTO_LIVRE_MIN_PALAVRAS = 2
 
 COLLECTION_DISCIPLINAS = "disciplina"
 COLLECTION_PROFESSORES = "perfil_professores"

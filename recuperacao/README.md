@@ -31,7 +31,7 @@ Consome a camada **Gold** do pipeline (perfis dos docentes do IESTI) e recomenda
 | Componente | Escolha | Onde |
 |---|---|---|
 | Embedding | `BAAI/bge-m3` (denso 1024 + esparso aprendido, fp16; documentos até `EMBEDDING_MAX_LENGTH` = 1024 tokens, consultas até 512) | [modelo.py](sistema_de_busca/modelo.py) |
-| Reranker | `BAAI/bge-reranker-v2-m3` (*cross-encoder*, `max_length` 512, score normalizado em [0, 1]) | [busca/reranking.py](sistema_de_busca/busca/reranking.py) |
+| Reranker | `BAAI/bge-reranker-v2-m3` (*cross-encoder*, `RERANK_MAX_LENGTH` = 1024 tokens para o par consulta + item, score normalizado em [0, 1]) | [busca/reranking.py](sistema_de_busca/busca/reranking.py) |
 | Banco vetorial | Qdrant (Cloud), vetores `dense` e `sparse` no mesmo ponto | [database_vetores.py](sistema_de_busca/database_vetores.py) |
 | Fusão | `Prefetch` denso + `Prefetch` esparso → `FusionQuery(Fusion.RRF)` | [database_vetores.py](sistema_de_busca/database_vetores.py) |
 

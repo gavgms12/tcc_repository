@@ -94,7 +94,7 @@ def main() -> None:
         print(f"\n{t}: {len(consultas)} consulta(s)")
         for tipo in args.tipos:   # perfis primeiro: são os mais caros e sempre usados
             pares = [(q, txt) for q in consultas for txt in textos[t][tipo]]
-            chaves = [chave(q, txt, reranking.RERANK_MAX_LENGTH) for q, txt in pares]
+            chaves = [chave(q, txt, config.RERANK_MAX_LENGTH) for q, txt in pares]
             salvos = disco.buscar(chaves)
             faltam = [p for p, k in zip(pares, chaves) if k not in salvos]
             print(f"  {tipo:<11} {len(textos[t][tipo]):>5} textos | {len(pares):>6} pares | faltam {len(faltam):>6}")
